@@ -67,6 +67,12 @@ export function ContextEditor({ block, onChange }: BlockEditorProps<ContextBlock
         help="Shown in a horizontal row, usually as footnote-style content. Slack supports up to 10 items."
       >
         <div className="flex flex-col gap-2">
+          {elements.length === 0 ? (
+            <p className="rounded-md border border-dashed bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+              No items yet — a context block needs at least one. Add text or an image below, or delete the block if you
+              don't need it.
+            </p>
+          ) : null}
           {elements.map((el, idx) => {
             if (el.type === 'mrkdwn' || el.type === 'plain_text') {
               return (
