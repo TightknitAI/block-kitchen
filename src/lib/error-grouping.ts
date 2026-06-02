@@ -24,38 +24,70 @@ export function toValidatorSurface(surface: PreviewSurface): Surface {
 }
 
 /**
- * Returns the leading `/N/...` path segment from a JSON-pointer-style
- * instance path as a numeric block index, or null if the path doesn't
- * start with one.
- * @param path - a JSON-pointer style path from the validator
- * @returns the index, or null when the path is general or malformed
+ * Leading path token in a validator message that scopes the error to a
+ * single block, e.g. `blocks[2]`, `blocks[2].elements`, `blocks[0].type`.
+ * `@tightknitai/slack-block-kit-validator` (>= 0.1.x) emits dot/bracket
+ * paths like `blocks[1].elements: fewer than 1 items`; cross-block caveat
+ * helpers use a bare space (`blocks[1].block_id must be unique — ...`).
+ * The capture group is the zero-based block index.
  */
-function extractBlockIndex(path: string): number | null {
-  if (!path || path === '(root)') {
-    return null;
-  }
-  const match = /^\/(\d+)(?:\/|$)/.exec(path);
-  if (!match) {
-    return null;
-  }
-  return Number.parseInt(match[1], 10);
+const BLOCK_PREFIX = /^blocks\[(\d+)\]/;
+
+/**
+ * Returns the block index a validator message is scoped to, or null when the
+ * message isn't rooted at a specific `blocks[N]` entry (root errors, the
+ * blocks-array-itself errors a view envelope can raise, etc).
+ * @param raw - a single error string from `validateBlockKit`
+ * @returns the zero-based block index, or null
+ */
+function extractBlockIndex(raw: string): number | null {
+  const match = BLOCK_PREFIX.exec(raw);
+  return match ? Number.parseInt(match[1], 10) : null;
 }
 
 /**
- * Strips the leading `/N` segment from an instance path so the message
- * shown next to a block doesn't redundantly repeat the block index.
- * @param path - the original instance path
- * @returns the path without the leading `/N` segment
+ * Strips the `blocks[N]` prefix from a block-scoped message so the text
+ * shown next to a block doesn't redundantly repeat the block index, keeping
+ * any sub-path as useful context.
+ *
+ * - `blocks[1].elements: fewer than 1 items` → `elements: fewer than 1 items`
+ * - `blocks[0]: missing required property 'text'` → `missing required property 'text'`
+ * - `blocks[1].block_id must be unique — …` → `block_id must be unique — …`
+ *
+ * @param raw - the original block-scoped error string
+ * @returns the message without its leading `blocks[N]` prefix
  */
-function stripBlockPrefix(path: string): string {
-  return path.replace(/^\/\d+/, '') || '(root)';
+function toBlockMessage(raw: string): string {
+  const rest = raw.replace(BLOCK_PREFIX, '');
+  // Block-root errors read `blocks[N]: <message>` — drop the orphaned colon
+  // so we're left with just the message.
+  if (rest.startsWith(':')) {
+    return rest.replace(/^:\s*/, '');
+  }
+  // Sub-path errors keep the path as context; drop only the joining dot
+  // (`.elements` → `elements`), leaving bracket indices (`[0]`) intact.
+  return rest.replace(/^\./, '');
 }
 
 /**
- * Splits a flat array of validator error strings (each in the form
- * "<instancePath> <message>") into per-block buckets keyed by the
- * matching {@link BuilderBlock.id}, plus a general bucket for anything
- * not tied to a single block.
+ * Lightly cleans a non-block-scoped message for display, dropping the
+ * `(root)` sentinel the validator uses for top-level issues.
+ * @param raw - the original general error string
+ * @returns the cleaned message
+ */
+function toGeneralMessage(raw: string): string {
+  return raw.startsWith('(root)') ? raw.replace(/^\(root\):?\s*/, '') : raw;
+}
+
+/**
+ * Splits a flat array of validator error strings into per-block buckets
+ * keyed by the matching {@link BuilderBlock.id}, plus a general bucket for
+ * anything not tied to a single block.
+ *
+ * Pairs with `@tightknitai/slack-block-kit-validator` >= 0.1.x, which
+ * collapses the AJV `oneOf` cascade (one structural mistake no longer yields
+ * ~25 branch errors) and emits `blocks[N]...`-rooted paths. The exact path
+ * shape is pinned by `error-grouping.test.ts`.
  * @param errors - flat error list from `validateBlockKit`
  * @param blocks - the builder blocks in the same order as the validated payload
  * @returns the grouped error buckets
@@ -65,37 +97,17 @@ export function groupValidatorErrors(errors: readonly string[], blocks: readonly
   const general: string[] = [];
 
   for (const raw of errors) {
-    // Validator emits "<path> <message>". Path may be "(root)" or "/0/..." etc.
-    const space = raw.indexOf(' ');
-    const path = space === -1 ? '(root)' : raw.slice(0, space);
-    const message = space === -1 ? raw : raw.slice(space + 1);
-
-    const idx = extractBlockIndex(path);
+    const idx = extractBlockIndex(raw);
     if (idx === null || idx >= blocks.length) {
-      general.push(raw);
+      general.push(toGeneralMessage(raw));
       continue;
     }
 
     const id = blocks[idx].id;
-    const friendly = formatMessage(stripBlockPrefix(path), message);
     const bucket = byBlockId.get(id) ?? [];
-    bucket.push(friendly);
+    bucket.push(toBlockMessage(raw));
     byBlockId.set(id, bucket);
   }
 
   return { byBlockId, general, total: errors.length };
-}
-
-/**
- * Lightly humanizes a validator message by prepending the relative path
- * when it adds useful context.
- * @param relativePath - the path within a block
- * @param message - the validator's message
- * @returns a single-line user-facing message
- */
-function formatMessage(relativePath: string, message: string): string {
-  if (relativePath === '' || relativePath === '(root)') {
-    return message;
-  }
-  return `${relativePath}: ${message}`;
 }
