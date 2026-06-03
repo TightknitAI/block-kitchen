@@ -1,7 +1,9 @@
+import { useRef } from 'react';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import type { HeaderLevel, SupportedHeaderBlock } from '../../types';
+import { EmojiTextInsertButton } from '../emoji/emoji-text-insert-button';
 import { EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
@@ -21,6 +23,8 @@ export function HeaderEditor({ block, onChange }: BlockEditorProps<SupportedHead
   const text = block.text?.text ?? '';
   const remaining = HEADER_MAX - text.length;
   const level = block.level;
+  const inputRef = useRef<HTMLInputElement>(null);
+  const setText = (next: string) => onChange({ ...block, text: { type: 'plain_text', text: next, emoji: true } });
   return (
     <div className="flex flex-col gap-3">
       <EditorField
@@ -28,22 +32,17 @@ export function HeaderEditor({ block, onChange }: BlockEditorProps<SupportedHead
         help={`Plain text only. ${remaining} characters remaining.`}
         htmlFor="header-text"
       >
-        <Input
-          id="header-text"
-          value={text}
-          maxLength={HEADER_MAX}
-          placeholder="e.g. Weekly roundup"
-          onChange={(e) =>
-            onChange({
-              ...block,
-              text: {
-                type: 'plain_text',
-                text: e.target.value,
-                emoji: true
-              }
-            })
-          }
-        />
+        <div className="flex items-center gap-1.5">
+          <Input
+            ref={inputRef}
+            id="header-text"
+            value={text}
+            maxLength={HEADER_MAX}
+            placeholder="e.g. Weekly roundup"
+            onChange={(e) => setText(e.target.value)}
+          />
+          <EmojiTextInsertButton targetRef={inputRef} value={text} onChange={setText} className="shrink-0 border" />
+        </div>
       </EditorField>
       <EditorField label="Level" help="Optional. Builder-only extension; Slack's API ignores this value.">
         <RadioGroup

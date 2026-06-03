@@ -30,7 +30,7 @@ const SUPPORTED_BLOCK_KINDS = new Set([
   'rich_text_preformatted'
 ]);
 
-const SUPPORTED_INLINE_KINDS = new Set(['text', 'link']);
+const SUPPORTED_INLINE_KINDS = new Set(['text', 'link', 'emoji']);
 
 const SUPPORTED_TEXT_STYLE_KEYS = new Set(['bold', 'italic', 'strike', 'code']);
 
@@ -42,9 +42,9 @@ const MAX_LIST_INDENT = 8;
 
 /**
  * Reasons a Slack rich_text payload can't round-trip cleanly through the
- * TipTap WYSIWYG (paragraphs, lists, blockquote, code block, plus
+ * TipTap WYSIWYG (paragraphs, lists, blockquote, code block, emoji, plus
  * bold/italic/strike/code marks and links). Anything else (mentions,
- * broadcasts, emoji, list indent, etc.) ends up in this list so the UI
+ * broadcasts, list indent, etc.) ends up in this list so the UI
  * can offer the structured editor instead.
  */
 export interface LossyReason {
@@ -112,14 +112,49 @@ function scanInlines(inlines: AnyRichTextSectionElement[], where: string, out: L
   });
 }
 
+/** The Slack emoji element shape we read on import. */
+interface SlackEmojiElement {
+  type: 'emoji';
+  name?: string;
+  unicode?: string;
+  skin_tone?: number;
+}
+
+/**
+ * Resolves the render-only attributes (`src`, `unicode`) of a Slack emoji
+ * element when importing into the WYSIWYG. Lets the editor inject a custom
+ * emoji image (from `customEmojis`) and a glyph codepoint (from
+ * `emoji-datasource`) without this module depending on either. Optional: when
+ * omitted, emoji carry only what the payload already specifies.
+ * @param el - the Slack emoji element
+ * @returns the PM emoji node attrs
+ */
+export type EmojiImportResolver = (el: SlackEmojiElement) => {
+  name: string;
+  src: string | null;
+  unicode: string | null;
+  skinTone: number | null;
+};
+
+const defaultEmojiResolver: EmojiImportResolver = (el) => ({
+  name: el.name ?? '',
+  src: null,
+  unicode: el.unicode ?? null,
+  skinTone: el.skin_tone ?? null
+});
+
 /**
  * Converts a Slack rich_text block to a TipTap-compatible ProseMirror
  * `doc` node. Anything not in {@link detectLossy}'s supported set is
  * dropped (callers should pre-flight with `detectLossy`).
  * @param block - the rich_text block to convert
+ * @param resolveEmoji - optional resolver for emoji `src` / `unicode`
  * @returns a ProseMirror `doc` node
  */
-export function richTextToProseMirror(block: RichTextBlock): PMNode {
+export function richTextToProseMirror(
+  block: RichTextBlock,
+  resolveEmoji: EmojiImportResolver = defaultEmojiResolver
+): PMNode {
   const content: PMNode[] = [];
   // Track the most-recent list at each indent level so we can append
   // sibling rich_text_list elements with the same indent and nest deeper
@@ -128,11 +163,11 @@ export function richTextToProseMirror(block: RichTextBlock): PMNode {
 
   for (const el of block.elements ?? []) {
     if (el.type === 'rich_text_list') {
-      appendRichTextList(el, content, listsByIndent);
+      appendRichTextList(el, content, listsByIndent, resolveEmoji);
       continue;
     }
     listsByIndent.clear();
-    const node = blockElementToPM(el);
+    const node = blockElementToPM(el, resolveEmoji);
     if (node) {
       content.push(node);
     }
@@ -154,13 +189,14 @@ export function richTextToProseMirror(block: RichTextBlock): PMNode {
 function appendRichTextList(
   el: Extract<AnyRichTextBlockElement, { type: 'rich_text_list' }>,
   topLevel: PMNode[],
-  listsByIndent: Map<number, PMNode>
+  listsByIndent: Map<number, PMNode>,
+  resolveEmoji: EmojiImportResolver
 ) {
   const indent = el.indent ?? 0;
   const listType = el.style === 'ordered' ? 'orderedList' : 'bulletList';
   const items: PMNode[] = (el.elements ?? []).map((section) => ({
     type: 'listItem',
-    content: [{ type: 'paragraph', content: inlinesToPM(section.elements ?? []) }]
+    content: [{ type: 'paragraph', content: inlinesToPM(section.elements ?? [], resolveEmoji) }]
   }));
 
   // Drop any deeper-indent lists from the running map; we've left them.
@@ -199,11 +235,11 @@ function appendRichTextList(
  * @param el - the Slack rich_text block element
  * @returns the corresponding ProseMirror node, or null for list elements
  */
-function blockElementToPM(el: AnyRichTextBlockElement): PMNode | null {
+function blockElementToPM(el: AnyRichTextBlockElement, resolveEmoji: EmojiImportResolver): PMNode | null {
   if (el.type === 'rich_text_section') {
     return {
       type: 'paragraph',
-      content: inlinesToPM(el.elements ?? [])
+      content: inlinesToPM(el.elements ?? [], resolveEmoji)
     };
   }
   if (el.type === 'rich_text_quote') {
@@ -212,7 +248,7 @@ function blockElementToPM(el: AnyRichTextBlockElement): PMNode | null {
       content: [
         {
           type: 'paragraph',
-          content: inlinesToPM(el.elements ?? [])
+          content: inlinesToPM(el.elements ?? [], resolveEmoji)
         }
       ]
     };
@@ -234,9 +270,10 @@ function blockElementToPM(el: AnyRichTextBlockElement): PMNode | null {
  * Converts Slack inline section elements (text, link) to ProseMirror text
  * nodes with the appropriate marks. Unsupported types are silently dropped.
  * @param inlines - inline elements from a section, quote, or list item
+ * @param resolveEmoji - resolver for emoji `src` / `unicode`
  * @returns the corresponding ProseMirror text nodes
  */
-function inlinesToPM(inlines: AnyRichTextSectionElement[]): PMNode[] {
+function inlinesToPM(inlines: AnyRichTextSectionElement[], resolveEmoji: EmojiImportResolver): PMNode[] {
   const out: PMNode[] = [];
   for (const inline of inlines) {
     if (inline.type === 'text') {
@@ -245,6 +282,12 @@ function inlinesToPM(inlines: AnyRichTextSectionElement[]): PMNode[] {
       }
       const marks = styleToMarks(inline.style);
       out.push({ type: 'text', text: inline.text, marks });
+    } else if (inline.type === 'emoji') {
+      const attrs = resolveEmoji(inline as SlackEmojiElement);
+      if (!attrs.name) {
+        continue;
+      }
+      out.push({ type: 'emoji', attrs });
     } else if (inline.type === 'link') {
       const link = inline as RichTextSectionLink;
       const text = link.text || link.url || '';
@@ -410,6 +453,21 @@ function flattenList(listNode: PMNode, indent: number, out: AnyRichTextBlockElem
 function proseMirrorInlinesToRichTextElements(nodes: PMNode[]): AnyRichTextSectionElement[] {
   const out: AnyRichTextSectionElement[] = [];
   for (const node of nodes) {
+    if (node.type === 'emoji') {
+      const name = String(node.attrs?.name ?? '');
+      if (!name) {
+        continue;
+      }
+      // Export keeps only Slack's fields: `name` (+ `skin_tone`). The
+      // render-only `src` / `unicode` attrs are intentionally dropped.
+      const emoji: AnyRichTextSectionElement = { type: 'emoji', name };
+      const skinTone = node.attrs?.skinTone;
+      if (typeof skinTone === 'number' && skinTone >= 2 && skinTone <= 6) {
+        (emoji as { skin_tone?: number }).skin_tone = skinTone;
+      }
+      out.push(emoji);
+      continue;
+    }
     if (node.type !== 'text' || !node.text) {
       continue;
     }

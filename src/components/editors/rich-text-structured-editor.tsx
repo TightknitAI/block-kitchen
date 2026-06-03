@@ -17,6 +17,7 @@ import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { isSafeHref } from '../../lib/url-safety';
+import { EmojiPickerButton } from '../emoji/emoji-picker-button';
 import { EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
@@ -501,15 +502,27 @@ function InlineFields({
   }
 
   if (kind === 'emoji') {
-    const emoji = element as { type: 'emoji'; name?: string };
+    const emoji = element as { type: 'emoji'; name?: string; skin_tone?: number };
     return (
-      <EditorField label="Name" help="Emoji shortcode without colons, e.g. wave" htmlFor={`${idPrefix}-emoji`}>
-        <Input
-          id={`${idPrefix}-emoji`}
-          value={emoji.name ?? ''}
-          placeholder="e.g. wave"
-          onChange={(e) => onChange({ ...emoji, name: e.target.value })}
-        />
+      <EditorField
+        label="Name"
+        help="Pick from the emoji list, or type a shortcode (without colons)."
+        htmlFor={`${idPrefix}-emoji`}
+      >
+        <div className="flex items-center gap-1.5">
+          <Input
+            id={`${idPrefix}-emoji`}
+            value={emoji.name ?? ''}
+            placeholder="e.g. wave"
+            onChange={(e) => onChange({ ...emoji, name: e.target.value })}
+          />
+          <EmojiPickerButton
+            align="end"
+            label="Pick emoji"
+            className="shrink-0 border"
+            onSelect={(sel) => onChange({ ...emoji, name: sel.name, skin_tone: sel.skinTone ?? undefined })}
+          />
+        </div>
       </EditorField>
     );
   }

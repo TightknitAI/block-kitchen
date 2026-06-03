@@ -1,8 +1,10 @@
+import { useRef } from 'react';
 import type { ImageElement, SectionBlock, Button as SlackButton } from 'slack-web-api-client';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { Textarea } from '../../lib/ui/textarea';
+import { EmojiTextInsertButton } from '../emoji/emoji-text-insert-button';
 import { EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
@@ -69,6 +71,8 @@ function defaultImage(): ImageElement {
 export function SectionEditor({ block, onChange }: BlockEditorProps<SectionBlock>) {
   const text = block.text?.text ?? '';
   const accessoryKind = detectAccessory(block.accessory);
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const setText = (next: string) => onChange({ ...block, text: { type: 'mrkdwn', text: next } });
 
   const setAccessoryKind = (next: AccessoryKind) => {
     if (next === accessoryKind) {
@@ -94,18 +98,17 @@ export function SectionEditor({ block, onChange }: BlockEditorProps<SectionBlock
         help="Supports *bold*, _italic_, ~strike~, `code`, and <url|link> formatting."
         htmlFor="section-text"
       >
-        <Textarea
-          id="section-text"
-          value={text}
-          rows={4}
-          placeholder="e.g. Welcome to the channel! Ping <@U123> with any questions."
-          onChange={(e) =>
-            onChange({
-              ...block,
-              text: { type: 'mrkdwn', text: e.target.value }
-            })
-          }
-        />
+        <div className="flex items-start gap-1.5">
+          <Textarea
+            ref={textRef}
+            id="section-text"
+            value={text}
+            rows={4}
+            placeholder="e.g. Welcome to the channel! Ping <@U123> with any questions."
+            onChange={(e) => setText(e.target.value)}
+          />
+          <EmojiTextInsertButton targetRef={textRef} value={text} onChange={setText} className="mt-1 shrink-0 border" />
+        </div>
       </EditorField>
 
       <div className="flex flex-col gap-3 rounded-md border bg-muted/20 p-3">
@@ -166,21 +169,22 @@ function ButtonAccessoryFields({ button, onChange }: { button: SlackButton; onCh
   const url = button.url ?? '';
   const value = button.value ?? '';
   const style: ButtonStyle = button.style === 'primary' || button.style === 'danger' ? button.style : 'default';
+  const labelRef = useRef<HTMLInputElement>(null);
+  const setLabel = (next: string) => onChange({ ...button, text: { type: 'plain_text', text: next, emoji: true } });
 
   return (
     <div className="flex flex-col gap-3">
       <EditorField label="Label" htmlFor="section-acc-btn-label">
-        <Input
-          id="section-acc-btn-label"
-          value={label}
-          placeholder="e.g. Learn more"
-          onChange={(e) =>
-            onChange({
-              ...button,
-              text: { type: 'plain_text', text: e.target.value, emoji: true }
-            })
-          }
-        />
+        <div className="flex items-center gap-1.5">
+          <Input
+            ref={labelRef}
+            id="section-acc-btn-label"
+            value={label}
+            placeholder="e.g. Learn more"
+            onChange={(e) => setLabel(e.target.value)}
+          />
+          <EmojiTextInsertButton targetRef={labelRef} value={label} onChange={setLabel} className="shrink-0 border" />
+        </div>
       </EditorField>
       <EditorField
         label="Link URL"

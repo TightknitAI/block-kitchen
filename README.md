@@ -186,6 +186,12 @@ import type {
 
 The builder is frontend-only. For a full app that handles OAuth, channel listing, and `chat.postMessage`, see [block-kitchen-template](https://github.com/TightknitAI/block-kitchen-template) — a Vite + React SPA on Cloudflare Workers that wires this package to [slack-hono](https://github.com/TightknitAI/slack-hono) on the backend.
 
+## Emoji
+
+A searchable emoji picker (search, categories, skin tone, recents) is built into the rich-text WYSIWYG and structured editors and the section / header / markdown / button-label fields. The standard set is sourced from [`emoji-datasource`](https://www.npmjs.com/package/emoji-datasource) — the same iamcal codenames Slack recognizes — and resolved by Unicode codepoint, so inserted emoji round-trip to Slack without becoming blank `:name:` text. Skin-toned emoji emit Slack's `skin_tone` (rich text) / `:name::skin-tone-N:` (plain/mrkdwn) shape. The dataset is loaded lazily the first time a picker opens, so it doesn't add to the initial bundle.
+
+Pass [`customEmojis`](#props) to add your workspace's custom emoji: image entries appear as the picker's **Custom** category and render in the preview; alias entries fall back to their target. Custom emoji never block Send — Slack accepts unknown emoji names, so they're excluded from validation. The emitted Block Kit JSON is unchanged whether or not `customEmojis` is passed.
+
 ## Validation
 
 Defense-in-depth: blocks are validated against [slack-block-kit-validator](https://github.com/TightknitAI/slack-block-kit-validator) before send. Issues are surfaced in the issues sheet with line numbers — users can fix them inline before posting.
