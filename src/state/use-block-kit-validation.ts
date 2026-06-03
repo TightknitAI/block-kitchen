@@ -2,6 +2,7 @@ import { validateBlockKit } from '@tightknitai/slack-block-kit-validator';
 import { useEffect, useRef, useState } from 'react';
 import { type GroupedErrors, groupValidatorErrors, toValidatorSurface } from '../lib/error-grouping';
 import { toSlackBlocks } from '../lib/to-slack-blocks';
+import { stripCustomEmojiForValidation } from '../lib/validation-sanitize';
 import type { BuilderBlock, PreviewSurface } from '../types';
 
 /**
@@ -24,7 +25,10 @@ export interface ValidationState extends GroupedErrors {
  * given preview surface. Pure; safe to call during render.
  */
 function computeValidation(blocks: BuilderBlock[], surface: PreviewSurface): ValidationState {
-  const payload = toSlackBlocks(blocks.map((b) => b.block));
+  // Rewrite custom / unknown emoji names to a known-valid placeholder in the
+  // validation copy only, so they don't inflate `total` → disable Send. The
+  // real payload (preview / JSON / Send) keeps the true names.
+  const payload = stripCustomEmojiForValidation(toSlackBlocks(blocks.map((b) => b.block)));
   const result = validateBlockKit(payload, {
     target: 'blocks',
     surface: toValidatorSurface(surface)

@@ -360,6 +360,27 @@ export interface SendResult {
 }
 
 /**
+ * A workspace custom emoji as configured in Slack. Mirrors the shape Slack's
+ * `emoji.list` API returns once normalized:
+ *
+ * - `name` — the codename used between colons (`:partyparrot:` → `partyparrot`).
+ * - `url` — the hosted image for a true custom emoji, or `null` when the entry
+ *   is an alias of another emoji (standard or custom).
+ * - `alias` — the target codename when this entry aliases another emoji, or
+ *   `null` for a first-class image emoji.
+ *
+ * Passed to {@link BlockKitchenProps.customEmojis} so the preview can render
+ * `:custom:` as the workspace image (and resolve aliases). The prop is
+ * preview/picker-only — these fields are never serialized into the emitted
+ * Block Kit JSON.
+ */
+export interface CustomEmoji {
+  name: string;
+  url: string | null;
+  alias: string | null;
+}
+
+/**
  * Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` so the consumer can
  * resolve user mentions, channel mentions, custom emojis, and links to
  * application-specific UI. See the upstream library for the full hook shape.
@@ -441,6 +462,17 @@ export interface BlockKitchenProps {
    * directives render with the library's defaults.
    */
   previewHooks?: PreviewHooks;
+  /**
+   * Workspace custom emoji (`emoji.list`) the preview should resolve. Entries
+   * with a non-null `url` render as the workspace image; alias entries fall
+   * back to their target emoji. Optional and backward compatible: when omitted,
+   * `:custom:` directives render with the library's defaults.
+   *
+   * Provided to the builder tree via context so editors can offer a custom
+   * emoji category without prop-drilling. The prop only affects rendering — it
+   * is never serialized into the emitted Block Kit JSON.
+   */
+  customEmojis?: CustomEmoji[];
   /**
    * Returns channels available to send to. Called when the send dialog opens.
    */
