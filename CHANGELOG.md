@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.8.4](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.3...block-kitchen-v0.8.4) (2026-06-04)
+
+
+### Features
+
+* add emoji picker and rich-text emoji support ([89f0ac8](https://github.com/TightknitAI/block-kitchen/commit/89f0ac8ff4516f826d9f4bdced51dffa74dd272c))
+* **emoji:** customEmojis prop, preview hook, non-blocking validation (ENG-4792 Phase 1) ([870c01d](https://github.com/TightknitAI/block-kitchen/commit/870c01d6290f32d1df8739725174d6bb2075aa52))
+* **emoji:** emoji picker + WYSIWYG emoji node (ENG-4792 Phase 2) ([8dc1e65](https://github.com/TightknitAI/block-kitchen/commit/8dc1e65ad6f7d9dc077e50132f0d41e95d291e66))
+
+
+### Bug Fixes
+
+* collapse context-block validation error cascade ([#88](https://github.com/TightknitAI/block-kitchen/issues/88)) ([9f696c4](https://github.com/TightknitAI/block-kitchen/commit/9f696c4cd9845d28a0cbe569d49ce754e2b8c19d))
+* **emoji:** clear stale unicode on structured-editor pick; copy-on-write validation sanitizer ([bf7e71d](https://github.com/TightknitAI/block-kitchen/commit/bf7e71d2957ef5a1e32501f204a7995087eaeaf6))
+
 ## [0.8.3](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.2...block-kitchen-v0.8.3) (2026-05-20)
 
 
