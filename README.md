@@ -109,6 +109,7 @@ export function MyBuilderPage() {
 | `loadSendAsUserStatus` | `() => Promise<{ canSendAsUser: boolean; oauthUrl?: string }>` | yes | Whether the current user has a Slack user-token and can post as themselves. If `canSendAsUser` is false, `oauthUrl` is shown as a "Sign in with Slack" link. |
 | `onSend` | `(payload) => Promise<{ ok: boolean; error?: string }>` | yes | Called when the user submits the send dialog. Payload is `{ channelId, blocks, sendAsUser }`. |
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
+| `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
 | `disabledBlockTypes` | `SupportedBlockType[]` | no | Block types to hide from the palette without rebuilding it. Filters at the variant level — a section keeps any variants whose block types aren't disabled; sections that end up empty are dropped. Convenient when you want the default palette minus a few types (e.g. `['image', 'table']` for a text-only builder). |
 | `defaultOpenSections` | `boolean \| string[]` | no | Which palette section headers are expanded on first paint. `true` (default) opens all sections; `false` collapses all (Slack-style); an array opens only sections whose `name` is in the list (e.g. `['Section', 'Actions']`). The palette also has a built-in search input that expands matching sections on demand. |
@@ -184,6 +185,12 @@ import type {
 ## Backend
 
 The builder is frontend-only. For a full app that handles OAuth, channel listing, and `chat.postMessage`, see [block-kitchen-template](https://github.com/TightknitAI/block-kitchen-template) — a Vite + React SPA on Cloudflare Workers that wires this package to [slack-hono](https://github.com/TightknitAI/slack-hono) on the backend.
+
+## Emoji
+
+A searchable emoji picker (search, categories, skin tone, recents) is built into the rich-text WYSIWYG and structured editors and the section / header / markdown / button-label fields. The standard set is sourced from [`emoji-datasource`](https://www.npmjs.com/package/emoji-datasource) — the same iamcal codenames Slack recognizes — and resolved by Unicode codepoint, so inserted emoji round-trip to Slack without becoming blank `:name:` text. Skin-toned emoji emit Slack's `skin_tone` (rich text) / `:name::skin-tone-N:` (plain/mrkdwn) shape. The dataset is loaded lazily the first time a picker opens, so it doesn't add to the initial bundle.
+
+Pass [`customEmojis`](#props) to add your workspace's custom emoji: image entries appear as the picker's **Custom** category and render in the preview; alias entries fall back to their target. Custom emoji never block Send — Slack accepts unknown emoji names, so they're excluded from validation. The emitted Block Kit JSON is unchanged whether or not `customEmojis` is passed.
 
 ## Validation
 

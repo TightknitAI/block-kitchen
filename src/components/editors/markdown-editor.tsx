@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import { Textarea } from '../../lib/ui/textarea';
 import type { MarkdownBlock } from '../../types';
+import { EmojiTextInsertButton } from '../emoji/emoji-text-insert-button';
 import { EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
@@ -13,19 +15,26 @@ import type { BlockEditorProps } from './types';
  * @returns the rendered markdown editor form
  */
 export function MarkdownEditor({ block, onChange }: BlockEditorProps<MarkdownBlock>) {
+  const textRef = useRef<HTMLTextAreaElement>(null);
+  const text = block.text ?? '';
+  const setText = (next: string) => onChange({ ...block, text: next });
   return (
     <EditorField
       label="Markdown"
       help="Standard markdown with GFM: **bold**, _italic_, lists, tables, ```code```, [links](url)."
       htmlFor="markdown-text"
     >
-      <Textarea
-        id="markdown-text"
-        value={block.text ?? ''}
-        rows={8}
-        placeholder="e.g. **Roadmap**\n\n- Item one\n- Item two"
-        onChange={(e) => onChange({ ...block, text: e.target.value })}
-      />
+      <div className="flex items-start gap-1.5">
+        <Textarea
+          ref={textRef}
+          id="markdown-text"
+          value={text}
+          rows={8}
+          placeholder="e.g. **Roadmap**\n\n- Item one\n- Item two"
+          onChange={(e) => setText(e.target.value)}
+        />
+        <EmojiTextInsertButton targetRef={textRef} value={text} onChange={setText} className="mt-1 shrink-0 border" />
+      </div>
     </EditorField>
   );
 }

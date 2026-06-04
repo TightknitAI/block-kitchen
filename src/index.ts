@@ -22,6 +22,7 @@ export type {
   ChannelOption,
   ContextActionsBlock,
   ContextActionsElement,
+  CustomEmoji,
   FeedbackButtonSubobject,
   FeedbackButtonsElement,
   HeaderLevel,

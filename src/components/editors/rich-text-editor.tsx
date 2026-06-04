@@ -14,20 +14,26 @@ import {
   Strikethrough,
   Undo2
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RichTextBlock } from 'slack-web-api-client';
 import { cn } from '../../lib/cn';
+import { type EmojiIndex, loadEmojiIndex } from '../../lib/emoji-data';
+import { makeEmojiImportResolver } from '../../lib/emoji-resolve';
 import {
   detectLossy,
+  type EmojiImportResolver,
   type LossyReason,
   proseMirrorToRichText,
   richTextToProseMirror
 } from '../../lib/rich-text-tiptap';
+import { EmojiNode } from '../../lib/tiptap-emoji-node';
 import { Button } from '../../lib/ui/button';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../../lib/ui/popover';
 import { isSafeHref } from '../../lib/url-safety';
+import { useCustomEmojis } from '../../state/custom-emoji-context';
+import { EmojiPickerButton } from '../emoji/emoji-picker-button';
 import { RichTextStructuredEditor } from './rich-text-structured-editor';
 import type { BlockEditorProps } from './types';
 
@@ -88,6 +94,24 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
   // that just echo our own changes back, avoiding feedback loops.
   const lastEmittedRef = useRef<RichTextBlock | null>(null);
 
+  const { byName: customByName } = useCustomEmojis();
+  // Load the emoji dataset so import resolution can fill in glyph codepoints
+  // for standard emoji. Held in state so the resolver rebuilds once loaded.
+  const [emojiIndex, setEmojiIndex] = useState<EmojiIndex | null>(null);
+  useEffect(() => {
+    let active = true;
+    loadEmojiIndex()
+      .then((idx) => active && setEmojiIndex(idx))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
+  const resolveEmoji = useMemo<EmojiImportResolver>(
+    () => makeEmojiImportResolver(customByName, emojiIndex),
+    [customByName, emojiIndex]
+  );
+
   const handleUpdate = useCallback(
     (editor: Editor) => {
       const next = proseMirrorToRichText(editor.getJSON() as never);
@@ -103,6 +127,7 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
         heading: false,
         horizontalRule: false
       }),
+      EmojiNode,
       Link.configure({
         openOnClick: false,
         autolink: true,
@@ -119,7 +144,7 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
         HTMLAttributes: { rel: 'noreferrer noopener', target: '_blank' }
       })
     ],
-    content: richTextToProseMirror(block) as never,
+    content: richTextToProseMirror(block, resolveEmoji) as never,
     editorProps: {
       attributes: {
         class:
@@ -138,10 +163,10 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
     if (lastEmittedRef.current && JSON.stringify(lastEmittedRef.current) === JSON.stringify(block)) {
       return;
     }
-    editor.commands.setContent(richTextToProseMirror(block) as never, {
+    editor.commands.setContent(richTextToProseMirror(block, resolveEmoji) as never, {
       emitUpdate: false
     });
-  }, [block, editor]);
+  }, [block, editor, resolveEmoji]);
 
   if (!editor) {
     return <div className="min-h-[120px] rounded-md border border-input bg-background" />;
@@ -190,6 +215,19 @@ function Toolbar({ editor }: { editor: Editor }) {
       />
       <Divider />
       <LinkPopover editor={editor} />
+      <EmojiPickerButton
+        align="start"
+        onSelect={(sel) =>
+          editor
+            .chain()
+            .focus()
+            .insertContent({
+              type: 'emoji',
+              attrs: { name: sel.name, src: sel.src, unicode: sel.unicode, skinTone: sel.skinTone }
+            })
+            .run()
+        }
+      />
       <Divider />
       <ToolbarButton
         label="Bullet list"
