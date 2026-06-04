@@ -27,19 +27,19 @@ jobs:
       # merged it to main, and re-installing Chromium on the npm-token-
       # bearing job widens the supply-chain surface for no security gain.
       - uses: actions/checkout@v6
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - uses: ./.github/actions/setup
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - run: pnpm run lint
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - run: pnpm run typecheck
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - run: pnpm run build:clean
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       # Trusted Publisher (OIDC) needs npm CLI >= 11.5.1; Node 22 ships
       # with npm 10.x. Run the modern CLI via `npx` from its separate
@@ -47,7 +47,7 @@ jobs:
       # the running npm mid-install ("Cannot find module 'promise-retry'").
       # npm 11+ also requires an explicit --tag for prereleases.
       - name: Publish to npm
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
         run: |
           version=$(node -p "require('./package.json').version")
           if [[ "$version" == *-* ]]; then
