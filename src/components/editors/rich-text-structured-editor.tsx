@@ -520,7 +520,12 @@ function InlineFields({
             align="end"
             label="Pick emoji"
             className="shrink-0 border"
-            onSelect={(sel) => onChange({ ...emoji, name: sel.name, skin_tone: sel.skinTone ?? undefined })}
+            // Clear any stale `unicode` from the prior emoji so it can't
+            // mismatch the newly-picked name; Slack recomputes the glyph from
+            // `name` (+ `skin_tone`).
+            onSelect={(sel) =>
+              onChange({ ...emoji, name: sel.name, skin_tone: sel.skinTone ?? undefined, unicode: undefined })
+            }
           />
         </div>
       </EditorField>

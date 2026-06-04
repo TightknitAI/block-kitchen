@@ -60,6 +60,15 @@ describe('stripCustomEmojiForValidation', () => {
     expect(stripCustomEmojiForValidation(blocks)).toEqual(blocks);
   });
 
+  it('returns the original reference for emoji-free blocks (copy-on-write)', () => {
+    const divider: SupportedBlock = { type: 'divider' };
+    const emojiBlock = richTextWithEmoji('custom');
+    const [outDivider, outEmoji] = stripCustomEmojiForValidation([divider, emojiBlock]);
+    // Untouched block keeps its reference; the emoji-bearing block is cloned.
+    expect(outDivider).toBe(divider);
+    expect(outEmoji).not.toBe(emojiBlock);
+  });
+
   it('keeps the validation payload valid for an otherwise-valid rich_text block', () => {
     const payload = stripCustomEmojiForValidation(toSlackBlocks([richTextWithEmoji('some_made_up_custom')]));
     const result = validateBlockKit(payload as any, { target: 'blocks' });

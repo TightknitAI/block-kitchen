@@ -9,22 +9,37 @@ export const VALIDATION_EMOJI_PLACEHOLDER = 'white_check_mark';
 /**
  * Recursively clone `value`, rewriting the `name` of every `rich_text` emoji
  * element (`{ type: 'emoji', name }`) to {@link VALIDATION_EMOJI_PLACEHOLDER}.
- * Pure: returns new objects/arrays and never mutates the input.
+ * Copy-on-write: returns the original reference for any subtree that contains
+ * no emoji, so emoji-free drafts allocate nothing. Never mutates the input.
  */
 function rewriteEmojiNames<T>(value: T): T {
   if (Array.isArray(value)) {
-    return value.map((item) => rewriteEmojiNames(item)) as unknown as T;
+    let changed = false;
+    const next = value.map((item) => {
+      const rewritten = rewriteEmojiNames(item);
+      if (rewritten !== item) {
+        changed = true;
+      }
+      return rewritten;
+    });
+    return (changed ? next : value) as T;
   }
   if (value !== null && typeof value === 'object') {
     const source = value as Record<string, unknown>;
+    let changed = false;
     const next: Record<string, unknown> = {};
     for (const key of Object.keys(source)) {
-      next[key] = rewriteEmojiNames(source[key]);
+      const rewritten = rewriteEmojiNames(source[key]);
+      next[key] = rewritten;
+      if (rewritten !== source[key]) {
+        changed = true;
+      }
     }
-    if (next.type === 'emoji' && typeof next.name === 'string') {
+    if (next.type === 'emoji' && typeof next.name === 'string' && next.name !== VALIDATION_EMOJI_PLACEHOLDER) {
       next.name = VALIDATION_EMOJI_PLACEHOLDER;
+      changed = true;
     }
-    return next as T;
+    return (changed ? next : value) as T;
   }
   return value;
 }
