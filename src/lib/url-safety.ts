@@ -96,6 +96,29 @@ export function isSafeHref(value: string | null | undefined): boolean {
 }
 
 /**
+ * Returns true when `value` carries an explicit, safe URL scheme
+ * (e.g. `https://example.com`, `mailto:a@b.com`).
+ *
+ * Used to gate the TipTap link extension's autolinker. TipTap's default
+ * `shouldAutoLink` links any token containing a dot whose host isn't a
+ * bare IPv4 — so `2.xyz`, `report.zip`, or `logo.png` all become links
+ * just because the suffix happens to be a real gTLD. Requiring an
+ * explicit scheme means only URLs the user actually typed as links
+ * (`https://…`) auto-link; bare host-like text stays plain text, and
+ * deliberate links can still be added via the link button or by typing
+ * the scheme. Schemes outside the safe-link allowlist are rejected here
+ * too, so an unsafe scheme can never be auto-linked.
+ * @param value - the candidate URL (the linkifier's matched token text)
+ * @returns true when the value has an explicit, allowlisted scheme
+ */
+export function hasExplicitSafeScheme(value: string | null | undefined): boolean {
+  if (typeof value !== 'string' || value.length === 0) {
+    return false;
+  }
+  return getScheme(value) !== null && isSafeHref(value);
+}
+
+/**
  * Returns true when `value` is safe to use as an `<img src>`.
  * Accepts http(s), relative URLs, empty string, and `data:image/*`
  * URLs whose MIME subtype is in a tight allowlist. Rejects
