@@ -1,4 +1,10 @@
-import { isSafeHref, isSafeImageSrc, sanitizeHref, sanitizeImageSrc } from '../src/lib/url-safety';
+import {
+  hasExplicitSafeScheme,
+  isSafeHref,
+  isSafeImageSrc,
+  sanitizeHref,
+  sanitizeImageSrc
+} from '../src/lib/url-safety';
 
 describe('isSafeHref', () => {
   it.each([
@@ -67,6 +73,54 @@ describe('isSafeImageSrc', () => {
     'ftp://example.com/cat.png'
   ])('rejects unsafe image src %p', (input) => {
     expect(isSafeImageSrc(input)).toBe(false);
+  });
+});
+
+describe('hasExplicitSafeScheme (autolink gate)', () => {
+  it.each([
+    'https://example.com',
+    'http://example.com/path?q=1',
+    'HTTPS://EXAMPLE.COM',
+    'mailto:foo@example.com',
+    'tel:+1234567890',
+    'sms:+1234567890',
+    'xmpp:user@server'
+  ])('auto-links explicit safe scheme %p', (input) => {
+    expect(hasExplicitSafeScheme(input)).toBe(true);
+  });
+
+  it.each([
+    // Bare host-like tokens must not auto-link just because the suffix is
+    // a real gTLD — this is the ENG-4850 regression.
+    '2.xyz',
+    'report.zip',
+    'logo.png',
+    'example.com',
+    'www.example.com',
+    'foo@example.com',
+    'config.dev',
+    'v2.api',
+    // Relative / fragment / empty are never autolinked.
+    '/relative/path',
+    './sibling',
+    '#anchor',
+    ''
+  ])('does not auto-link bare/relative token %p', (input) => {
+    expect(hasExplicitSafeScheme(input)).toBe(false);
+  });
+
+  it.each([
+    'javascript:alert(1)',
+    'data:text/html,<script>alert(1)</script>',
+    'ftp://example.com',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd'
+  ])('does not auto-link unsafe scheme %p', (input) => {
+    expect(hasExplicitSafeScheme(input)).toBe(false);
+  });
+
+  it.each([null, undefined, 42, {}])('rejects non-string %p', (input) => {
+    expect(hasExplicitSafeScheme(input as unknown as string)).toBe(false);
   });
 });
 

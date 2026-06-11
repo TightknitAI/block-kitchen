@@ -31,7 +31,7 @@ import { Button } from '../../lib/ui/button';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../../lib/ui/popover';
-import { isSafeHref } from '../../lib/url-safety';
+import { hasExplicitSafeScheme, isSafeHref } from '../../lib/url-safety';
 import { useCustomEmojis } from '../../state/custom-emoji-context';
 import { EmojiPickerButton } from '../emoji/emoji-picker-button';
 import { RichTextStructuredEditor } from './rich-text-structured-editor';
@@ -83,6 +83,62 @@ function LossyBanner({ reasons }: { reasons: LossyReason[] }) {
 }
 
 /**
+ * Markdown input rules to keep enabled, keyed by extension name. Passing an
+ * allowlist to TipTap's `enableInputRules` disables every other rule. We
+ * keep the inline mark shortcuts (`**bold**`, `*italic*`, `~~strike~~`,
+ * `` `code` ``) but drop the block-level conversions (ordered/bullet list,
+ * blockquote, code block) so that typing literal line-start text like `2. `
+ * or `- ` in a Slack message is never swallowed into a list/quote/code
+ * block. All formatting stays available via the toolbar. TipTap's inline
+ * Markdown syntax also differs from Slack's (`*` is italic here, bold in
+ * Slack), so these shortcuts are a convenience, not a fidelity feature.
+ */
+export const RICH_TEXT_INPUT_RULE_ALLOWLIST = ['bold', 'italic', 'strike', 'code'];
+
+/**
+ * Builds the TipTap extension set for the rich-text WYSIWYG editor. Kept as
+ * a standalone factory (returning fresh instances per call) so the exact
+ * production configuration can be exercised in tests.
+ * @returns the configured TipTap extensions
+ */
+export function buildRichTextExtensions() {
+  return [
+    StarterKit.configure({
+      heading: false,
+      horizontalRule: false,
+      // StarterKit bundles its own Link extension (enabled by default),
+      // which would register a second, unconfigured `link` mark and a
+      // duplicate autolinker alongside the hardened one we add below.
+      // Disable it so our single, security-configured Link is the only
+      // link extension in the schema.
+      link: false
+    }),
+    EmojiNode,
+    Link.configure({
+      openOnClick: false,
+      autolink: true,
+      defaultProtocol: 'https',
+      // Pin TipTap's link allowlist to the same set as our shared
+      // `isSafeHref` helper. The upstream default also includes
+      // ftp/cid/callto which we don't expect inside Slack content.
+      protocols: ['http', 'https', 'mailto', 'tel', 'sms', 'xmpp'],
+      // Belt-and-suspenders: even if a downstream contributor widens
+      // `protocols` later, our isSafeHref guard rejects everything
+      // outside the safe-link set. setLink and toggleLink both gate
+      // on this hook before applying the mark.
+      isAllowedUri: (url) => isSafeHref(url),
+      // Only auto-link tokens that carry an explicit, safe scheme. TipTap's
+      // default would link any `host.tld` (e.g. `2.xyz`, `report.zip`,
+      // `logo.png`) because the suffix is a real gTLD, which is wrong for
+      // free-form Slack message text. Deliberate links can still be added
+      // via the link button.
+      shouldAutoLink: hasExplicitSafeScheme,
+      HTMLAttributes: { rel: 'noreferrer noopener', target: '_blank' }
+    })
+  ];
+}
+
+/**
  * TipTap-backed WYSIWYG editor for rich_text blocks that round-trip cleanly.
  * @param props - editor props
  * @param props.block - the rich_text block to edit
@@ -122,28 +178,8 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
   );
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        heading: false,
-        horizontalRule: false
-      }),
-      EmojiNode,
-      Link.configure({
-        openOnClick: false,
-        autolink: true,
-        defaultProtocol: 'https',
-        // Pin TipTap's link allowlist to the same set as our shared
-        // `isSafeHref` helper. The upstream default also includes
-        // ftp/cid/callto which we don't expect inside Slack content.
-        protocols: ['http', 'https', 'mailto', 'tel', 'sms', 'xmpp'],
-        // Belt-and-suspenders: even if a downstream contributor widens
-        // `protocols` later, our isSafeHref guard rejects everything
-        // outside the safe-link set. setLink and toggleLink both gate
-        // on this hook before applying the mark.
-        isAllowedUri: (url) => isSafeHref(url),
-        HTMLAttributes: { rel: 'noreferrer noopener', target: '_blank' }
-      })
-    ],
+    extensions: buildRichTextExtensions(),
+    enableInputRules: RICH_TEXT_INPUT_RULE_ALLOWLIST,
     content: richTextToProseMirror(block, resolveEmoji) as never,
     editorProps: {
       attributes: {

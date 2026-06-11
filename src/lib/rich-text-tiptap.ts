@@ -267,6 +267,34 @@ function blockElementToPM(el: AnyRichTextBlockElement, resolveEmoji: EmojiImport
 }
 
 /**
+ * Pushes a Slack text run onto a ProseMirror inline array, converting any
+ * embedded newlines into `hardBreak` nodes so they render as soft line
+ * breaks in the editor (and round-trip back to `\n` on export). A run of
+ * N consecutive newlines becomes N hardBreaks, so blank lines (`\n\n`)
+ * are preserved. Without this, a `\n` inside a Slack text element would
+ * become a literal newline character in a ProseMirror text node, which
+ * the browser collapses to a space.
+ * @param out - the inline array to append to
+ * @param text - the Slack text run, possibly containing `\n`
+ * @param marks - marks to apply to each text segment
+ */
+function pushTextWithHardBreaks(
+  out: PMNode[],
+  text: string,
+  marks: { type: string; attrs?: Record<string, unknown> }[]
+) {
+  const segments = text.split('\n');
+  segments.forEach((segment, i) => {
+    if (i > 0) {
+      out.push({ type: 'hardBreak' });
+    }
+    if (segment) {
+      out.push({ type: 'text', text: segment, marks });
+    }
+  });
+}
+
+/**
  * Converts Slack inline section elements (text, link) to ProseMirror text
  * nodes with the appropriate marks. Unsupported types are silently dropped.
  * @param inlines - inline elements from a section, quote, or list item
@@ -280,8 +308,7 @@ function inlinesToPM(inlines: AnyRichTextSectionElement[], resolveEmoji: EmojiIm
       if (!inline.text) {
         continue;
       }
-      const marks = styleToMarks(inline.style);
-      out.push({ type: 'text', text: inline.text, marks });
+      pushTextWithHardBreaks(out, inline.text, styleToMarks(inline.style));
     } else if (inline.type === 'emoji') {
       const attrs = resolveEmoji(inline as SlackEmojiElement);
       if (!attrs.name) {
@@ -466,6 +493,13 @@ function proseMirrorInlinesToRichTextElements(nodes: PMNode[]): AnyRichTextSecti
         (emoji as { skin_tone?: number }).skin_tone = skinTone;
       }
       out.push(emoji);
+      continue;
+    }
+    if (node.type === 'hardBreak') {
+      // A soft line break (Shift+Enter) becomes a newline in the Slack
+      // text stream. mergeAdjacentTextRuns folds this into neighbouring
+      // unstyled runs, so "a" + <br> + "b" collapses to one "a\nb" run.
+      out.push({ type: 'text', text: '\n' });
       continue;
     }
     if (node.type !== 'text' || !node.text) {
