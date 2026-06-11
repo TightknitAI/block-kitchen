@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.5](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.4...block-kitchen-v0.8.5) (2026-06-11)
+
+
+### Bug Fixes
+
+* **rich-text:** autolink, ordered-list input rule, and soft line breaks (ENG-4850) ([cf4d68a](https://github.com/TightknitAI/block-kitchen/commit/cf4d68ab4d737c47b25240455d3912fa1d68a99b))
+* **rich-text:** autolink, ordered-list input rule, and soft line breaks (ENG-4850) ([17eb863](https://github.com/TightknitAI/block-kitchen/commit/17eb86319f60ecbe49734d630f74fa5fb624279f))
+
 ## [0.8.4](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.3...block-kitchen-v0.8.4) (2026-06-04)
 
 
