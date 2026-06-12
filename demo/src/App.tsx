@@ -292,7 +292,7 @@ export function App() {
               loadChannels={loadChannels}
               loadSendAsUserStatus={loadSendAsUserStatus}
               onSend={onSend}
-              defaultPreviewTheme={theme}
+              previewTheme={theme}
               theme={preset}
               allowedSurfaces={['message', 'modal', 'app_home']}
             />

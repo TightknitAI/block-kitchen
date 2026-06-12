@@ -1,5 +1,6 @@
 import { validateBlockKit } from '@tightknitai/slack-block-kit-validator';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { BLOCKS_INPUT_SHAPE_ERROR, unwrapBlocksInput } from '../lib/parse-blocks-input';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/sheet';
 import type { SupportedBlock } from '../types';
 
@@ -81,14 +82,19 @@ export function JsonDrawer({
       setValidationErrors([]);
       return;
     }
-    if (!Array.isArray(parsed)) {
-      setParseError('Top-level value must be an array of blocks.');
+    // Accept either a bare blocks array or Slack's own message wrapper
+    // (`{ "blocks": [...] }`, as exported by the Block Kit Builder). Other
+    // top-level keys on the wrapper are ignored. Anything else keeps the
+    // inline error without mutating state.
+    const blocks = unwrapBlocksInput(parsed);
+    if (!blocks) {
+      setParseError(BLOCKS_INPUT_SHAPE_ERROR);
       setValidationErrors([]);
       return;
     }
     setParseError(null);
-    onApply(parsed as SupportedBlock[]);
-    const result = validateBlockKit(parsed, {
+    onApply(blocks);
+    const result = validateBlockKit(blocks, {
       target: 'blocks',
       surface: 'message'
     });

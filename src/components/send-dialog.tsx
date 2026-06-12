@@ -22,6 +22,7 @@ type SendStatus = { kind: 'idle' } | { kind: 'sending' } | { kind: 'success' } |
  * @param props.loadChannels - returns channels available to send to
  * @param props.loadSendAsUserStatus - returns user-token status + OAuth URL
  * @param props.onSend - terminal action; should return `{ ok }` or `{ ok: false, error }`
+ * @param props.confirmSendLabel - label for the final confirm button. Defaults to `'Send'`.
  * @param props.errorCount - total validation errors against the current draft
  * @param props.onShowIssues - called when the user opens the global issues panel
  * @returns the rendered send dialog
@@ -33,6 +34,7 @@ export function SendDialog({
   loadChannels,
   loadSendAsUserStatus,
   onSend,
+  confirmSendLabel = 'Send',
   errorCount,
   onShowIssues
 }: {
@@ -42,6 +44,8 @@ export function SendDialog({
   loadChannels: () => Promise<ChannelOption[]>;
   loadSendAsUserStatus: () => Promise<SendAsUserStatus>;
   onSend: (payload: SendPayload) => Promise<{ ok: boolean; error?: string }>;
+  /** Label for the final confirm button. Defaults to `'Send'`. */
+  confirmSendLabel?: string;
   /** Total validation errors against the current draft. */
   errorCount: number;
   /** Asks the parent to open the global issues panel. */
@@ -236,7 +240,7 @@ export function SendDialog({
             onClick={handleSubmit}
             disabled={status.kind === 'sending' || !channelId || blocks.length === 0 || errorCount > 0}
           >
-            {status.kind === 'sending' ? 'Sending…' : 'Send'}
+            {status.kind === 'sending' ? 'Sending…' : confirmSendLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

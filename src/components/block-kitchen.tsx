@@ -59,6 +59,9 @@ export function BlockKitchen(props: BlockKitchenProps) {
     showThemeControl = true,
     docsLink,
     defaultPreviewTheme = 'light',
+    previewTheme: controlledPreviewTheme,
+    sendButtonLabel,
+    confirmSendLabel,
     theme
   } = props;
 
@@ -98,7 +101,13 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
-  const [previewTheme, setPreviewTheme] = useState<PreviewTheme>(defaultPreviewTheme);
+  // Preview theme is controlled when the host passes `previewTheme`, and
+  // uncontrolled (seeded from `defaultPreviewTheme`) otherwise. The
+  // uncontrolled state is only mutated by the toolbar toggle, which is
+  // hidden whenever the theme is controlled — so the two never fight.
+  const [uncontrolledPreviewTheme, setUncontrolledPreviewTheme] = useState<PreviewTheme>(defaultPreviewTheme);
+  const isPreviewThemeControlled = controlledPreviewTheme !== undefined;
+  const previewTheme = controlledPreviewTheme ?? uncontrolledPreviewTheme;
   const [previewSurface, setPreviewSurface] = useState<PreviewSurface>(allowedSurfaces[0]);
   const [activePaletteVariantId, setActivePaletteVariantId] = useState<string | null>(null);
 
@@ -213,12 +222,15 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 canClear={blocks.length > 0}
                 errorCount={validation.total}
                 previewTheme={previewTheme}
-                onPreviewThemeChange={setPreviewTheme}
+                onPreviewThemeChange={setUncontrolledPreviewTheme}
                 previewSurface={previewSurface}
                 onPreviewSurfaceChange={setPreviewSurface}
                 allowedSurfaces={allowedSurfaces}
-                showThemeControl={showThemeControl}
+                // A controlled `previewTheme` always hides the toggle so the
+                // host app fully owns the theme; otherwise honor the prop.
+                showThemeControl={isPreviewThemeControlled ? false : showThemeControl}
                 docsLink={docsLink}
+                sendButtonLabel={sendButtonLabel}
               />
               <div className="flex min-h-0 flex-1 items-stretch">
                 {/* Desktop: persistent left aside. Mobile: collapsed to the
@@ -294,6 +306,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
               loadChannels={loadChannels}
               loadSendAsUserStatus={loadSendAsUserStatus}
               onSend={onSend}
+              confirmSendLabel={confirmSendLabel}
               errorCount={validation.total}
               onShowIssues={() => {
                 setSendOpen(false);
