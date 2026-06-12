@@ -127,6 +127,12 @@
     "node": "^20.19.0 || >=22.12.0"
   },
   "packageManager": "pnpm@10.32.1",
+  "pnpm": {
+    "//esbuild": "Pin esbuild >=0.28.1 to clear GHSA-gv7w-rqvm-qjhr (high; missing binary integrity verification in Deno). esbuild is a transitive devDependency only (storybook/vite/tsup) and is not shipped to consumers, but `pnpm audit --audit-level=high` in CI fails on it. Remove this override once those tools resolve a fixed esbuild on their own.",
+    "overrides": {
+      "esbuild": ">=0.28.1"
+    }
+  },
   "keywords": [
     "slack",
     "block-kit",
