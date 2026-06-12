@@ -59,6 +59,14 @@ export const ThemeControlHidden: Story = {
   args: { showThemeControl: false }
 };
 
+export const CustomSendLabel: Story = {
+  args: { sendButtonLabel: 'Send to channel…' },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole('button', { name: 'Send to channel…' })).toBeInTheDocument();
+  }
+};
+
 export const DocsLinkHidden: Story = {
   args: { docsLink: false }
 };

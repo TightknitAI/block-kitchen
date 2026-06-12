@@ -66,6 +66,8 @@ const DEFAULT_DOCS_LABEL = 'Docs';
  *   an object overrides `href` and/or `label`. Defaults to the Slack Block
  *   Kit reference docs.
  * @param props.errorCount - number of validation errors
+ * @param props.sendButtonLabel - label + accessible name for the Send
+ *   button that opens the send dialog. Defaults to `'Send'`.
  * @returns the rendered toolbar
  */
 export function Toolbar({
@@ -83,7 +85,8 @@ export function Toolbar({
   allowedSurfaces,
   showThemeControl = true,
   docsLink,
-  errorCount
+  errorCount,
+  sendButtonLabel = 'Send'
 }: {
   onClear: () => void;
   onOpenJson: () => void;
@@ -100,6 +103,7 @@ export function Toolbar({
   showThemeControl?: boolean;
   docsLink?: false | { href?: string; label?: string };
   errorCount: number;
+  sendButtonLabel?: string;
 }) {
   const activeTheme = THEME_OPTIONS.find((t) => t.value === previewTheme) ?? THEME_OPTIONS[0];
   const activeSurface = SURFACE_OPTIONS.find((s) => s.value === previewSurface) ?? SURFACE_OPTIONS[0];
@@ -198,7 +202,14 @@ export function Toolbar({
             variant="ghost"
             size="sm"
             onClick={onOpenIssues}
-            className="text-destructive hover:text-destructive"
+            // High-contrast error styling: red text on a light red background
+            // with a subtle red border (WCAG AA — red-700 on red-50 ≈ 6.5:1),
+            // so the issue count reads unmistakably as an error rather than a
+            // muted ghost button. The `!` on the border color beats the
+            // unlayered `.bk-root *` border-color reset in styles.src.css,
+            // which otherwise clobbers any utility border color back to the
+            // neutral `--border` token.
+            className="border border-red-200! bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-700"
             aria-label={`${errorCount} ${errorCount === 1 ? 'issue' : 'issues'}`}
           >
             <AlertTriangle className="h-3.5 w-3.5" />
@@ -278,9 +289,9 @@ export function Toolbar({
             </div>
           </PopoverContent>
         </Popover>
-        <Button type="button" size="sm" onClick={onOpenSend} disabled={!canSend} aria-label="Send">
+        <Button type="button" size="sm" onClick={onOpenSend} disabled={!canSend} aria-label={sendButtonLabel}>
           <Send className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Send</span>
+          <span className="hidden sm:inline">{sendButtonLabel}</span>
         </Button>
       </div>
     </div>

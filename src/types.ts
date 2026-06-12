@@ -555,7 +555,10 @@ export interface BlockKitchenProps {
   /**
    * Whether the toolbar exposes the light/dark theme dropdown.
    * Defaults to `true`. When `false`, the theme is locked to
-   * {@link PreviewTheme} `'light'`.
+   * {@link BlockKitchenProps.defaultPreviewTheme} (or `'light'`).
+   *
+   * Ignored when {@link BlockKitchenProps.previewTheme} is provided — a
+   * controlled theme always hides the toggle.
    */
   showThemeControl?: boolean;
   /**
@@ -570,13 +573,40 @@ export interface BlockKitchenProps {
    */
   docsLink?: false | { href?: string; label?: string };
   /**
-   * Initial preview theme. Defaults to `'light'`. Pass the host app's
-   * current theme (e.g. from `next-themes` or your own theme hook) so
-   * the preview opens matched to the consuming app's appearance. The
-   * user can still override via the toolbar dropdown if
+   * Initial preview theme (uncontrolled). Defaults to `'light'`. Pass the
+   * host app's current theme (e.g. from `next-themes` or your own theme
+   * hook) so the preview opens matched to the consuming app's appearance.
+   * The user can still override via the toolbar dropdown if
    * {@link BlockKitchenProps.showThemeControl} is `true`.
+   *
+   * Used only as the initial value when {@link BlockKitchenProps.previewTheme}
+   * is `undefined`. When `previewTheme` is provided, the preview is fully
+   * controlled and this prop is ignored.
    */
   defaultPreviewTheme?: PreviewTheme;
+  /**
+   * Controlled preview theme. When provided, the preview renders in this
+   * theme, updates reactively whenever it changes, and the toolbar's
+   * light/dark toggle is hidden entirely so the host app fully owns the
+   * theme. Leave `undefined` to keep the preview uncontrolled — it seeds
+   * from {@link BlockKitchenProps.defaultPreviewTheme} and the toggle is
+   * shown (subject to {@link BlockKitchenProps.showThemeControl}).
+   */
+  previewTheme?: PreviewTheme;
+  /**
+   * Label for the toolbar's Send button, which opens the send dialog.
+   * Defaults to `'Send'`. Use this to signal that a configuration step
+   * follows (e.g. `'Send to channel…'`) without hardcoding
+   * product-specific copy in the package. Also used as the button's
+   * accessible name.
+   */
+  sendButtonLabel?: string;
+  /**
+   * Label for the send dialog's final confirm button, which dispatches
+   * the message via {@link BlockKitchenProps.onSend}. Defaults to `'Send'`
+   * (and shows `'Sending…'` while in flight regardless of this value).
+   */
+  confirmSendLabel?: string;
   /**
    * Branding tokens applied to the builder chrome (toolbar, palette,
    * popover editors, send dialog, JSON drawer, issues sheet). The

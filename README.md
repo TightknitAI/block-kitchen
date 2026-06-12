@@ -116,8 +116,11 @@ export function MyBuilderPage() {
 | `showPaletteSearch` | `boolean` | no | Whether the palette renders the quick-search input above the section list. Defaults to `true`. Set `false` for compact palettes (e.g. when you've passed a small custom `palette`) where scanning by eye is faster than typing. |
 | `paletteSearchPlaceholder` | `string` | no | Placeholder text for the palette search input. Defaults to `'Search blocks…'`. Useful for localization. |
 | `allowedSurfaces` | `PreviewSurface[]` | no | Allowlist of preview surfaces (`'message'`, `'modal'`, `'app_home'`). Defaults to `['message']` — surface dropdown is hidden when only one surface is allowed. The first entry is the initial selection. |
-| `showThemeControl` | `boolean` | no | Defaults to `true`. When `false`, the theme is locked to `'light'`. |
-| `defaultPreviewTheme` | `'light' \| 'dark'` | no | Pass the host app's current theme so the preview opens matched to the consuming app's appearance. |
+| `showThemeControl` | `boolean` | no | Defaults to `true`. When `false`, the toolbar's light/dark toggle is hidden and the theme stays at `defaultPreviewTheme`. Ignored when `previewTheme` is set (a controlled theme always hides the toggle). |
+| `defaultPreviewTheme` | `'light' \| 'dark'` | no | Initial (uncontrolled) preview theme. Pass the host app's current theme so the preview opens matched to the consuming app's appearance. Ignored when `previewTheme` is provided. |
+| `previewTheme` | `'light' \| 'dark'` | no | Controlled preview theme. When set, the preview renders in this theme, follows it reactively, and the toolbar's light/dark toggle is hidden so the host app fully owns the theme. Leave unset to keep the preview uncontrolled (seeded from `defaultPreviewTheme`, toggle shown). |
+| `sendButtonLabel` | `string` | no | Label and accessible name for the toolbar's Send button (which opens the send dialog). Defaults to `'Send'`. Use it to signal that a configuration step follows, e.g. `'Send to channel…'`. |
+| `confirmSendLabel` | `string` | no | Label for the send dialog's final confirm button. Defaults to `'Send'` (shows `'Sending…'` while in flight). |
 | `theme` | `BrandTheme \| BrandPreset` | no | Branding tokens applied to the builder chrome (toolbar, palette, popovers, dialogs). Accepts a `Partial<BrandTokens>` map and optional `light`/`dark` overrides. See [Styling](#styling) below. |
 
 ## Customizing the palette
@@ -222,7 +225,7 @@ const brand: BrandTheme = {
 - `tokens` applies in both light and dark contexts.
 - `light` and `dark` override per mode; the dark variant kicks in under a standard `.dark` ancestor class (next-themes default).
 - Color tokens take HSL component strings (`"262 83% 58%"`), matching the underlying CSS variable contract; `radius` takes a CSS length.
-- Scope is the builder chrome only. The embedded Slack preview keeps its native Slack styling regardless of `theme`; use `defaultPreviewTheme` for the preview's light/dark toggle.
+- Scope is the builder chrome only. The embedded Slack preview keeps its native Slack styling regardless of `theme`; use `previewTheme` (controlled) or `defaultPreviewTheme` (uncontrolled) for the preview's light/dark appearance.
 
 The lower-level CSS-variable contract above keeps working; the `theme` prop simply layers on top of it.
 

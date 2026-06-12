@@ -116,6 +116,38 @@ export const DarkPreviewDefault: Story = {
   }
 };
 
+export const ControlledPreviewTheme: Story = {
+  args: {
+    initialBlocks: STARTER_BLOCKS,
+    previewTheme: 'dark'
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          'When the host passes `previewTheme`, the preview is fully controlled and the toolbar light/dark toggle is hidden — the host app drives the theme.'
+      }
+    }
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The toggle is hidden under a controlled theme, so no "Preview theme:"
+    // trigger should exist.
+    await expect(canvas.queryByRole('button', { name: /preview theme/i })).not.toBeInTheDocument();
+  }
+};
+
+export const CustomSendButtonLabel: Story = {
+  args: {
+    initialBlocks: STARTER_BLOCKS,
+    sendButtonLabel: 'Send to channel…'
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(await canvas.findByRole('button', { name: 'Send to channel…' })).toBeInTheDocument();
+  }
+};
+
 export const Branded: Story = {
   args: {
     initialBlocks: STARTER_BLOCKS,
