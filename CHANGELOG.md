@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.6](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.5...block-kitchen-v0.8.6) (2026-06-12)
+
+
+### Features
+
+* host-controllable preview theme, configurable Send label, Slack JSON import, clearer error indicator ([1737fe1](https://github.com/TightknitAI/block-kitchen/commit/1737fe1a1a7d44d6737b77243607c640b9d1bc60))
+* host-controllable preview theme, configurable Send label, Slack JSON import, clearer error indicator ([00c41f2](https://github.com/TightknitAI/block-kitchen/commit/00c41f25ff3ea80cb398345fb820d261d25207f3))
+
 ## [0.8.5](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.4...block-kitchen-v0.8.5) (2026-06-11)
 
 
