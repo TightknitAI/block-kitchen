@@ -11,7 +11,7 @@
   "dependencies": {
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "slack-web-api-client": "^1.1.11"
+    "slack-web-api-client": "^1.1.13"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.1",
