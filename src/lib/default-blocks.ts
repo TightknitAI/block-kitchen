@@ -1,6 +1,7 @@
 import {
   AlignLeft,
   Bell,
+  ChartColumnBig,
   FileText,
   GalleryHorizontal,
   Image as ImageIcon,
@@ -985,6 +986,143 @@ export const defaultPalette: readonly PaletteSection[] = [
         })
       }
     ]
+  },
+  {
+    name: 'Data Visualization',
+    icon: ChartColumnBig,
+    variants: [
+      {
+        id: 'dataviz_line',
+        label: 'Line chart',
+        factory: () => ({
+          type: 'data_visualization',
+          title: 'Weekly active users by platform',
+          chart: {
+            type: 'line',
+            series: [
+              {
+                name: 'Desktop',
+                data: [
+                  { label: 'Mon', value: 800 },
+                  { label: 'Tue', value: 920 },
+                  { label: 'Wed', value: 880 },
+                  { label: 'Thu', value: 1010 },
+                  { label: 'Fri', value: 1120 }
+                ]
+              },
+              {
+                name: 'Mobile',
+                data: [
+                  { label: 'Mon', value: 400 },
+                  { label: 'Tue', value: 530 },
+                  { label: 'Wed', value: 500 },
+                  { label: 'Thu', value: 590 },
+                  { label: 'Fri', value: 600 }
+                ]
+              }
+            ],
+            axis_config: {
+              categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+              x_label: 'Day',
+              y_label: 'Users'
+            }
+          }
+        })
+      },
+      {
+        id: 'dataviz_bar',
+        label: 'Bar chart',
+        factory: () => ({
+          type: 'data_visualization',
+          title: 'Messages sent by platform',
+          chart: {
+            type: 'bar',
+            series: [
+              {
+                name: 'Desktop',
+                data: [
+                  { label: 'Mon', value: 1500 },
+                  { label: 'Tue', value: 1400 },
+                  { label: 'Wed', value: 1700 },
+                  { label: 'Thu', value: 1600 },
+                  { label: 'Fri', value: 1280 }
+                ]
+              },
+              {
+                name: 'Mobile',
+                data: [
+                  { label: 'Mon', value: 800 },
+                  { label: 'Tue', value: 750 },
+                  { label: 'Wed', value: 920 },
+                  { label: 'Thu', value: 880 },
+                  { label: 'Fri', value: 700 }
+                ]
+              }
+            ],
+            axis_config: {
+              categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+              x_label: 'Day',
+              y_label: 'Messages'
+            }
+          }
+        })
+      },
+      {
+        id: 'dataviz_area',
+        label: 'Area chart',
+        factory: () => ({
+          type: 'data_visualization',
+          title: 'Concurrent users by platform',
+          chart: {
+            type: 'area',
+            series: [
+              {
+                name: 'Desktop',
+                data: [
+                  { label: 'Mon', value: 2800 },
+                  { label: 'Tue', value: 3000 },
+                  { label: 'Wed', value: 3400 },
+                  { label: 'Thu', value: 3200 },
+                  { label: 'Fri', value: 3500 }
+                ]
+              },
+              {
+                name: 'Mobile',
+                data: [
+                  { label: 'Mon', value: 1400 },
+                  { label: 'Tue', value: 1500 },
+                  { label: 'Wed', value: 1700 },
+                  { label: 'Thu', value: 1600 },
+                  { label: 'Fri', value: 1800 }
+                ]
+              }
+            ],
+            axis_config: {
+              categories: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'],
+              x_label: 'Day',
+              y_label: 'Users'
+            }
+          }
+        })
+      },
+      {
+        id: 'dataviz_pie',
+        label: 'Pie chart',
+        factory: () => ({
+          type: 'data_visualization',
+          title: 'Plan distribution by tier',
+          chart: {
+            type: 'pie',
+            segments: [
+              { label: 'Free', value: 4200 },
+              { label: 'Pro', value: 2300 },
+              { label: 'Business+', value: 1100 },
+              { label: 'Enterprise', value: 480 }
+            ]
+          }
+        })
+      }
+    ]
   }
 ] as const;
 
@@ -1510,5 +1648,7 @@ export function labelForBlockType(type: SupportedBlockType): string {
       return 'Plan';
     case 'task_card':
       return 'Task Card';
+    case 'data_visualization':
+      return 'Data Visualization';
   }
 }

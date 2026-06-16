@@ -185,6 +185,17 @@ export const ContextActions: Story = {
   args: { block: variant('agents_feedback_remove') }
 };
 
+// Two stories so the catalog covers both data-visualization editor paths:
+// the category × series grid (line / bar / area share it) and the flat
+// segment list (pie).
+export const DataVisualizationLine: Story = {
+  args: { block: variant('dataviz_line') }
+};
+
+export const DataVisualizationPie: Story = {
+  args: { block: variant('dataviz_pie') }
+};
+
 /* ----------------------------- Input variants ----------------------------- */
 
 // Input is the block with the widest sub-editor surface area: 20+ element
