@@ -20,6 +20,7 @@ export default defineConfig({
           name: 'unit',
           globals: true,
           environment: 'jsdom',
+          setupFiles: ['test/setup.ts'],
           include: ['test/**/*.test.ts', 'test/**/*.test.tsx'],
           // The published @tightknitai/slack-block-kit-validator dist uses
           // extension-less ESM imports between its files. Node's ESM
