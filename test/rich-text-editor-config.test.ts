@@ -78,6 +78,16 @@ describe('rich-text editor config: input rules (ENG-4850 #2)', () => {
     editor.destroy();
   });
 
+  it('registers the underline mark and toggleUnderline command for the toolbar button', () => {
+    const editor = makeEditor();
+    // Apply underline to real text: toggling on an empty selection only sets a
+    // stored mark, which hasMark (a doc scan) can't observe.
+    editor.chain().focus().insertContent('hi').selectAll().toggleUnderline().run();
+    expect(editor.isActive('underline')).toBe(true);
+    expect(hasMark(editor, 'underline')).toBe(true);
+    editor.destroy();
+  });
+
   it('sanity check: the SAME typing DOES make a list under default input rules', () => {
     // Confirms the harness really triggers input rules — so the tests above
     // pass because of the allowlist, not because typing never fires a rule.

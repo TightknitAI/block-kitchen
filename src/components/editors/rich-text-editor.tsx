@@ -12,6 +12,7 @@ import {
   Quote,
   Redo2,
   Strikethrough,
+  Underline,
   Undo2
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -242,6 +243,12 @@ function Toolbar({ editor }: { editor: Editor }) {
         active={editor.isActive('strike')}
         onClick={() => editor.chain().focus().toggleStrike().run()}
         Icon={Strikethrough}
+      />
+      <ToolbarButton
+        label="Underline"
+        active={editor.isActive('underline')}
+        onClick={() => editor.chain().focus().toggleUnderline().run()}
+        Icon={Underline}
       />
       <ToolbarButton
         label="Inline code"

@@ -32,7 +32,7 @@ const SUPPORTED_BLOCK_KINDS = new Set([
 
 const SUPPORTED_INLINE_KINDS = new Set(['text', 'link', 'emoji']);
 
-const SUPPORTED_TEXT_STYLE_KEYS = new Set(['bold', 'italic', 'strike', 'code']);
+const SUPPORTED_TEXT_STYLE_KEYS = new Set(['bold', 'italic', 'strike', 'underline', 'code']);
 
 /**
  * Slack's documented maximum value for `indent` on a rich_text_list.
@@ -43,7 +43,7 @@ const MAX_LIST_INDENT = 8;
 /**
  * Reasons a Slack rich_text payload can't round-trip cleanly through the
  * TipTap WYSIWYG (paragraphs, lists, blockquote, code block, emoji, plus
- * bold/italic/strike/code marks and links). Anything else (mentions,
+ * bold/italic/strike/underline/code marks and links). Anything else (mentions,
  * broadcasts, list indent, etc.) ends up in this list so the UI
  * can offer the structured editor instead.
  */
@@ -351,6 +351,9 @@ function styleToMarks(style: RichStyle | undefined): { type: string; attrs?: Rec
   if (style.strike) {
     marks.push({ type: 'strike' });
   }
+  if (style.underline) {
+    marks.push({ type: 'underline' });
+  }
   if (style.code) {
     marks.push({ type: 'code' });
   }
@@ -553,6 +556,9 @@ function marksToStyle(marks: { type: string }[]): RichStyle {
     }
     if (m.type === 'strike') {
       style.strike = true;
+    }
+    if (m.type === 'underline') {
+      style.underline = true;
     }
     if (m.type === 'code') {
       style.code = true;
