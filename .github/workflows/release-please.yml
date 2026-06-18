@@ -26,7 +26,7 @@ jobs:
       # already ran in CI against the same commit before release-please
       # merged it to main, and re-installing Chromium on the npm-token-
       # bearing job widens the supply-chain surface for no security gain.
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - uses: ./.github/actions/setup
