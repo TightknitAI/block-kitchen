@@ -43,7 +43,7 @@ const INLINE_LABEL: Record<InlineKind, string> = {
   usergroup: 'User group'
 };
 
-const STYLE_KEYS = ['bold', 'italic', 'strike', 'code'] as const;
+const STYLE_KEYS = ['bold', 'italic', 'strike', 'underline', 'code'] as const;
 type StyleKey = (typeof STYLE_KEYS)[number];
 
 /**
