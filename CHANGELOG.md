@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.7](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.6...block-kitchen-v0.8.7) (2026-06-24)
+
+
+### Features
+
+* add data_visualization (chart) block support ([3b477af](https://github.com/TightknitAI/block-kitchen/commit/3b477afdff1ac1a08e4280544ab195062009909e))
+* add underline text style support to rich text editor ([732583b](https://github.com/TightknitAI/block-kitchen/commit/732583b4a4e78bd5166e19d7bcb1ba20b7b2a58c))
+* **rich-text:** support underline text style in rich_text blocks ([b9a5986](https://github.com/TightknitAI/block-kitchen/commit/b9a59860de9b29422e7105517b7305e5aa1c5da4))
+* support the new Slack data visualization blocks ([1e85c06](https://github.com/TightknitAI/block-kitchen/commit/1e85c0663b713ecc4c09f30538895d299a62dd44))
+
+
+### Bug Fixes
+
+* pin slack-blocks-to-jsx to ^1.0.6 (1.0.7 does not exist) ([17708c5](https://github.com/TightknitAI/block-kitchen/commit/17708c5bfcd941fbb696918894151ba878cfb4e9))
+* **test:** polyfill localStorage for Node 22 unit tests ([1f8d995](https://github.com/TightknitAI/block-kitchen/commit/1f8d995559dd7fa626a93465986bb3c293dd78ad))
+
 ## [0.8.6](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.5...block-kitchen-v0.8.6) (2026-06-12)
 
 
