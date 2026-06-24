@@ -33,7 +33,8 @@ export type SupportedBlockType =
   | 'input'
   | 'video'
   | 'plan'
-  | 'task_card';
+  | 'task_card'
+  | 'data_visualization';
 
 /**
  * Slack `markdown` block payload. Renders standard markdown (GFM)
@@ -277,6 +278,89 @@ export interface PlanBlock {
 }
 
 /**
+ * One `{ label, value }` data point inside a {@link ChartSeries}. `label`
+ * is the x-axis category the point belongs to; `value` is the numeric
+ * measurement and may be negative.
+ */
+export interface ChartDataPoint {
+  label: string;
+  value: number;
+}
+
+/**
+ * A named series of {@link ChartDataPoint}s. Line / bar / area charts may
+ * carry one or more series; each renders as its own line, set of bars, or
+ * filled region with a matching legend entry.
+ */
+export interface ChartSeries {
+  name: string;
+  data: ChartDataPoint[];
+}
+
+/**
+ * Axis configuration shared by the cartesian chart types (line / bar /
+ * area). `categories` is the ordered set of x-axis tick labels; `x_label`
+ * and `y_label` title the axes.
+ */
+export interface ChartAxisConfig {
+  categories: string[];
+  x_label?: string;
+  y_label?: string;
+}
+
+/**
+ * One `{ label, value }` slice of a {@link PieChart}.
+ */
+export interface PieChartSegment {
+  label: string;
+  value: number;
+}
+
+/**
+ * Cartesian chart spec (line / bar / area) used by a
+ * {@link DataVisualizationBlock}: one or more named series plotted against
+ * a shared category axis.
+ */
+export interface CartesianChart {
+  type: 'line' | 'bar' | 'area';
+  series: ChartSeries[];
+  axis_config?: ChartAxisConfig;
+}
+
+/**
+ * Pie chart spec used by a {@link DataVisualizationBlock}. Unlike the
+ * cartesian charts it has no axes — just a flat list of labeled segments.
+ */
+export interface PieChart {
+  type: 'pie';
+  segments: PieChartSegment[];
+}
+
+/**
+ * The `chart` payload of a {@link DataVisualizationBlock}: either a
+ * cartesian chart (line / bar / area) or a pie chart.
+ */
+export type Chart = CartesianChart | PieChart;
+
+/**
+ * The chart shape rendered by a {@link DataVisualizationBlock}.
+ */
+export type ChartType = Chart['type'];
+
+/**
+ * Slack `data_visualization` block payload. Renders a line, bar, area, or
+ * pie chart from inline data. Valid on the message surface only.
+ * `slack-web-api-client` doesn't ship this type yet, so we declare it.
+ * @see https://docs.slack.dev/reference/block-kit/blocks/data-visualization-block
+ */
+export interface DataVisualizationBlock {
+  type: 'data_visualization';
+  title: string;
+  chart: Chart;
+  block_id?: string;
+}
+
+/**
  * Header heading level shown in the preview. Slack's API has no
  * `level` field on header blocks, so this is a builder-only extension
  * that round-trips on the block payload but is otherwise cosmetic.
@@ -311,7 +395,8 @@ export type SupportedBlock =
   | InputBlock
   | VideoBlock
   | PlanBlock
-  | TaskCardBlock;
+  | TaskCardBlock
+  | DataVisualizationBlock;
 
 /**
  * A block as represented inside the builder's working state.

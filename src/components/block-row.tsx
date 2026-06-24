@@ -29,7 +29,8 @@ const BLOCK_TYPE_LABELS: Record<SupportedBlockType, string> = {
   input: 'Input',
   video: 'Video',
   plan: 'Plan',
-  task_card: 'Task Card'
+  task_card: 'Task Card',
+  data_visualization: 'Data Visualization'
 };
 
 /**
