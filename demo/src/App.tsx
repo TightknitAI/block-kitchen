@@ -687,7 +687,6 @@ function EditModePanel({
 
   return (
     <details
-      open
       className="bk-root"
       style={{
         border: '1px solid hsl(var(--border))',
@@ -698,16 +697,19 @@ function EditModePanel({
         fontSize: 12
       }}
     >
-      <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
-        Edit-mode demo (mocked host) — copy a link, then use “Edit message” in the toolbar
+      <summary style={{ cursor: 'pointer' }}>
+        <span style={{ fontWeight: 600 }}>Edit-mode demo (mocked host)</span>
+        <div style={{ fontWeight: 400, opacity: 0.7, marginTop: 2 }}>
+          Copy a link, then use “Edit message” in the toolbar — or pick a recent message.
+        </div>
       </summary>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16, marginTop: 10 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {checkbox('editing enabled', editingEnabled, onEditingEnabledChange)}
-          {checkbox('canSendAsUser', canSendAsUser, onCanSendAsUserChange)}
-          {checkbox('include oauthUrl', includeOauthUrl, onIncludeOauthUrlChange, canSendAsUser)}
-          <span style={{ opacity: 0.6, maxWidth: 200 }}>
-            Turn “editing enabled” off to confirm the builder falls back to send-only.
+          {checkbox('Enable edit mode (editing prop)', editingEnabled, onEditingEnabledChange)}
+          {checkbox('User can edit their own messages (canSendAsUser)', canSendAsUser, onCanSendAsUserChange)}
+          {checkbox('Offer Slack sign-in link (oauthUrl)', includeOauthUrl, onIncludeOauthUrlChange, canSendAsUser)}
+          <span style={{ opacity: 0.6, maxWidth: 220 }}>
+            Turn edit mode off to confirm the builder falls back to send-only.
           </span>
         </div>
         <div style={{ flex: '1 1 320px', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 4 }}>
