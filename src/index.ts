@@ -26,6 +26,8 @@ export type {
   ChartDataPoint,
   ChartSeries,
   ChartType,
+  ContainerBlock,
+  ContainerChildBlock,
   ContextActionsBlock,
   ContextActionsElement,
   CustomEmoji,

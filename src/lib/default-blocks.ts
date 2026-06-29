@@ -2,6 +2,7 @@ import {
   AlignLeft,
   Bell,
   ChartColumnBig,
+  Container,
   FileText,
   GalleryHorizontal,
   Image as ImageIcon,
@@ -1123,6 +1124,49 @@ export const defaultPalette: readonly PaletteSection[] = [
         })
       }
     ]
+  },
+  {
+    name: 'Container',
+    icon: Container,
+    variants: [
+      {
+        id: 'container_collapsible',
+        label: 'Collapsible container',
+        factory: () => ({
+          type: 'container',
+          title: { type: 'plain_text', text: 'Bulk update: 2 records selected' },
+          subtitle: { type: 'plain_text', text: 'Review changes before confirming' },
+          is_collapsible: true,
+          child_blocks: [
+            {
+              type: 'section',
+              text: { type: 'mrkdwn', text: '*DCW-1024*\nStatus: Open → Closed' }
+            },
+            { type: 'divider' },
+            {
+              type: 'section',
+              text: { type: 'mrkdwn', text: '*DCW-1025*\nStatus: In Progress → Closed' }
+            },
+            {
+              type: 'actions',
+              elements: [
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: 'Confirm All', emoji: true },
+                  style: 'primary',
+                  action_id: 'bulk_confirm'
+                },
+                {
+                  type: 'button',
+                  text: { type: 'plain_text', text: 'Cancel', emoji: true },
+                  action_id: 'bulk_cancel'
+                }
+              ]
+            }
+          ]
+        })
+      }
+    ]
   }
 ] as const;
 
@@ -1650,5 +1694,7 @@ export function labelForBlockType(type: SupportedBlockType): string {
       return 'Task Card';
     case 'data_visualization':
       return 'Data Visualization';
+    case 'container':
+      return 'Container';
   }
 }
