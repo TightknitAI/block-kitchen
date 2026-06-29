@@ -474,19 +474,23 @@ export function App() {
               type="button"
               onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
               aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode (current: ${theme})`}
+              title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
               style={{
-                fontSize: 12,
-                padding: '6px 10px',
+                fontSize: 14,
+                lineHeight: 1,
+                width: 30,
+                height: 30,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
                 borderRadius: 6,
                 border: '1px solid hsl(var(--border))',
                 background: 'hsl(var(--background))',
                 color: 'hsl(var(--foreground))',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
+                cursor: 'pointer'
               }}
             >
-              <span className="hidden sm:inline">Mode: </span>
-              {theme}
+              <span aria-hidden="true">{theme === 'light' ? '☀️' : '🌙'}</span>
             </button>
           </div>
         </header>

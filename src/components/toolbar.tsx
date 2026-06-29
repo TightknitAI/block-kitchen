@@ -137,155 +137,151 @@ export function Toolbar({
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-background px-2 py-1.5 sm:px-3 sm:py-2">
-      <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
-        {editingEnabled && editBadge ? (
-          <span
-            className="flex min-w-0 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-xs text-primary"
-            // Don't clip the channel name on wide layouts; truncate the ts.
-            title={`Editing message in ${editBadge.channelLabel} · ${editBadge.ts}`}
-          >
-            <Pencil className="h-3 w-3 shrink-0" />
-            <span className="min-w-0 truncate">
-              Editing in {editBadge.channelLabel} · <span className="font-mono">{editBadge.ts}</span>
-            </span>
-            <button
+    <>
+      <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-background px-2 py-1.5 sm:px-3 sm:py-2">
+        <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+          {editingEnabled && !editBadge ? (
+            <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
+              <Pencil className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{loadButtonLabel}</span>
+            </Button>
+          ) : null}
+          {onOpenPalette ? (
+            <Button
               type="button"
-              onClick={onExitEdit}
-              aria-label="Switch back to a new message"
-              className="shrink-0 rounded p-0.5 hover:bg-primary/10"
+              variant="ghost"
+              size="sm"
+              onClick={onOpenPalette}
+              className="md:hidden"
+              aria-label="Add a block"
             >
-              <X className="h-3 w-3" />
-            </button>
+              <Plus className="h-4 w-4" />
+              <span>Blocks</span>
+            </Button>
+          ) : null}
+          {showSurfaceControl ? (
+            <Popover open={surfaceMenuOpen} onOpenChange={setSurfaceMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" aria-label={`Preview surface: ${activeSurface.label}`}>
+                  <activeSurface.Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{activeSurface.label}</span>
+                  <ChevronDown className="hidden h-3.5 w-3.5 opacity-60 sm:inline" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-36 p-1">
+                <Menu<PreviewSurface>
+                  ariaLabel="Preview surface"
+                  options={surfaceOptions}
+                  value={previewSurface}
+                  onChange={(next) => {
+                    onPreviewSurfaceChange(next);
+                    setSurfaceMenuOpen(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          ) : null}
+          {showThemeControl ? (
+            <Popover open={themeMenuOpen} onOpenChange={setThemeMenuOpen}>
+              <PopoverTrigger asChild>
+                <Button type="button" variant="ghost" size="sm" aria-label={`Preview theme: ${activeTheme.label}`}>
+                  <activeTheme.Icon className="h-3.5 w-3.5" />
+                  <span className="hidden sm:inline">{activeTheme.label}</span>
+                  <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="start" className="w-32 p-1">
+                <Menu<PreviewTheme>
+                  ariaLabel="Preview theme"
+                  options={THEME_OPTIONS}
+                  value={previewTheme}
+                  onChange={(next) => {
+                    onPreviewThemeChange(next);
+                    setThemeMenuOpen(false);
+                  }}
+                />
+              </PopoverContent>
+            </Popover>
+          ) : null}
+          {docsHref ? (
+            <a
+              href={docsHref}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-label={`${docsLabel} (opens in a new tab)`}
+            >
+              <BookOpen className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">{docsLabel}</span>
+              <ExternalLink className="hidden h-3 w-3 opacity-50 sm:inline" />
+            </a>
+          ) : null}
+        </div>
+        <div className="flex items-center gap-1 sm:gap-2">
+          {errorCount > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onOpenIssues}
+              // High-contrast error styling: red text on a light red background
+              // with a subtle red border (WCAG AA — red-700 on red-50 ≈ 6.5:1),
+              // so the issue count reads unmistakably as an error rather than a
+              // muted ghost button. The `!` on the border color beats the
+              // unlayered `.bk-root *` border-color reset in styles.src.css,
+              // which otherwise clobbers any utility border color back to the
+              // neutral `--border` token.
+              className="border border-red-200! bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-700"
+              aria-label={`${errorCount} ${errorCount === 1 ? 'issue' : 'issues'}`}
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+              <span>
+                {errorCount} <span className="hidden sm:inline">{errorCount === 1 ? 'issue' : 'issues'}</span>
+              </span>
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onClear}
+            disabled={!canClear}
+            className="hover:bg-destructive/10 hover:text-destructive"
+            aria-label="Clear all blocks"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Clear</span>
+          </Button>
+          <Button type="button" variant="ghost" size="sm" onClick={onOpenJson} aria-label="View JSON">
+            <Code2 className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">View JSON</span>
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            onClick={onOpenSend}
+            disabled={!canSend}
+            aria-label={editBadge ? updateButtonLabel : sendButtonLabel}
+          >
+            {editBadge ? <Pencil className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">{editBadge ? updateButtonLabel : sendButtonLabel}</span>
+          </Button>
+        </div>
+      </div>
+      {editingEnabled && editBadge ? (
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-muted px-2 py-2 text-foreground sm:px-3">
+          <Pencil className="h-4 w-4 shrink-0 text-primary" />
+          <span className="min-w-0 flex-1 text-sm">
+            Editing an existing message in <span className="font-semibold">{editBadge.channelLabel}</span>
+            <span className="ml-1 font-mono text-xs opacity-70">{editBadge.ts}</span>
           </span>
-        ) : editingEnabled ? (
-          <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
-            <Pencil className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{loadButtonLabel}</span>
+          <Button type="button" variant="ghost" size="sm" onClick={onExitEdit} className="shrink-0">
+            <X className="h-3.5 w-3.5" />
+            Switch to a new message
           </Button>
-        ) : null}
-        {onOpenPalette ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onOpenPalette}
-            className="md:hidden"
-            aria-label="Add a block"
-          >
-            <Plus className="h-4 w-4" />
-            <span>Blocks</span>
-          </Button>
-        ) : null}
-        {showSurfaceControl ? (
-          <Popover open={surfaceMenuOpen} onOpenChange={setSurfaceMenuOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" aria-label={`Preview surface: ${activeSurface.label}`}>
-                <activeSurface.Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{activeSurface.label}</span>
-                <ChevronDown className="hidden h-3.5 w-3.5 opacity-60 sm:inline" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-36 p-1">
-              <Menu<PreviewSurface>
-                ariaLabel="Preview surface"
-                options={surfaceOptions}
-                value={previewSurface}
-                onChange={(next) => {
-                  onPreviewSurfaceChange(next);
-                  setSurfaceMenuOpen(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-        ) : null}
-        {showThemeControl ? (
-          <Popover open={themeMenuOpen} onOpenChange={setThemeMenuOpen}>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="ghost" size="sm" aria-label={`Preview theme: ${activeTheme.label}`}>
-                <activeTheme.Icon className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">{activeTheme.label}</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-32 p-1">
-              <Menu<PreviewTheme>
-                ariaLabel="Preview theme"
-                options={THEME_OPTIONS}
-                value={previewTheme}
-                onChange={(next) => {
-                  onPreviewThemeChange(next);
-                  setThemeMenuOpen(false);
-                }}
-              />
-            </PopoverContent>
-          </Popover>
-        ) : null}
-        {docsHref ? (
-          <a
-            href={docsHref}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            aria-label={`${docsLabel} (opens in a new tab)`}
-          >
-            <BookOpen className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">{docsLabel}</span>
-            <ExternalLink className="hidden h-3 w-3 opacity-50 sm:inline" />
-          </a>
-        ) : null}
-      </div>
-      <div className="flex items-center gap-1 sm:gap-2">
-        {errorCount > 0 ? (
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onOpenIssues}
-            // High-contrast error styling: red text on a light red background
-            // with a subtle red border (WCAG AA — red-700 on red-50 ≈ 6.5:1),
-            // so the issue count reads unmistakably as an error rather than a
-            // muted ghost button. The `!` on the border color beats the
-            // unlayered `.bk-root *` border-color reset in styles.src.css,
-            // which otherwise clobbers any utility border color back to the
-            // neutral `--border` token.
-            className="border border-red-200! bg-red-50 text-red-700 hover:bg-red-100 hover:text-red-700"
-            aria-label={`${errorCount} ${errorCount === 1 ? 'issue' : 'issues'}`}
-          >
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span>
-              {errorCount} <span className="hidden sm:inline">{errorCount === 1 ? 'issue' : 'issues'}</span>
-            </span>
-          </Button>
-        ) : null}
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onClear}
-          disabled={!canClear}
-          className="hover:bg-destructive/10 hover:text-destructive"
-          aria-label="Clear all blocks"
-        >
-          <Trash2 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">Clear</span>
-        </Button>
-        <Button type="button" variant="ghost" size="sm" onClick={onOpenJson} aria-label="View JSON">
-          <Code2 className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">View JSON</span>
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          onClick={onOpenSend}
-          disabled={!canSend}
-          aria-label={editBadge ? updateButtonLabel : sendButtonLabel}
-        >
-          {editBadge ? <Pencil className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
-          <span className="hidden sm:inline">{editBadge ? updateButtonLabel : sendButtonLabel}</span>
-        </Button>
-      </div>
-    </div>
+        </div>
+      ) : null}
+    </>
   );
 }
 

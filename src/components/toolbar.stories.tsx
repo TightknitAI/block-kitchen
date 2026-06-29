@@ -109,7 +109,7 @@ export const EditingActive: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('button', { name: 'Review & update' })).toBeInTheDocument();
-    await userEvent.click(await canvas.findByRole('button', { name: 'Switch back to a new message' }));
+    await userEvent.click(await canvas.findByRole('button', { name: 'Switch to a new message' }));
     await expect(args.onExitEdit).toHaveBeenCalledOnce();
   }
 };
