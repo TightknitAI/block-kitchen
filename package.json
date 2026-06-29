@@ -56,7 +56,7 @@
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
-    "@tightknitai/slack-block-kit-validator": "^0.1.8",
+    "@tightknitai/slack-block-kit-validator": "^0.1.9",
     "@tiptap/extension-link": "^3.23.4",
     "@tiptap/react": "^3.23.4",
     "@tiptap/starter-kit": "^3.23.4",
@@ -64,7 +64,7 @@
     "clsx": "^2.1.1",
     "emoji-datasource": "^16.0.0",
     "nanoid": "^5.1.11",
-    "slack-blocks-to-jsx": "^1.1.0",
+    "slack-blocks-to-jsx": "^1.1.1",
     "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {
@@ -105,7 +105,7 @@
     "playwright": "^1.60.0",
     "react": "^19.2.6",
     "react-dom": "^19.2.6",
-    "slack-web-api-client": "^1.1.13",
+    "slack-web-api-client": "^1.1.14",
     "storybook": "^10.4.0",
     "tailwindcss": "^4.3.0",
     "tsup": "^8.5.1",
