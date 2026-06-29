@@ -9,7 +9,6 @@ import {
   Home,
   MessageSquare,
   Moon,
-  MoreHorizontal,
   Pencil,
   Plus,
   Send,
@@ -17,7 +16,7 @@ import {
   Trash2,
   X
 } from 'lucide-react';
-import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
+import type { ComponentType, KeyboardEvent } from 'react';
 import { useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
@@ -136,10 +135,6 @@ export function Toolbar({
   // `role="menuitemradio"` semantics imply activation dismisses the menu.
   const [surfaceMenuOpen, setSurfaceMenuOpen] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
-  // Mobile-only overflow menu containing secondary actions (Clear, View
-  // JSON, Docs). At `sm+` those render inline; below `sm` the trigger
-  // button collapses them into a single `⋯` popover.
-  const [moreMenuOpen, setMoreMenuOpen] = useState(false);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-background px-2 py-1.5 sm:px-3 sm:py-2">
@@ -188,7 +183,7 @@ export function Toolbar({
               <Button type="button" variant="ghost" size="sm" aria-label={`Preview surface: ${activeSurface.label}`}>
                 <activeSurface.Icon className="h-3.5 w-3.5" />
                 <span className="hidden sm:inline">{activeSurface.label}</span>
-                <ChevronDown className="h-3.5 w-3.5 opacity-60" />
+                <ChevronDown className="hidden h-3.5 w-3.5 opacity-60 sm:inline" />
               </Button>
             </PopoverTrigger>
             <PopoverContent align="start" className="w-36 p-1">
@@ -231,12 +226,12 @@ export function Toolbar({
             href={docsHref}
             target="_blank"
             rel="noreferrer noopener"
-            className="hidden h-8 items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring sm:inline-flex"
+            className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             aria-label={`${docsLabel} (opens in a new tab)`}
           >
             <BookOpen className="h-3.5 w-3.5" />
-            {docsLabel}
-            <ExternalLink className="h-3 w-3 opacity-50" />
+            <span className="hidden sm:inline">{docsLabel}</span>
+            <ExternalLink className="hidden h-3 w-3 opacity-50 sm:inline" />
           </a>
         ) : null}
       </div>
@@ -269,71 +264,16 @@ export function Toolbar({
           size="sm"
           onClick={onClear}
           disabled={!canClear}
-          className="hidden hover:bg-destructive/10 hover:text-destructive sm:inline-flex"
+          className="hover:bg-destructive/10 hover:text-destructive"
           aria-label="Clear all blocks"
         >
           <Trash2 className="h-3.5 w-3.5" />
-          Clear
+          <span className="hidden sm:inline">Clear</span>
         </Button>
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={onOpenJson}
-          aria-label="View JSON"
-          className="hidden sm:inline-flex"
-        >
+        <Button type="button" variant="ghost" size="sm" onClick={onOpenJson} aria-label="View JSON">
           <Code2 className="h-3.5 w-3.5" />
-          View JSON
+          <span className="hidden sm:inline">View JSON</span>
         </Button>
-        <Popover open={moreMenuOpen} onOpenChange={setMoreMenuOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              aria-label="More actions"
-              aria-haspopup="menu"
-              className="px-2 sm:hidden"
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-44 p-1">
-            <div role="menu" aria-label="More actions" className="flex flex-col">
-              <ActionMenuItem
-                icon={<Trash2 className="h-3.5 w-3.5" />}
-                onSelect={() => {
-                  setMoreMenuOpen(false);
-                  onClear();
-                }}
-                disabled={!canClear}
-                tone="destructive"
-              >
-                Clear
-              </ActionMenuItem>
-              <ActionMenuItem
-                icon={<Code2 className="h-3.5 w-3.5" />}
-                onSelect={() => {
-                  setMoreMenuOpen(false);
-                  onOpenJson();
-                }}
-              >
-                View JSON
-              </ActionMenuItem>
-              {docsHref ? (
-                <ActionMenuLink
-                  href={docsHref}
-                  icon={<BookOpen className="h-3.5 w-3.5" />}
-                  trailingIcon={<ExternalLink className="h-3 w-3 opacity-50" />}
-                  onSelect={() => setMoreMenuOpen(false)}
-                >
-                  {docsLabel}
-                </ActionMenuLink>
-              ) : null}
-            </div>
-          </PopoverContent>
-        </Popover>
         <Button
           type="button"
           size="sm"
@@ -419,74 +359,5 @@ function Menu<T extends string>({
         );
       })}
     </div>
-  );
-}
-
-const ACTION_ITEM_BASE =
-  'flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground focus-visible:bg-accent focus-visible:text-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50';
-
-/**
- * One row in the mobile overflow menu. Action items don't carry
- * selection state, so they're plain `role="menuitem"` rather than
- * `menuitemradio` — clicking dispatches and the parent closes the menu.
- */
-function ActionMenuItem({
-  icon,
-  children,
-  onSelect,
-  disabled,
-  tone
-}: {
-  icon: ReactNode;
-  children: ReactNode;
-  onSelect: () => void;
-  disabled?: boolean;
-  tone?: 'destructive';
-}) {
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onSelect}
-      disabled={disabled}
-      className={cn(ACTION_ITEM_BASE, tone === 'destructive' && 'hover:bg-destructive/10 hover:text-destructive')}
-    >
-      {icon}
-      <span className="flex-1">{children}</span>
-    </button>
-  );
-}
-
-/**
- * External-link variant of {@link ActionMenuItem}. Used for Docs in the
- * mobile overflow menu so the link still opens in a new tab while
- * matching the surrounding items visually.
- */
-function ActionMenuLink({
-  href,
-  icon,
-  trailingIcon,
-  children,
-  onSelect
-}: {
-  href: string;
-  icon: ReactNode;
-  trailingIcon?: ReactNode;
-  children: ReactNode;
-  onSelect?: () => void;
-}) {
-  return (
-    <a
-      role="menuitem"
-      href={href}
-      target="_blank"
-      rel="noreferrer noopener"
-      onClick={onSelect}
-      className={ACTION_ITEM_BASE}
-    >
-      {icon}
-      <span className="flex-1">{children}</span>
-      {trailingIcon}
-    </a>
   );
 }
