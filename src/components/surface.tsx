@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
 import type { BuilderBlock, PreviewHooks, PreviewSurface, PreviewTheme, SupportedBlock } from '../types';
 import { BlockRow } from './block-row';
+import { ContainerRow } from './container-row';
 
 /**
  * Stable id of the drop target that represents "end of the list".
@@ -93,24 +94,43 @@ export function Surface({
         <EmptyState isDark={isDark} isPaletteDrag={isPaletteDrag} isOver={isOver} onOpenPalette={onOpenPalette} />
       ) : (
         <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
-          {blocks.map((block, idx) => (
-            <BlockRow
-              key={block.id}
-              builderBlock={block}
-              previewHooks={previewHooks}
-              previewTheme={previewTheme}
-              errors={errorsByBlockId?.get(block.id)}
-              isOpen={openBlockId === block.id}
-              onOpenChange={(open) => onOpenBlockChange?.(open ? block.id : null)}
-              onUpdate={onUpdate}
-              onDuplicate={onDuplicate}
-              onDelete={onDelete}
-              index={idx}
-              total={blocks.length}
-              onReorder={onReorder}
-              isPaletteDrag={isPaletteDrag}
-            />
-          ))}
+          {blocks.map((block, idx) =>
+            block.block.type === 'container' ? (
+              <ContainerRow
+                key={block.id}
+                builderBlock={block}
+                previewHooks={previewHooks}
+                previewTheme={previewTheme}
+                errorsByBlockId={errorsByBlockId}
+                openBlockId={openBlockId}
+                onOpenBlockChange={onOpenBlockChange}
+                onUpdate={onUpdate}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
+                index={idx}
+                total={blocks.length}
+                onReorder={onReorder}
+                isPaletteDrag={isPaletteDrag}
+              />
+            ) : (
+              <BlockRow
+                key={block.id}
+                builderBlock={block}
+                previewHooks={previewHooks}
+                previewTheme={previewTheme}
+                errors={errorsByBlockId?.get(block.id)}
+                isOpen={openBlockId === block.id}
+                onOpenChange={(open) => onOpenBlockChange?.(open ? block.id : null)}
+                onUpdate={onUpdate}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
+                index={idx}
+                total={blocks.length}
+                onReorder={onReorder}
+                isPaletteDrag={isPaletteDrag}
+              />
+            )
+          )}
           {showEndDropZone ? <DropIndicator /> : null}
         </SortableContext>
       )}

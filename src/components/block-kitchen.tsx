@@ -15,6 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { GripVertical } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
+import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
 import { buildVariantById, defaultPalette, type PaletteSection } from '../lib/default-blocks';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/sheet';
@@ -22,7 +23,7 @@ import { TooltipProvider } from '../lib/ui/tooltip';
 import { useIsMobile } from '../lib/use-is-mobile';
 import { CustomEmojiProvider } from '../state/custom-emoji-context';
 import { useBlockKitValidation } from '../state/use-block-kit-validation';
-import { useBlockKitchenState } from '../state/use-block-kitchen-state';
+import { type MoveTarget, useBlockKitchenState } from '../state/use-block-kitchen-state';
 import type { BlockKitchenProps, PreviewSurface, PreviewTheme } from '../types';
 import { BrandThemeScope } from './brand-theme-scope';
 import { IssuesSheet } from './issues-sheet';
@@ -92,9 +93,23 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const allowedSurfaces: readonly PreviewSurface[] =
     allowedSurfacesProp && allowedSurfacesProp.length > 0 ? allowedSurfacesProp : ['message'];
 
-  const { blocks, addBlock, updateBlock, removeBlock, duplicateBlock, reorderBlock, replaceAll } = useBlockKitchenState(
-    { initialBlocks, onChange }
-  );
+  const { blocks, addBlock, addChild, updateBlock, removeBlock, duplicateBlock, reorderBlock, moveBlock, replaceAll } =
+    useBlockKitchenState({ initialBlocks, onChange });
+
+  // Lookups for resolving a drop target: which ids are container children,
+  // and which container each child belongs to. Recomputed when the tree
+  // changes; read by collision detection and the drag-end handler.
+  const childParentById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const top of blocks) {
+      if (top.children) {
+        for (const child of top.children) {
+          map.set(child.id, top.id);
+        }
+      }
+    }
+    return map;
+  }, [blocks]);
 
   const [jsonOpen, setJsonOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
@@ -148,14 +163,26 @@ export function BlockKitchen(props: BlockKitchenProps) {
   // palette drop appended to the end. Fall back to closestCenter so the
   // bottom of the surface still resolves to a valid target when the
   // cursor sits past the last block.
-  const collisionDetection = useCallback<CollisionDetection>((args) => {
-    const pointerHits = pointerWithin(args);
-    if (pointerHits.length > 0) {
-      const blockHit = pointerHits.find((c) => c.id !== SURFACE_DROPPABLE_ID);
-      return blockHit ? [blockHit] : pointerHits;
-    }
-    return closestCenter(args);
-  }, []);
+  // Prefer the most specific drop target under the cursor so nested
+  // container drop zones win over the surface they sit inside: a child row
+  // beats the container body, the body beats the container's own row, and
+  // any block beats the tall surface droppable.
+  const collisionDetection = useCallback<CollisionDetection>(
+    (args) => {
+      const hits = pointerWithin(args);
+      if (hits.length > 0) {
+        const child = hits.find((c) => childParentById.has(c.id as string));
+        if (child) return [child];
+        const body = hits.find((c) => parseContainerBodyId(c.id) !== null);
+        if (body) return [body];
+        const block = hits.find((c) => c.id !== SURFACE_DROPPABLE_ID && parseContainerBodyId(c.id) === null);
+        if (block) return [block];
+        return hits;
+      }
+      return closestCenter(args);
+    },
+    [childParentById]
+  );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
     const variantId = parsePaletteDragId(event.active.id);
@@ -169,6 +196,30 @@ export function BlockKitchen(props: BlockKitchenProps) {
       if (!over) {
         return;
       }
+      const overId = over.id as string;
+
+      // Resolve the `over` droppable into a destination list + index:
+      // the surface end, a slot among the top-level blocks, a container's
+      // body (append), or a slot among a container's children (the hovered
+      // child's index).
+      let target: MoveTarget | null;
+      const bodyParent = parseContainerBodyId(overId);
+      const childParent = childParentById.get(overId);
+      if (overId === SURFACE_DROPPABLE_ID) {
+        target = { kind: 'top', index: blocks.length };
+      } else if (bodyParent) {
+        const count = blocks.find((b) => b.id === bodyParent)?.children?.length ?? 0;
+        target = { kind: 'container', parentId: bodyParent, index: count };
+      } else if (childParent) {
+        const siblings = blocks.find((b) => b.id === childParent)?.children ?? [];
+        target = { kind: 'container', parentId: childParent, index: siblings.findIndex((c) => c.id === overId) };
+      } else {
+        const topIndex = blocks.findIndex((b) => b.id === overId);
+        target = topIndex === -1 ? null : { kind: 'top', index: topIndex };
+      }
+      if (!target) {
+        return;
+      }
 
       const variantId = parsePaletteDragId(active.id);
       if (variantId) {
@@ -176,20 +227,19 @@ export function BlockKitchen(props: BlockKitchenProps) {
         if (!variant) {
           return;
         }
-        const targetIndex =
-          over.id === SURFACE_DROPPABLE_ID ? blocks.length : blocks.findIndex((b) => b.id === over.id);
-        addBlock(variant.factory(), targetIndex === -1 ? undefined : targetIndex);
+        if (target.kind === 'container') {
+          addChild(target.parentId, variant.factory(), target.index);
+        } else {
+          addBlock(variant.factory(), target.index);
+        }
         return;
       }
 
-      if (active.id !== over.id) {
-        const overIndex = blocks.findIndex((b) => b.id === over.id);
-        if (overIndex !== -1) {
-          reorderBlock(active.id as string, overIndex);
-        }
+      if (active.id !== overId) {
+        moveBlock(active.id as string, target);
       }
     },
-    [addBlock, blocks, reorderBlock, variantById]
+    [addBlock, addChild, blocks, childParentById, moveBlock, variantById]
   );
 
   const handleDragCancel = useCallback(() => {
