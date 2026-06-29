@@ -448,10 +448,17 @@ export type SupportedBlock =
  * A block as represented inside the builder's working state.
  * `id` is an ephemeral client-side identifier used by DnD and selection.
  * It is stripped before serialization to Slack.
+ *
+ * For `container` blocks, `children` holds the wrapped child blocks and is
+ * the authoritative store for drag-and-drop identity; `block.child_blocks`
+ * is kept mirrored from it so the payload stays valid for serialization,
+ * validation, and preview without those paths needing to know about the
+ * nesting. `children` is absent for every other block type.
  */
 export interface BuilderBlock {
   id: string;
   block: SupportedBlock;
+  children?: BuilderBlock[];
 }
 
 /**

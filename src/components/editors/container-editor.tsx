@@ -1,44 +1,27 @@
-import { Plus, Trash2 } from 'lucide-react';
-import { labelForBlockType } from '../../lib/default-blocks';
-import { Button } from '../../lib/ui/button';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
-import type { ContainerBlock, ContainerChildBlock, SupportedBlockType } from '../../types';
+import type { ContainerBlock } from '../../types';
 import { EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
-const MAX_CHILDREN = 10;
 const WIDTHS = ['narrow', 'standard', 'wide', 'full'] as const;
 
 /**
  * Editor form for `container` blocks. Edits the container's own fields —
- * title, subtitle, width, collapse behavior, and icon — and lets the user
- * add / remove the child blocks it groups. Child blocks are listed by type
- * with an add (appends a section) and remove affordance; for deeper edits
- * to a child's content, use the View JSON drawer.
+ * title, subtitle, width, collapse behavior, and icon. The child blocks it
+ * groups are added, removed, reordered, and edited directly on the canvas
+ * by dragging blocks into and out of the container.
  * @param props - editor props
  * @param props.block - the container block to edit
  * @param props.onChange - called with the updated block payload
  * @returns the rendered container editor form
  */
 export function ContainerEditor({ block, onChange }: BlockEditorProps<ContainerBlock>) {
-  const children = block.child_blocks ?? [];
   // The visual builder only emits URL-based icons; a slack_file icon (rare)
   // reads as empty and is replaced if the user types a URL.
   const iconUrl = block.icon && 'image_url' in block.icon ? (block.icon.image_url ?? '') : '';
   const iconAlt = block.icon?.alt_text ?? '';
-
-  const removeChildAt = (idx: number) => {
-    onChange({ ...block, child_blocks: children.filter((_, i) => i !== idx) });
-  };
-  const addChild = () => {
-    const child: ContainerChildBlock = {
-      type: 'section',
-      text: { type: 'mrkdwn', text: 'New block.' }
-    };
-    onChange({ ...block, child_blocks: [...children, child] });
-  };
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,37 +109,10 @@ export function ContainerEditor({ block, onChange }: BlockEditorProps<ContainerB
         onChange={(checked) => onChange({ ...block, default_collapsed: checked || undefined })}
       />
 
-      <div className="flex flex-col gap-2">
-        <Label>Child blocks</Label>
-        <p className="text-[11px] leading-snug text-muted-foreground">
-          A container holds 1-10 blocks. To edit a child's content, use the View JSON drawer.
-        </p>
-        {children.map((child, idx) => (
-          <div key={idx} className="flex items-center justify-between gap-2 rounded-md border bg-muted/20 px-3 py-2">
-            <span className="text-xs font-medium text-foreground">
-              {idx + 1}. {labelForBlockType(child.type as SupportedBlockType)}
-            </span>
-            <button
-              type="button"
-              aria-label="Remove child block"
-              onClick={() => removeChildAt(idx)}
-              disabled={children.length <= 1}
-              className="rounded p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        ))}
-        <Button
-          type="button"
-          size="sm"
-          onClick={addChild}
-          disabled={children.length >= MAX_CHILDREN}
-          className="self-start"
-        >
-          <Plus className="h-3.5 w-3.5" /> Add block
-        </Button>
-      </div>
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        Drag blocks into the container on the canvas to add them (1-10), and drag them out to remove. Click a child to
+        edit it.
+      </p>
     </div>
   );
 }
