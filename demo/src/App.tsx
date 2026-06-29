@@ -22,6 +22,7 @@ import {
   useRef,
   useState
 } from 'react';
+import { createPortal } from 'react-dom';
 import { demoTemplates } from './templates';
 
 const PRESET_OPTIONS: { value: BrandPreset; label: string }[] = [
@@ -426,37 +427,15 @@ export function App() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <label
-              htmlFor="edit-mode-picker"
-              style={{
-                fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                color: 'hsl(var(--foreground))',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              <span className="hidden sm:inline">Editing</span>
-              <select
-                id="edit-mode-picker"
-                aria-label="Editing mode"
-                value={editingEnabled ? 'readwrite' : 'writeonly'}
-                onChange={(e) => setEditingEnabled(e.target.value === 'readwrite')}
-                style={{
-                  fontSize: 12,
-                  padding: '6px 8px',
-                  borderRadius: 6,
-                  border: '1px solid hsl(var(--border))',
-                  background: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  cursor: 'pointer'
-                }}
-              >
-                <option value="writeonly">Write-only</option>
-                <option value="readwrite">Read &amp; Write</option>
-              </select>
-            </label>
+            <EditingMenu
+              editingEnabled={editingEnabled}
+              onEditingEnabledChange={setEditingEnabled}
+              canSendAsUser={canSendAsUser}
+              onCanSendAsUserChange={setCanSendAsUser}
+              includeOauthUrl={includeOauthUrl}
+              onIncludeOauthUrlChange={setIncludeOauthUrl}
+              store={store}
+            />
             <label
               htmlFor="brand-preset-picker"
               style={{
@@ -511,15 +490,6 @@ export function App() {
             </button>
           </div>
         </header>
-        {editingEnabled ? (
-          <EditModePanel
-            canSendAsUser={canSendAsUser}
-            onCanSendAsUserChange={setCanSendAsUser}
-            includeOauthUrl={includeOauthUrl}
-            onIncludeOauthUrlChange={setIncludeOauthUrl}
-            store={store}
-          />
-        ) : null}
         <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 12 }}>
           <div style={{ flex: '1 1 360px', minWidth: 0 }}>
             <BlockKitchen
@@ -668,117 +638,252 @@ const KIND_NOTE: Record<StoredMessage['kind'], string> = {
 };
 
 /**
- * Mocked-host control panel for the package's edit mode, shown when the
- * header's Editing dropdown is set to "Read & Write". The token knobs prove
- * the user-token gate, and the message store makes the load → update
- * round-trip observable: copy a message's link, paste it into the builder's
- * "Load message" dialog, update, and watch the stored blocks change here.
+ * Header button that opens a modal owning all the mocked-host edit-mode
+ * controls — the mode choice (Write-only vs Read & Write), the user-token
+ * knobs, and the message store — so none of it lives on the page. The store
+ * makes the load → update round-trip observable: copy a message's link, load
+ * it in the builder, update, and watch the blocks change.
  */
-function EditModePanel({
+function EditingMenu({
+  editingEnabled,
+  onEditingEnabledChange,
   canSendAsUser,
   onCanSendAsUserChange,
   includeOauthUrl,
   onIncludeOauthUrlChange,
   store
 }: {
+  editingEnabled: boolean;
+  onEditingEnabledChange: (v: boolean) => void;
   canSendAsUser: boolean;
   onCanSendAsUserChange: (v: boolean) => void;
   includeOauthUrl: boolean;
   onIncludeOauthUrlChange: (v: boolean) => void;
   store: StoredMessage[];
 }) {
+  const [open, setOpen] = useState(false);
   const [copiedTs, setCopiedTs] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [open]);
+
   const copyLink = (msg: StoredMessage) => {
-    const link = permalinkFor(msg);
-    navigator.clipboard?.writeText(link).catch(() => {});
+    navigator.clipboard?.writeText(permalinkFor(msg)).catch(() => {});
     setCopiedTs(msg.ts);
     window.setTimeout(() => setCopiedTs((cur) => (cur === msg.ts ? null : cur)), 1200);
   };
 
-  const checkbox = (label: string, checked: boolean, onChange: (v: boolean) => void, disabled?: boolean) => (
-    <label
+  const tab = (label: string, active: boolean, onSelect: () => void) => (
+    <button
+      type="button"
+      role="tab"
+      aria-selected={active}
+      onClick={onSelect}
       style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 6,
-        fontSize: 12,
-        opacity: disabled ? 0.5 : 1,
-        whiteSpace: 'nowrap'
+        padding: '8px 14px',
+        fontSize: 13,
+        fontWeight: 600,
+        cursor: 'pointer',
+        background: 'transparent',
+        border: 'none',
+        marginBottom: -1,
+        color: active ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
+        borderBottom: `2px solid ${active ? 'hsl(var(--primary))' : 'transparent'}`
       }}
     >
+      {label}
+    </button>
+  );
+
+  const checkbox = (label: string, checked: boolean, onChange: (v: boolean) => void, disabled?: boolean) => (
+    <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, opacity: disabled ? 0.5 : 1 }}>
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
       {label}
     </label>
   );
 
   return (
-    <details
-      className="bk-root"
-      style={{
-        border: '1px solid hsl(var(--border))',
-        borderRadius: 6,
-        background: 'hsl(var(--background))',
-        color: 'hsl(var(--foreground))',
-        padding: '8px 12px',
-        fontSize: 12
-      }}
-    >
-      <summary style={{ cursor: 'pointer' }}>
-        <span style={{ fontWeight: 600 }}>Edit-mode demo (mocked host)</span>
-        <div style={{ fontWeight: 400, opacity: 0.7, marginTop: 2 }}>
-          Copy a link, then use “Load message” in the toolbar — or pick a recent message. Switch Editing to
-          “Write-only” to fall back to send-only.
-        </div>
-      </summary>
-      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16, marginTop: 10 }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {checkbox('User can edit their own messages (canSendAsUser)', canSendAsUser, onCanSendAsUserChange)}
-          {checkbox('Offer Slack sign-in link (oauthUrl)', includeOauthUrl, onIncludeOauthUrlChange, canSendAsUser)}
-        </div>
-        <div style={{ flex: '1 1 320px', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <div style={{ fontWeight: 600, opacity: 0.8 }}>Message store</div>
-          {store.map((m) => (
+    <>
+      <button
+        type="button"
+        aria-haspopup="dialog"
+        onClick={() => setOpen(true)}
+        style={{
+          fontSize: 12,
+          padding: '6px 8px',
+          borderRadius: 6,
+          border: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--background))',
+          color: 'hsl(var(--foreground))',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }}
+      >
+        <span className="hidden sm:inline" style={{ opacity: 0.7 }}>
+          Editing:
+        </span>
+        {editingEnabled ? 'Read & Write' : 'Write-only'}
+      </button>
+      {open &&
+        createPortal(
+          <div
+            // biome-ignore lint/a11y/noStaticElementInteractions: demo-only overlay; the dialog has a focusable Close button.
+            onMouseDown={() => setOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 100,
+              background: 'rgba(0,0,0,0.45)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 16
+            }}
+          >
             <div
-              key={m.ts}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Edit-mode demo"
+              className="bk-root"
+              onMouseDown={(e) => e.stopPropagation()}
               style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '4px 6px',
+                width: 560,
+                maxWidth: '100%',
+                maxHeight: '85vh',
+                overflow: 'auto',
+                background: 'hsl(var(--background))',
+                color: 'hsl(var(--foreground))',
                 border: '1px solid hsl(var(--border))',
-                borderRadius: 4
+                borderRadius: 12,
+                boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+                padding: 20,
+                fontSize: 13
               }}
             >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {m.ts}
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>Edit-mode demo</div>
+                  <div style={{ opacity: 0.7, marginTop: 2 }}>
+                    Mocks the host side of the package's <code>editing</code> prop.
+                  </div>
                 </div>
-                <div style={{ opacity: 0.7 }}>
-                  #{m.channelName} · {AUTHOR_LABEL[m.author]}
-                  {KIND_NOTE[m.kind]} · {m.blocks.length} block{m.blocks.length === 1 ? '' : 's'}
-                </div>
+                <button
+                  type="button"
+                  onClick={() => setOpen(false)}
+                  aria-label="Close"
+                  style={{
+                    fontSize: 18,
+                    lineHeight: 1,
+                    padding: '2px 8px',
+                    borderRadius: 6,
+                    border: '1px solid hsl(var(--border))',
+                    background: 'hsl(var(--background))',
+                    color: 'hsl(var(--foreground))',
+                    cursor: 'pointer'
+                  }}
+                >
+                  ×
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => copyLink(m)}
-                style={{
-                  fontSize: 11,
-                  padding: '4px 8px',
-                  borderRadius: 4,
-                  border: '1px solid hsl(var(--border))',
-                  background: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
+
+              <div
+                role="tablist"
+                aria-label="Editing mode"
+                style={{ display: 'flex', gap: 4, marginTop: 16, borderBottom: '1px solid hsl(var(--border))' }}
               >
-                {copiedTs === m.ts ? 'Copied!' : 'Copy link'}
-              </button>
+                {tab('Write-only', !editingEnabled, () => onEditingEnabledChange(false))}
+                {tab('Read & Write', editingEnabled, () => onEditingEnabledChange(true))}
+              </div>
+
+              <div role="tabpanel" style={{ paddingTop: 16 }}>
+                {editingEnabled ? (
+                  <>
+                    <div style={{ opacity: 0.7, marginBottom: 12 }}>
+                      Copy a link below, then use “Load message” in the toolbar — or pick a recent message.
+                    </div>
+
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>User-token settings</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                      {checkbox('User can edit their own messages (canSendAsUser)', canSendAsUser, onCanSendAsUserChange)}
+                      {checkbox(
+                        'Offer Slack sign-in link (oauthUrl)',
+                        includeOauthUrl,
+                        onIncludeOauthUrlChange,
+                        canSendAsUser
+                      )}
+                    </div>
+
+                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Message store</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {store.map((m) => (
+                        <div
+                          key={m.ts}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 10,
+                            padding: '8px 10px',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: 6
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontFamily: 'monospace',
+                                fontSize: 12,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
+                              }}
+                            >
+                              {m.ts}
+                            </div>
+                            <div style={{ opacity: 0.7, fontSize: 12 }}>
+                              #{m.channelName} · {AUTHOR_LABEL[m.author]}
+                              {KIND_NOTE[m.kind]} · {m.blocks.length} block{m.blocks.length === 1 ? '' : 's'}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => copyLink(m)}
+                            style={{
+                              fontSize: 12,
+                              padding: '6px 10px',
+                              borderRadius: 6,
+                              border: '1px solid hsl(var(--border))',
+                              background: 'hsl(var(--background))',
+                              color: 'hsl(var(--foreground))',
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap'
+                            }}
+                          >
+                            {copiedTs === m.ts ? 'Copied!' : 'Copy link'}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ opacity: 0.7 }}>
+                    The <code>editing</code> prop is omitted, so the builder is a plain composer — “Load message” is
+                    hidden and the primary action stays “Send”.
+                  </div>
+                )}
+              </div>
             </div>
-          ))}
-        </div>
-      </div>
-    </details>
+          </div>,
+          document.body
+        )}
+    </>
   );
 }
