@@ -427,6 +427,37 @@ export function App() {
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
             <label
+              htmlFor="edit-mode-picker"
+              style={{
+                fontSize: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                color: 'hsl(var(--foreground))',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <span className="hidden sm:inline">Editing</span>
+              <select
+                id="edit-mode-picker"
+                aria-label="Editing mode"
+                value={editingEnabled ? 'readwrite' : 'writeonly'}
+                onChange={(e) => setEditingEnabled(e.target.value === 'readwrite')}
+                style={{
+                  fontSize: 12,
+                  padding: '6px 8px',
+                  borderRadius: 6,
+                  border: '1px solid hsl(var(--border))',
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="writeonly">Write-only</option>
+                <option value="readwrite">Read &amp; Write</option>
+              </select>
+            </label>
+            <label
               htmlFor="brand-preset-picker"
               style={{
                 fontSize: 12,
@@ -480,15 +511,15 @@ export function App() {
             </button>
           </div>
         </header>
-        <EditModePanel
-          editingEnabled={editingEnabled}
-          onEditingEnabledChange={setEditingEnabled}
-          canSendAsUser={canSendAsUser}
-          onCanSendAsUserChange={setCanSendAsUser}
-          includeOauthUrl={includeOauthUrl}
-          onIncludeOauthUrlChange={setIncludeOauthUrl}
-          store={store}
-        />
+        {editingEnabled ? (
+          <EditModePanel
+            canSendAsUser={canSendAsUser}
+            onCanSendAsUserChange={setCanSendAsUser}
+            includeOauthUrl={includeOauthUrl}
+            onIncludeOauthUrlChange={setIncludeOauthUrl}
+            store={store}
+          />
+        ) : null}
         <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 12 }}>
           <div style={{ flex: '1 1 360px', minWidth: 0 }}>
             <BlockKitchen
@@ -637,23 +668,19 @@ const KIND_NOTE: Record<StoredMessage['kind'], string> = {
 };
 
 /**
- * Mocked-host control panel for the package's edit mode. Toggles prove
- * configurability (`editing` on/off, the user-token gate) and the message
- * store makes the load → update round-trip observable: copy a message's link,
- * paste it into the builder's "Edit message" dialog, update, and watch the
- * stored blocks change here.
+ * Mocked-host control panel for the package's edit mode, shown when the
+ * header's Editing dropdown is set to "Read & Write". The token knobs prove
+ * the user-token gate, and the message store makes the load → update
+ * round-trip observable: copy a message's link, paste it into the builder's
+ * "Load message" dialog, update, and watch the stored blocks change here.
  */
 function EditModePanel({
-  editingEnabled,
-  onEditingEnabledChange,
   canSendAsUser,
   onCanSendAsUserChange,
   includeOauthUrl,
   onIncludeOauthUrlChange,
   store
 }: {
-  editingEnabled: boolean;
-  onEditingEnabledChange: (v: boolean) => void;
   canSendAsUser: boolean;
   onCanSendAsUserChange: (v: boolean) => void;
   includeOauthUrl: boolean;
@@ -700,17 +727,14 @@ function EditModePanel({
       <summary style={{ cursor: 'pointer' }}>
         <span style={{ fontWeight: 600 }}>Edit-mode demo (mocked host)</span>
         <div style={{ fontWeight: 400, opacity: 0.7, marginTop: 2 }}>
-          Copy a link, then use “Load message” in the toolbar — or pick a recent message.
+          Copy a link, then use “Load message” in the toolbar — or pick a recent message. Switch Editing to
+          “Write-only” to fall back to send-only.
         </div>
       </summary>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16, marginTop: 10 }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {checkbox('Enable edit mode (editing prop)', editingEnabled, onEditingEnabledChange)}
           {checkbox('User can edit their own messages (canSendAsUser)', canSendAsUser, onCanSendAsUserChange)}
           {checkbox('Offer Slack sign-in link (oauthUrl)', includeOauthUrl, onIncludeOauthUrlChange, canSendAsUser)}
-          <span style={{ opacity: 0.6, maxWidth: 220 }}>
-            Turn edit mode off to confirm the builder falls back to send-only.
-          </span>
         </div>
         <div style={{ flex: '1 1 320px', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 4 }}>
           <div style={{ fontWeight: 600, opacity: 0.8 }}>Message store</div>

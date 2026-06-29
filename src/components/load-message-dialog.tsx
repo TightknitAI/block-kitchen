@@ -1,9 +1,10 @@
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Input } from '../lib/ui/input';
 import { Label } from '../lib/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
 import type { LoadResult, RecentMessage, SupportedBlock } from '../types';
 
 /** Map a {@link RecentMessage} onto the `ok` verdict so it reuses the load path. */
@@ -133,11 +134,28 @@ export function LoadMessageDialog({
       <DialogContent className="w-[calc(100vw-1.5rem)] max-w-lg rounded-lg">
         <DialogHeader>
           <DialogTitle>Edit an existing message</DialogTitle>
-          <DialogDescription>
-            {hasRecent
-              ? 'Paste a Slack message link, or pick a recent message your app posted.'
-              : 'Paste a Slack message link (Slack\'s "Copy link") to load its blocks for editing.'}
-          </DialogDescription>
+          <div className="flex items-start gap-1.5">
+            <DialogDescription>
+              {hasRecent
+                ? 'Paste a Slack message link, or pick a recent message your app posted.'
+                : 'Paste a Slack message link (Slack\'s "Copy link") to load its blocks for editing.'}
+            </DialogDescription>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="How to copy a message link"
+                  className="mt-0.5 shrink-0 rounded text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                >
+                  <Info className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs leading-relaxed">
+                In Slack, hover over the message and click the <strong>⋮ More actions</strong> button (or right-click
+                the message), then choose <strong>Copy link</strong>.
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </DialogHeader>
 
         <div className="flex flex-col gap-4">
