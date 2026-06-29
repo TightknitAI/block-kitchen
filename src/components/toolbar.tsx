@@ -10,10 +10,12 @@ import {
   MessageSquare,
   Moon,
   MoreHorizontal,
+  Pencil,
   Plus,
   Send,
   Sun,
-  Trash2
+  Trash2,
+  X
 } from 'lucide-react';
 import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 import { useRef, useState } from 'react';
@@ -86,7 +88,12 @@ export function Toolbar({
   showThemeControl = true,
   docsLink,
   errorCount,
-  sendButtonLabel = 'Send'
+  sendButtonLabel = 'Send',
+  editingEnabled = false,
+  editBadge,
+  onOpenLoad,
+  onExitEdit,
+  updateButtonLabel = 'Update message'
 }: {
   onClear: () => void;
   onOpenJson: () => void;
@@ -104,6 +111,16 @@ export function Toolbar({
   docsLink?: false | { href?: string; label?: string };
   errorCount: number;
   sendButtonLabel?: string;
+  /** Whether edit mode is configured (shows the "Edit existing message" entry). */
+  editingEnabled?: boolean;
+  /** When set, a message is loaded for editing: renders the edit-mode badge. */
+  editBadge?: { channelLabel: string; ts: string } | null;
+  /** Opens the load-message dialog (edit-mode entry point). */
+  onOpenLoad?: () => void;
+  /** Switches back to a new message, clearing the loaded edit target. */
+  onExitEdit?: () => void;
+  /** Label for the primary button while editing. Defaults to `'Update message'`. */
+  updateButtonLabel?: string;
 }) {
   const activeTheme = THEME_OPTIONS.find((t) => t.value === previewTheme) ?? THEME_OPTIONS[0];
   const activeSurface = SURFACE_OPTIONS.find((s) => s.value === previewSurface) ?? SURFACE_OPTIONS[0];
@@ -193,6 +210,31 @@ export function Toolbar({
             {docsLabel}
             <ExternalLink className="h-3 w-3 opacity-50" />
           </a>
+        ) : null}
+        {editingEnabled && editBadge ? (
+          <span
+            className="flex min-w-0 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/5 px-2 py-1 text-xs text-primary"
+            // Don't clip the channel name on wide layouts; truncate the ts.
+            title={`Editing message in ${editBadge.channelLabel} · ${editBadge.ts}`}
+          >
+            <Pencil className="h-3 w-3 shrink-0" />
+            <span className="min-w-0 truncate">
+              Editing in {editBadge.channelLabel} · <span className="font-mono">{editBadge.ts}</span>
+            </span>
+            <button
+              type="button"
+              onClick={onExitEdit}
+              aria-label="Switch back to a new message"
+              className="shrink-0 rounded p-0.5 hover:bg-primary/10"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        ) : editingEnabled ? (
+          <Button type="button" variant="ghost" size="sm" onClick={onOpenLoad} aria-label="Edit an existing message">
+            <Pencil className="h-3.5 w-3.5" />
+            <span className="hidden sm:inline">Edit message</span>
+          </Button>
         ) : null}
       </div>
       <div className="flex items-center gap-1 sm:gap-2">
@@ -289,9 +331,15 @@ export function Toolbar({
             </div>
           </PopoverContent>
         </Popover>
-        <Button type="button" size="sm" onClick={onOpenSend} disabled={!canSend} aria-label={sendButtonLabel}>
-          <Send className="h-3.5 w-3.5" />
-          <span className="hidden sm:inline">{sendButtonLabel}</span>
+        <Button
+          type="button"
+          size="sm"
+          onClick={onOpenSend}
+          disabled={!canSend}
+          aria-label={editBadge ? updateButtonLabel : sendButtonLabel}
+        >
+          {editBadge ? <Pencil className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+          <span className="hidden sm:inline">{editBadge ? updateButtonLabel : sendButtonLabel}</span>
         </Button>
       </div>
     </div>

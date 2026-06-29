@@ -2,17 +2,24 @@ import {
   BlockKitchen,
   type BrandPreset,
   type ChannelOption,
+  type LoadMessageInput,
+  type LoadResult,
+  type RecentMessage,
   type SendAsUserStatus,
   type SendPayload,
   type SendResult,
   type SupportedBlock,
   type Template,
-  TemplatePicker
+  TemplatePicker,
+  type UpdatePayload,
+  type UpdateResult
 } from '@tightknitai/block-kitchen';
 import {
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  useCallback,
   useEffect,
+  useRef,
   useState
 } from 'react';
 import { demoTemplates } from './templates';
@@ -34,6 +41,105 @@ const MOCK_CHANNELS: ChannelOption[] = [
   { id: 'C0005', name: 'product' }
 ];
 
+// --- Edit-mode demo: in-memory "already-posted" message store ---------------
+//
+// Everything below mocks the host side of the package's opt-in edit mode so
+// every editability branch is demonstrable with no backend. A real host would
+// parse the pasted permalink, call `conversations.replies`, and compute the
+// same verdict; here we look the message up in this store instead.
+
+type MessageAuthor = 'bot' | 'you' | 'someoneElse';
+
+interface StoredMessage {
+  ts: string;
+  channelId: string;
+  channelName: string;
+  author: MessageAuthor;
+  // `non-block` / `edit-window-closed` reproduce the "sharp edges": a message
+  // that doesn't round-trip through the editor, or one past Slack's edit window.
+  kind: 'normal' | 'non-block' | 'edit-window-closed';
+  blocks: SupportedBlock[];
+}
+
+const WORKSPACE_NAME = 'Acme Inc.';
+
+// Slack's "Copy link" permalink shape: …/archives/<channel>/p<ts-without-dot>.
+function permalinkFor(msg: Pick<StoredMessage, 'channelId' | 'ts'>): string {
+  return `https://acme.slack.com/archives/${msg.channelId}/p${msg.ts.replace('.', '')}`;
+}
+
+// Best-effort one-line preview for the recent-messages picker: first block
+// that carries text wins.
+function previewOf(blocks: SupportedBlock[]): string {
+  for (const b of blocks) {
+    if ((b.type === 'header' || b.type === 'section') && 'text' in b && b.text && 'text' in b.text) {
+      return b.text.text;
+    }
+  }
+  return `${blocks.length} block${blocks.length === 1 ? '' : 's'}`;
+}
+
+function sampleBlocks(text: string): SupportedBlock[] {
+  return [
+    { type: 'header', text: { type: 'plain_text', text } },
+    { type: 'section', text: { type: 'mrkdwn', text: `Loaded from the store at *${text}*. Edit me and update.` } }
+  ];
+}
+
+// One fixture per outcome the verdict logic can produce.
+const SEED_MESSAGES: StoredMessage[] = [
+  {
+    ts: '1718000042.000100',
+    channelId: 'C0003',
+    channelName: 'engineering',
+    author: 'bot',
+    kind: 'normal',
+    blocks: sampleBlocks('Bot message')
+  },
+  {
+    ts: '1718000099.000200',
+    channelId: 'C0001',
+    channelName: 'general',
+    author: 'you',
+    kind: 'normal',
+    blocks: sampleBlocks('Your message')
+  },
+  {
+    ts: '1718000150.000300',
+    channelId: 'C0002',
+    channelName: 'random',
+    author: 'someoneElse',
+    kind: 'normal',
+    blocks: sampleBlocks("Someone else's message")
+  },
+  {
+    ts: '1718000200.000400',
+    channelId: 'C0004',
+    channelName: 'design',
+    author: 'bot',
+    kind: 'non-block',
+    blocks: []
+  },
+  {
+    ts: '1718000250.000500',
+    channelId: 'C0005',
+    channelName: 'product',
+    author: 'you',
+    kind: 'edit-window-closed',
+    blocks: sampleBlocks('Old message')
+  }
+];
+
+// Match a pasted permalink to a stored message. Tolerant of extra query/thread
+// params: compare on the `p<digits>` segment, falling back to a digit match.
+function findMessageByLink(store: StoredMessage[], link: string): StoredMessage | undefined {
+  const digits = link.replace(/\D/g, '');
+  return store.find((m) => {
+    const tsDigits = m.ts.replace('.', '');
+    return digits.includes(tsDigits) || link.trim() === permalinkFor(m);
+  });
+}
+
 const INITIAL_BLOCKS: SupportedBlock[] = [
   {
     type: 'header',
@@ -52,23 +158,6 @@ const INITIAL_BLOCKS: SupportedBlock[] = [
 async function loadChannels(): Promise<ChannelOption[]> {
   await new Promise((r) => setTimeout(r, 200));
   return MOCK_CHANNELS;
-}
-
-async function loadSendAsUserStatus(): Promise<SendAsUserStatus> {
-  await new Promise((r) => setTimeout(r, 150));
-  return { canSendAsUser: true };
-}
-
-async function onSend(payload: SendPayload): Promise<SendResult> {
-  await new Promise((r) => setTimeout(r, 400));
-  console.log('[demo] onSend called with', payload);
-  const channel = MOCK_CHANNELS.find((c) => c.id === payload.channelId);
-  window.alert(
-    `Mock send to #${channel?.name ?? payload.channelId}\n` +
-      `${payload.blocks.length} block${payload.blocks.length === 1 ? '' : 's'} — ` +
-      `sendAsUser=${payload.sendAsUser}\n\nSee console for full payload.`
-  );
-  return { ok: true };
 }
 
 const ASIDE_MIN = 280;
@@ -111,6 +200,115 @@ export function App() {
     setBlocks(template.blocks);
     setBuilderKey((n) => n + 1);
   };
+
+  // --- Edit-mode demo knobs + in-memory store ------------------------------
+  const [editingEnabled, setEditingEnabled] = useState(true);
+  const [canSendAsUser, setCanSendAsUser] = useState(true);
+  const [includeOauthUrl, setIncludeOauthUrl] = useState(true);
+  const [store, setStore] = useState<StoredMessage[]>(SEED_MESSAGES);
+
+  // Read the latest store from inside the stable `onLoadMessage` callback
+  // without making it a dependency (the package captures it directly).
+  const storeRef = useRef(store);
+  useEffect(() => {
+    storeRef.current = store;
+  });
+
+  const loadSendAsUserStatus = useCallback(async (): Promise<SendAsUserStatus> => {
+    await new Promise((r) => setTimeout(r, 150));
+    if (canSendAsUser) {
+      return { canSendAsUser: true };
+    }
+    return {
+      canSendAsUser: false,
+      oauthUrl: includeOauthUrl ? 'https://slack.com/oauth/v2/authorize?mock=1' : undefined
+    };
+  }, [canSendAsUser, includeOauthUrl]);
+
+  const onSend = useCallback(async (payload: SendPayload): Promise<SendResult> => {
+    await new Promise((r) => setTimeout(r, 300));
+    const channel = MOCK_CHANNELS.find((c) => c.id === payload.channelId);
+    setStore((prev) => {
+      const ts = `${Math.floor(Date.now() / 1000)}.${String(prev.length).padStart(6, '0')}`;
+      const posted: StoredMessage = {
+        ts,
+        channelId: payload.channelId,
+        channelName: channel?.name ?? payload.channelId,
+        author: payload.sendAsUser ? 'you' : 'bot',
+        kind: 'normal',
+        blocks: payload.blocks
+      };
+      return [...prev, posted];
+    });
+    return { ok: true };
+  }, []);
+
+  // Mirrors the verdict a real host computes from `conversations.replies`.
+  const onLoadMessage = useCallback(async ({ link }: LoadMessageInput): Promise<LoadResult> => {
+    await new Promise((r) => setTimeout(r, 250));
+    const msg = findMessageByLink(storeRef.current, link);
+    if (!msg) {
+      return { ok: false, reason: 'No message matched that link. Copy a link from the store on the right.' };
+    }
+    if (msg.kind === 'non-block') {
+      return {
+        ok: false,
+        reason: "This message has no editable blocks (it may be attachment-only), so it can't be opened in the editor."
+      };
+    }
+    if (msg.kind === 'edit-window-closed') {
+      return { ok: false, reason: "This message is past Slack's edit window and can no longer be edited." };
+    }
+    if (msg.author === 'someoneElse') {
+      return {
+        ok: false,
+        reason: "This message was posted by someone else, so it can't be edited. You can repost its content as a new message.",
+        blocks: msg.blocks
+      };
+    }
+    const base = {
+      channelId: msg.channelId,
+      channelName: msg.channelName,
+      ts: msg.ts,
+      blocks: msg.blocks,
+      workspaceName: WORKSPACE_NAME
+    } as const;
+    return msg.author === 'bot'
+      ? { ok: true, ...base, editableVia: 'bot' }
+      : { ok: true, ...base, editableVia: 'user' };
+  }, []);
+
+  const onUpdate = useCallback(async ({ ts, blocks: updated }: UpdatePayload): Promise<UpdateResult> => {
+    await new Promise((r) => setTimeout(r, 300));
+    setStore((prev) => prev.map((m) => (m.ts === ts ? { ...m, blocks: updated } : m)));
+    return { ok: true };
+  }, []);
+
+  // "Recent messages from this app" — round-trippable fixtures the app
+  // authored, whether posted as the bot or as the current user (plus anything
+  // sent during the session). Each carries the identity it was posted as via
+  // `editableVia`, which the picker surfaces and the update uses to pick the
+  // token. Messages by someone else (or that don't round-trip) are excluded.
+  // Conservative host behavior: drop the user's own messages when there's no
+  // user token, rather than offer an edit that can't complete without re-auth.
+  const loadRecentMessages = useCallback(async (): Promise<RecentMessage[]> => {
+    await new Promise((r) => setTimeout(r, 200));
+    return storeRef.current
+      .filter((m) => {
+        if (m.kind !== 'normal' || m.blocks.length === 0) return false;
+        if (m.author === 'bot') return true;
+        return m.author === 'you' && canSendAsUser;
+      })
+      .map((m): RecentMessage => ({
+        channelId: m.channelId,
+        channelName: m.channelName,
+        ts: m.ts,
+        blocks: m.blocks,
+        editableVia: m.author === 'you' ? 'user' : 'bot',
+        label: previewOf(m.blocks),
+        workspaceName: WORKSPACE_NAME
+      }));
+  }, [canSendAsUser]);
 
   const [asideWidth, setAsideWidth] = useState<number>(ASIDE_DEFAULT);
 
@@ -282,16 +480,26 @@ export function App() {
             </button>
           </div>
         </header>
+        <EditModePanel
+          editingEnabled={editingEnabled}
+          onEditingEnabledChange={setEditingEnabled}
+          canSendAsUser={canSendAsUser}
+          onCanSendAsUserChange={setCanSendAsUser}
+          includeOauthUrl={includeOauthUrl}
+          onIncludeOauthUrlChange={setIncludeOauthUrl}
+          store={store}
+        />
         <div style={{ flex: 1, minHeight: 0, display: 'flex', gap: 12 }}>
           <div style={{ flex: '1 1 360px', minWidth: 0 }}>
             <BlockKitchen
               key={builderKey}
-              workspaceName="Acme Inc."
+              workspaceName={WORKSPACE_NAME}
               initialBlocks={blocks}
               onChange={setBlocks}
               loadChannels={loadChannels}
               loadSendAsUserStatus={loadSendAsUserStatus}
               onSend={onSend}
+              editing={editingEnabled ? { onLoadMessage, onUpdate, loadRecentMessages } : undefined}
               previewTheme={theme}
               theme={preset}
               allowedSurfaces={['message', 'modal', 'app_home']}
@@ -413,5 +621,138 @@ export function App() {
         </div>
       </div>
     </div>
+  );
+}
+
+const AUTHOR_LABEL: Record<MessageAuthor, string> = {
+  bot: 'this app (bot)',
+  you: 'you',
+  someoneElse: 'someone else'
+};
+
+const KIND_NOTE: Record<StoredMessage['kind'], string> = {
+  normal: '',
+  'non-block': ' · non-block',
+  'edit-window-closed': ' · edit window closed'
+};
+
+/**
+ * Mocked-host control panel for the package's edit mode. Toggles prove
+ * configurability (`editing` on/off, the user-token gate) and the message
+ * store makes the load → update round-trip observable: copy a message's link,
+ * paste it into the builder's "Edit message" dialog, update, and watch the
+ * stored blocks change here.
+ */
+function EditModePanel({
+  editingEnabled,
+  onEditingEnabledChange,
+  canSendAsUser,
+  onCanSendAsUserChange,
+  includeOauthUrl,
+  onIncludeOauthUrlChange,
+  store
+}: {
+  editingEnabled: boolean;
+  onEditingEnabledChange: (v: boolean) => void;
+  canSendAsUser: boolean;
+  onCanSendAsUserChange: (v: boolean) => void;
+  includeOauthUrl: boolean;
+  onIncludeOauthUrlChange: (v: boolean) => void;
+  store: StoredMessage[];
+}) {
+  const [copiedTs, setCopiedTs] = useState<string | null>(null);
+
+  const copyLink = (msg: StoredMessage) => {
+    const link = permalinkFor(msg);
+    navigator.clipboard?.writeText(link).catch(() => {});
+    setCopiedTs(msg.ts);
+    window.setTimeout(() => setCopiedTs((cur) => (cur === msg.ts ? null : cur)), 1200);
+  };
+
+  const checkbox = (label: string, checked: boolean, onChange: (v: boolean) => void, disabled?: boolean) => (
+    <label
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        opacity: disabled ? 0.5 : 1,
+        whiteSpace: 'nowrap'
+      }}
+    >
+      <input type="checkbox" checked={checked} disabled={disabled} onChange={(e) => onChange(e.target.checked)} />
+      {label}
+    </label>
+  );
+
+  return (
+    <details
+      open
+      className="bk-root"
+      style={{
+        border: '1px solid hsl(var(--border))',
+        borderRadius: 6,
+        background: 'hsl(var(--background))',
+        color: 'hsl(var(--foreground))',
+        padding: '8px 12px',
+        fontSize: 12
+      }}
+    >
+      <summary style={{ cursor: 'pointer', fontWeight: 600 }}>
+        Edit-mode demo (mocked host) — copy a link, then use “Edit message” in the toolbar
+      </summary>
+      <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16, marginTop: 10 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {checkbox('editing enabled', editingEnabled, onEditingEnabledChange)}
+          {checkbox('canSendAsUser', canSendAsUser, onCanSendAsUserChange)}
+          {checkbox('include oauthUrl', includeOauthUrl, onIncludeOauthUrlChange, canSendAsUser)}
+          <span style={{ opacity: 0.6, maxWidth: 200 }}>
+            Turn “editing enabled” off to confirm the builder falls back to send-only.
+          </span>
+        </div>
+        <div style={{ flex: '1 1 320px', minWidth: 260, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ fontWeight: 600, opacity: 0.8 }}>Message store</div>
+          {store.map((m) => (
+            <div
+              key={m.ts}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '4px 6px',
+                border: '1px solid hsl(var(--border))',
+                borderRadius: 4
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: 'monospace', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {m.ts}
+                </div>
+                <div style={{ opacity: 0.7 }}>
+                  #{m.channelName} · {AUTHOR_LABEL[m.author]}
+                  {KIND_NOTE[m.kind]} · {m.blocks.length} block{m.blocks.length === 1 ? '' : 's'}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => copyLink(m)}
+                style={{
+                  fontSize: 11,
+                  padding: '4px 8px',
+                  borderRadius: 4,
+                  border: '1px solid hsl(var(--border))',
+                  background: 'hsl(var(--background))',
+                  color: 'hsl(var(--foreground))',
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
+                }}
+              >
+                {copiedTs === m.ts ? 'Copied!' : 'Copy link'}
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    </details>
   );
 }

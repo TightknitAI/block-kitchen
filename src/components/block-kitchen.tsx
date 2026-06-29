@@ -28,10 +28,12 @@ import type { BlockKitchenProps, PreviewSurface, PreviewTheme } from '../types';
 import { BrandThemeScope } from './brand-theme-scope';
 import { IssuesSheet } from './issues-sheet';
 import { JsonDrawer } from './json-drawer';
+import { LoadMessageDialog } from './load-message-dialog';
 import { Palette, parsePaletteDragId } from './palette';
 import { SendDialog } from './send-dialog';
 import { SURFACE_DROPPABLE_ID, Surface } from './surface';
 import { Toolbar } from './toolbar';
+import { type EditTarget, UpdateDialog } from './update-dialog';
 
 /**
  * Top-level Slack Block Kit builder component.
@@ -51,6 +53,8 @@ export function BlockKitchen(props: BlockKitchenProps) {
     loadChannels,
     loadSendAsUserStatus,
     onSend,
+    editing,
+    updateButtonLabel,
     palette,
     disabledBlockTypes,
     showPaletteSearch,
@@ -113,6 +117,14 @@ export function BlockKitchen(props: BlockKitchenProps) {
 
   const [jsonOpen, setJsonOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
+  // Edit mode (opt-in via `editing`). `editTarget` is the loaded message;
+  // when set, the primary action updates it instead of sending a new message.
+  const [loadOpen, setLoadOpen] = useState(false);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  // Edit mode only counts as active while `editing` is configured. If the host
+  // toggles `editing` off mid-session, fall back to send-only without losing
+  // the loaded target (it reactivates if `editing` returns).
+  const activeEditTarget = editing ? editTarget : null;
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
@@ -281,6 +293,20 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 showThemeControl={isPreviewThemeControlled ? false : showThemeControl}
                 docsLink={docsLink}
                 sendButtonLabel={sendButtonLabel}
+                editingEnabled={!!editing}
+                editBadge={
+                  activeEditTarget
+                    ? {
+                        channelLabel: activeEditTarget.channelName
+                          ? `#${activeEditTarget.channelName}`
+                          : activeEditTarget.channelId,
+                        ts: activeEditTarget.ts
+                      }
+                    : null
+                }
+                onOpenLoad={() => setLoadOpen(true)}
+                onExitEdit={() => setEditTarget(null)}
+                updateButtonLabel={updateButtonLabel}
               />
               <div className="flex min-h-0 flex-1 items-stretch">
                 {/* Desktop: persistent left aside. Mobile: collapsed to the
@@ -349,20 +375,68 @@ export function BlockKitchen(props: BlockKitchenProps) {
               </SheetContent>
             </Sheet>
             <JsonDrawer open={jsonOpen} onOpenChange={setJsonOpen} blocks={blockPayloads} onApply={replaceAll} />
-            <SendDialog
-              open={sendOpen}
-              onOpenChange={setSendOpen}
-              blocks={blockPayloads}
-              loadChannels={loadChannels}
-              loadSendAsUserStatus={loadSendAsUserStatus}
-              onSend={onSend}
-              confirmSendLabel={confirmSendLabel}
-              errorCount={validation.total}
-              onShowIssues={() => {
-                setSendOpen(false);
-                setIssuesOpen(true);
-              }}
-            />
+            {/* One primary-action dialog at a time: Update when a message is
+              loaded for editing, Send otherwise. Both gate on `sendOpen`. */}
+            {activeEditTarget && editing ? (
+              <UpdateDialog
+                open={sendOpen}
+                onOpenChange={setSendOpen}
+                target={activeEditTarget}
+                blocks={blockPayloads}
+                loadSendAsUserStatus={loadSendAsUserStatus}
+                onUpdate={editing.onUpdate}
+                updateButtonLabel={updateButtonLabel}
+                errorCount={validation.total}
+                onShowIssues={() => {
+                  setSendOpen(false);
+                  setIssuesOpen(true);
+                }}
+              />
+            ) : (
+              <SendDialog
+                open={sendOpen}
+                onOpenChange={setSendOpen}
+                blocks={blockPayloads}
+                loadChannels={loadChannels}
+                loadSendAsUserStatus={loadSendAsUserStatus}
+                onSend={onSend}
+                confirmSendLabel={confirmSendLabel}
+                errorCount={validation.total}
+                onShowIssues={() => {
+                  setSendOpen(false);
+                  setIssuesOpen(true);
+                }}
+              />
+            )}
+            {editing ? (
+              <LoadMessageDialog
+                open={loadOpen}
+                onOpenChange={setLoadOpen}
+                onLoadMessage={editing.onLoadMessage}
+                loadRecentMessages={editing.loadRecentMessages}
+                onLoaded={(result) => {
+                  replaceAll(result.blocks);
+                  setEditTarget({
+                    channelId: result.channelId,
+                    channelName: result.channelName,
+                    ts: result.ts,
+                    editableVia: result.editableVia,
+                    workspaceName: result.workspaceName
+                  });
+                  setLoadOpen(false);
+                }}
+                onOpenAsNew={(loadedBlocks) => {
+                  // Fallback for a not-editable verdict: drop edit mode and
+                  // hydrate the draft (when the host supplied blocks) so the
+                  // user can repost it as a brand-new message.
+                  if (loadedBlocks) {
+                    replaceAll(loadedBlocks);
+                  }
+                  setEditTarget(null);
+                  setLoadOpen(false);
+                }}
+              />
+            ) : null}
             <IssuesSheet
               open={issuesOpen}
               onOpenChange={setIssuesOpen}

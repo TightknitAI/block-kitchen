@@ -108,6 +108,8 @@ export function MyBuilderPage() {
 | `loadChannels` | `() => Promise<{ id: string; name: string }[]>` | yes | Returns channels available to send to. The package never makes Slack API calls itself. |
 | `loadSendAsUserStatus` | `() => Promise<{ canSendAsUser: boolean; oauthUrl?: string }>` | yes | Whether the current user has a Slack user-token and can post as themselves. If `canSendAsUser` is false, `oauthUrl` is shown as a "Sign in with Slack" link. |
 | `onSend` | `(payload) => Promise<{ ok: boolean; error?: string }>` | yes | Called when the user submits the send dialog. Payload is `{ channelId, blocks, sendAsUser }`. |
+| `editing` | `{ onLoadMessage, onUpdate, loadRecentMessages? }` | no | Opt-in edit mode. When present, the toolbar exposes "Edit message": the user pastes a Slack message link, `onLoadMessage({ link })` returns a host-computed [editability verdict](#editing-an-existing-message-opt-in), and a successful load flips the primary action to "Update message" wired to `onUpdate`. Pass `loadRecentMessages` to add a "recent messages from this app" picker beside the paste input. Omit `editing` to keep send-only behavior. |
+| `updateButtonLabel` | `string` | no | Label for the primary button while a message is loaded for editing. Defaults to `'Update message'`. |
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
 | `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
@@ -122,6 +124,63 @@ export function MyBuilderPage() {
 | `sendButtonLabel` | `string` | no | Label and accessible name for the toolbar's Send button (which opens the send dialog). Defaults to `'Send'`. Use it to signal that a configuration step follows, e.g. `'Send to channel…'`. |
 | `confirmSendLabel` | `string` | no | Label for the send dialog's final confirm button. Defaults to `'Send'` (shows `'Sending…'` while in flight). |
 | `theme` | `BrandTheme \| BrandPreset` | no | Branding tokens applied to the builder chrome (toolbar, palette, popovers, dialogs). Accepts a `Partial<BrandTokens>` map and optional `light`/`dark` overrides. See [Styling](#styling) below. |
+
+## Editing an existing message (opt-in)
+
+By default the builder is send-only. Pass `editing` to let users load an
+already-posted message, edit its blocks, and dispatch a `chat.update`. The
+package stays integration-agnostic: it makes no Slack calls and computes
+nothing about who can edit — the host does both.
+
+```tsx
+<BlockKitchen
+  /* …send-only props… */
+  editing={{
+    // Host parses the pasted permalink, fetches the message, and returns a
+    // verdict. `chat.update` only edits a message authored by the calling
+    // token, so the host decides: bot message → 'bot', the user's own
+    // message → 'user', anything else → not editable.
+    onLoadMessage: async ({ link }) => {
+      const msg = await fetchMessageFromPermalink(link); // your code
+      if (!msg) return { ok: false, reason: "Couldn't find that message." };
+      if (!msg.blocks?.length) return { ok: false, reason: 'This message has no editable blocks.' };
+      if (msg.appId === MY_APP_ID)
+        return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'bot' };
+      if (msg.userId === currentUserId)
+        return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'user' };
+      return { ok: false, reason: 'Only messages your app or you posted can be edited.', blocks: msg.blocks };
+    },
+    // Sibling to onSend; carries the source channel + ts. `asUser` follows
+    // the verdict's `editableVia`.
+    onUpdate: async ({ channelId, ts, blocks, asUser }) => {
+      await chatUpdate({ channel: channelId, ts, blocks, asUser }); // your code
+      return { ok: true };
+    },
+    // Optional: adds a "recent messages from this app" picker beside the paste
+    // input. These are editable-by-construction (the app authored them), so
+    // picking one loads it straight into edit mode (no verdict needed).
+    loadRecentMessages: async () => {
+      const msgs = await fetchRecentAppMessages(); // your code
+      return msgs.map((m) => ({
+        channelId: m.channel,
+        channelName: m.channelName,
+        ts: m.ts,
+        blocks: m.blocks,
+        editableVia: 'bot', // defaults to 'bot' if omitted
+        label: m.preview // one-line preview shown in the picker row
+      }));
+    }
+  }}
+/>
+```
+
+- On `ok`, the builder hydrates with `blocks`, shows an edit-mode badge, locks
+  the destination to the source channel, and fixes the post-as identity to
+  `editableVia` (the `'user'` path reuses `loadSendAsUserStatus` for the "Sign
+  in with Slack" gate).
+- On `{ ok: false, reason }`, the load dialog renders the reason inline and
+  offers **Open as a new message instead** — pass `blocks` on the failure
+  result to hydrate the draft for that fallback.
 
 ## Customizing the palette
 
