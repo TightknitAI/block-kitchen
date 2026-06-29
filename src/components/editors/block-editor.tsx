@@ -11,6 +11,7 @@ import type {
   AlertBlock,
   CardBlock,
   CarouselBlock,
+  ContainerBlock,
   ContextActionsBlock,
   DataVisualizationBlock,
   InputBlock,
@@ -26,6 +27,7 @@ import { ActionsEditor } from './actions-editor';
 import { AlertEditor } from './alert-editor';
 import { CardEditor } from './card-editor';
 import { CarouselEditor } from './carousel-editor';
+import { ContainerEditor } from './container-editor';
 import { ContextActionsEditor } from './context-actions-editor';
 import { ContextEditor } from './context-editor';
 import { DataVisualizationEditor } from './data-visualization-editor';
@@ -123,6 +125,8 @@ function dispatch(block: SupportedBlock, onChange: (next: SupportedBlock) => voi
       return <TaskCardEditor block={block as TaskCardBlock} onChange={(next) => onChange(next)} />;
     case 'data_visualization':
       return <DataVisualizationEditor block={block as DataVisualizationBlock} onChange={(next) => onChange(next)} />;
+    case 'container':
+      return <ContainerEditor block={block as ContainerBlock} onChange={(next) => onChange(next)} />;
     default:
       return null;
   }

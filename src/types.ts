@@ -34,7 +34,8 @@ export type SupportedBlockType =
   | 'video'
   | 'plan'
   | 'task_card'
-  | 'data_visualization';
+  | 'data_visualization'
+  | 'container';
 
 /**
  * Slack `markdown` block payload. Renders standard markdown (GFM)
@@ -361,6 +362,50 @@ export interface DataVisualizationBlock {
 }
 
 /**
+ * A block allowed inside a {@link ContainerBlock}'s `child_blocks` array.
+ * Slack permits actions, context, divider, file, header, image, input,
+ * rich_text, section, table, and video — notably not `container` itself
+ * (no nesting) nor message-only chrome like card / carousel / markdown.
+ * This mirrors that set across the block types the builder models (`file`
+ * is omitted because the builder has no file block).
+ * @see https://docs.slack.dev/reference/block-kit/blocks/container-block
+ */
+export type ContainerChildBlock =
+  | SectionBlock
+  | SupportedHeaderBlock
+  | DividerBlock
+  | ContextBlock
+  | ActionsBlock
+  | ImageBlock
+  | RichTextBlock
+  | TableBlock
+  | InputBlock
+  | VideoBlock;
+
+/**
+ * Slack `container` block payload. A general-purpose wrapper that groups
+ * 1-10 child blocks into a single, optionally collapsible unit with a
+ * configurable width. Valid on the message surface only.
+ * `default_collapsed` only takes effect when `is_collapsible` is true.
+ *
+ * Note: despite what the API reference says, `title` and `subtitle` are
+ * `plain_text` text objects, not plain strings. `slack-web-api-client`
+ * doesn't ship this type yet, so we declare it.
+ * @see https://docs.slack.dev/reference/block-kit/blocks/container-block
+ */
+export interface ContainerBlock {
+  type: 'container';
+  title: { type: 'plain_text'; text: string; emoji?: boolean };
+  child_blocks: ContainerChildBlock[];
+  subtitle?: { type: 'plain_text'; text: string; emoji?: boolean };
+  icon?: ImageElement;
+  width?: 'narrow' | 'standard' | 'wide' | 'full';
+  is_collapsible?: boolean;
+  default_collapsed?: boolean;
+  block_id?: string;
+}
+
+/**
  * Header heading level shown in the preview. Slack's API has no
  * `level` field on header blocks, so this is a builder-only extension
  * that round-trips on the block payload but is otherwise cosmetic.
@@ -396,7 +441,8 @@ export type SupportedBlock =
   | VideoBlock
   | PlanBlock
   | TaskCardBlock
-  | DataVisualizationBlock;
+  | DataVisualizationBlock
+  | ContainerBlock;
 
 /**
  * A block as represented inside the builder's working state.

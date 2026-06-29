@@ -196,6 +196,10 @@ export const DataVisualizationPie: Story = {
   args: { block: variant('dataviz_pie') }
 };
 
+export const Container: Story = {
+  args: { block: variant('container_collapsible') }
+};
+
 /* ----------------------------- Input variants ----------------------------- */
 
 // Input is the block with the widest sub-editor surface area: 20+ element
