@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.8.9](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.8...block-kitchen-v0.8.9) (2026-06-29)
+
+
+### Features
+
+* **container:** drag blocks into and out of containers on the canvas ([2be9e6a](https://github.com/TightknitAI/block-kitchen/commit/2be9e6a65d528851a4572a07abd157ae8bee7383))
+* **container:** drag blocks into and out of containers on the canvas ([f500dc5](https://github.com/TightknitAI/block-kitchen/commit/f500dc5d3ebffe31c40e60385d61a8aa8749fd25))
+
+
+### Bug Fixes
+
+* **container:** scope child toolbars to their own hover ([2bd06f0](https://github.com/TightknitAI/block-kitchen/commit/2bd06f0864baa59083f73db74370c2f8c06a432f))
+
 ## [0.8.8](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.7...block-kitchen-v0.8.8) (2026-06-29)
 
 
