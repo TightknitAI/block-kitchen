@@ -132,7 +132,7 @@ export function MyBuilderPage() {
 By default the builder is send-only. Pass `editing` to let users load an
 already-posted message, edit its blocks, and dispatch a `chat.update`. The
 package stays integration-agnostic: it makes no Slack calls and computes
-nothing about who can edit — the host does both.
+nothing about who can edit; the host does both.
 
 ```tsx
 <BlockKitchen
@@ -181,7 +181,7 @@ nothing about who can edit — the host does both.
   `editableVia` (the `'user'` path reuses `loadSendAsUserStatus` for the "Sign
   in with Slack" gate).
 - On `{ ok: false, reason }`, the load dialog renders the reason inline and
-  offers **Open as a new message instead** — pass `blocks` on the failure
+  offers **Open as a new message instead**. Pass `blocks` on the failure
   result to hydrate the draft for that fallback.
 
 ## Customizing the palette

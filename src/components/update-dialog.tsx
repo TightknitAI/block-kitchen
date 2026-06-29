@@ -128,7 +128,7 @@ export function UpdateDialog({
         <DialogHeader>
           <DialogTitle>Update message</DialogTitle>
           <DialogDescription>
-            This replaces the message that's already posted — it stays in the same channel and can't be moved.
+            This replaces the message that's already posted. It stays in the same channel and can't be moved.
           </DialogDescription>
         </DialogHeader>
 
