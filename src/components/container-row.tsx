@@ -67,7 +67,7 @@ export function ContainerRow({
     <div
       ref={setNodeRef}
       style={style}
-      className={cn('group relative mb-2 last:mb-0 hover:z-10', isDragging && 'opacity-40')}
+      className={cn('group/container relative mb-2 last:mb-0 hover:z-10', isDragging && 'opacity-40')}
     >
       <div
         className={cn(
@@ -161,7 +161,9 @@ export function ContainerRow({
       <div
         className={cn(
           'absolute -top-3 right-2 z-10 hidden items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm transition-opacity md:flex',
-          hasErrors ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+          hasErrors
+            ? 'opacity-100'
+            : 'opacity-0 group-hover/container:opacity-100 group-focus-within/container:opacity-100'
         )}
       >
         {hasErrors ? (
