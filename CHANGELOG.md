@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.8](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.7...block-kitchen-v0.8.8) (2026-06-29)
+
+
+### Features
+
+* add the new Slack container block ([bb6fe91](https://github.com/TightknitAI/block-kitchen/commit/bb6fe91342993261090458fb3137be7de1b622ed))
+* add the new Slack container block ([d942e90](https://github.com/TightknitAI/block-kitchen/commit/d942e9063d1591aa49bf7cbf76e06d821f9554ed))
+
 ## [0.8.7](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.6...block-kitchen-v0.8.7) (2026-06-24)
 
 
