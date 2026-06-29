@@ -683,6 +683,8 @@ function EditingMenu({
     window.setTimeout(() => setCopiedTs((cur) => (cur === msg.ts ? null : cur)), 1200);
   };
 
+  // Segmented switcher: a muted track with the active segment raised on a
+  // solid background, so it reads as a button-style mode toggle.
   const tab = (label: string, active: boolean, onSelect: () => void) => (
     <button
       type="button"
@@ -690,15 +692,16 @@ function EditingMenu({
       aria-selected={active}
       onClick={onSelect}
       style={{
-        padding: '8px 14px',
+        flex: 1,
+        padding: '7px 12px',
         fontSize: 13,
         fontWeight: 600,
         cursor: 'pointer',
-        background: 'transparent',
-        border: 'none',
-        marginBottom: -1,
+        borderRadius: 6,
+        border: `1px solid ${active ? 'hsl(var(--border))' : 'transparent'}`,
+        background: active ? 'hsl(var(--background))' : 'transparent',
         color: active ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-        borderBottom: `2px solid ${active ? 'hsl(var(--primary))' : 'transparent'}`
+        boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
       }}
     >
       {label}
@@ -802,7 +805,14 @@ function EditingMenu({
               <div
                 role="tablist"
                 aria-label="Editing mode"
-                style={{ display: 'flex', gap: 4, marginTop: 16, borderBottom: '1px solid hsl(var(--border))' }}
+                style={{
+                  display: 'flex',
+                  gap: 4,
+                  marginTop: 16,
+                  padding: 4,
+                  borderRadius: 8,
+                  background: 'hsl(var(--muted))'
+                }}
               >
                 {tab('Write-only', !editingEnabled, () => onEditingEnabledChange(false))}
                 {tab('Read & Write', editingEnabled, () => onEditingEnabledChange(true))}
