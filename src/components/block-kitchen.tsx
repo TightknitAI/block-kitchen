@@ -54,7 +54,9 @@ export function BlockKitchen(props: BlockKitchenProps) {
     loadSendAsUserStatus,
     onSend,
     editing,
+    loadButtonLabel,
     updateButtonLabel,
+    confirmUpdateLabel,
     palette,
     disabledBlockTypes,
     showPaletteSearch,
@@ -306,6 +308,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 }
                 onOpenLoad={() => setLoadOpen(true)}
                 onExitEdit={() => setEditTarget(null)}
+                loadButtonLabel={loadButtonLabel}
                 updateButtonLabel={updateButtonLabel}
               />
               <div className="flex min-h-0 flex-1 items-stretch">
@@ -385,7 +388,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 blocks={blockPayloads}
                 loadSendAsUserStatus={loadSendAsUserStatus}
                 onUpdate={editing.onUpdate}
-                updateButtonLabel={updateButtonLabel}
+                confirmUpdateLabel={confirmUpdateLabel}
                 errorCount={validation.total}
                 onShowIssues={() => {
                   setSendOpen(false);

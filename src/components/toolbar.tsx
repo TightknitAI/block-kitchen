@@ -93,7 +93,8 @@ export function Toolbar({
   editBadge,
   onOpenLoad,
   onExitEdit,
-  updateButtonLabel = 'Update message'
+  loadButtonLabel = 'Load message',
+  updateButtonLabel = 'Review & update'
 }: {
   onClear: () => void;
   onOpenJson: () => void;
@@ -119,7 +120,9 @@ export function Toolbar({
   onOpenLoad?: () => void;
   /** Switches back to a new message, clearing the loaded edit target. */
   onExitEdit?: () => void;
-  /** Label for the primary button while editing. Defaults to `'Update message'`. */
+  /** Label for the load-message entry button. Defaults to `'Load message'`. */
+  loadButtonLabel?: string;
+  /** Label for the primary button while editing. Defaults to `'Review & update'`. */
   updateButtonLabel?: string;
 }) {
   const activeTheme = THEME_OPTIONS.find((t) => t.value === previewTheme) ?? THEME_OPTIONS[0];
@@ -231,9 +234,9 @@ export function Toolbar({
             </button>
           </span>
         ) : editingEnabled ? (
-          <Button type="button" variant="ghost" size="sm" onClick={onOpenLoad} aria-label="Edit an existing message">
+          <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
             <Pencil className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Edit message</span>
+            <span className="hidden sm:inline">{loadButtonLabel}</span>
           </Button>
         ) : null}
       </div>

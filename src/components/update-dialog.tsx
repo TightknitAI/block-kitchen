@@ -32,7 +32,7 @@ type UpdateStatus = { kind: 'idle' } | { kind: 'updating' } | { kind: 'error'; e
  * @param props.blocks - the edited draft blocks to write back
  * @param props.loadSendAsUserStatus - returns user-token status + OAuth URL (user-token path only)
  * @param props.onUpdate - terminal action; should return `{ ok }` or `{ ok: false, error }`
- * @param props.updateButtonLabel - label for the confirm button. Defaults to `'Update message'`.
+ * @param props.confirmUpdateLabel - label for the confirm button. Defaults to `'Update message'`.
  * @param props.errorCount - total validation errors against the current draft
  * @param props.onShowIssues - called when the user opens the global issues panel
  * @returns the rendered update dialog
@@ -44,7 +44,7 @@ export function UpdateDialog({
   blocks,
   loadSendAsUserStatus,
   onUpdate,
-  updateButtonLabel = 'Update message',
+  confirmUpdateLabel = 'Update message',
   errorCount,
   onShowIssues
 }: {
@@ -54,7 +54,7 @@ export function UpdateDialog({
   blocks: SupportedBlock[];
   loadSendAsUserStatus: () => Promise<SendAsUserStatus>;
   onUpdate: (payload: UpdatePayload) => Promise<UpdateResult>;
-  updateButtonLabel?: string;
+  confirmUpdateLabel?: string;
   errorCount: number;
   onShowIssues?: () => void;
 }) {
@@ -128,7 +128,7 @@ export function UpdateDialog({
         <DialogHeader>
           <DialogTitle>Update message</DialogTitle>
           <DialogDescription>
-            Re-send the edited blocks to the original message. The channel is locked.
+            This replaces the message that's already posted — it stays in the same channel and can't be moved.
           </DialogDescription>
         </DialogHeader>
 
@@ -193,7 +193,7 @@ export function UpdateDialog({
             onClick={handleSubmit}
             disabled={status.kind === 'updating' || blocks.length === 0 || errorCount > 0 || needsSignIn}
           >
-            {status.kind === 'updating' ? 'Updating…' : updateButtonLabel}
+            {status.kind === 'updating' ? 'Updating…' : confirmUpdateLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

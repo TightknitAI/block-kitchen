@@ -745,10 +745,23 @@ export interface BlockKitchenProps {
    */
   editing?: EditingConfig;
   /**
-   * Label for the primary button when a message is loaded for editing.
-   * Defaults to `'Update message'` (and shows `'Updating…'` while in flight).
+   * Label + accessible name for the toolbar button that opens the
+   * load-message dialog (the edit-mode entry point). Defaults to
+   * `'Load message'`. Only shown when {@link BlockKitchenProps.editing} is set
+   * and no message is currently loaded.
+   */
+  loadButtonLabel?: string;
+  /**
+   * Label for the toolbar's primary button when a message is loaded for
+   * editing — it opens the update dialog. Defaults to `'Review & update'`.
    */
   updateButtonLabel?: string;
+  /**
+   * Label for the update dialog's final confirm button, which dispatches the
+   * update via {@link EditingConfig.onUpdate}. Defaults to `'Update message'`
+   * (and shows `'Updating…'` while in flight).
+   */
+  confirmUpdateLabel?: string;
   /**
    * The palette shown on the left-hand side. When omitted, the built-in
    * `defaultPalette` is used. Pass a custom array (typically built by

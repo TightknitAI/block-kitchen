@@ -700,7 +700,7 @@ function EditModePanel({
       <summary style={{ cursor: 'pointer' }}>
         <span style={{ fontWeight: 600 }}>Edit-mode demo (mocked host)</span>
         <div style={{ fontWeight: 400, opacity: 0.7, marginTop: 2 }}>
-          Copy a link, then use “Edit message” in the toolbar — or pick a recent message.
+          Copy a link, then use “Load message” in the toolbar — or pick a recent message.
         </div>
       </summary>
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16, marginTop: 10 }}>
