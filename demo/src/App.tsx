@@ -229,18 +229,21 @@ export function App() {
   const onSend = useCallback(async (payload: SendPayload): Promise<SendResult> => {
     await new Promise((r) => setTimeout(r, 300));
     const channel = MOCK_CHANNELS.find((c) => c.id === payload.channelId);
+    const name = channel?.name ?? payload.channelId;
     setStore((prev) => {
       const ts = `${Math.floor(Date.now() / 1000)}.${String(prev.length).padStart(6, '0')}`;
       const posted: StoredMessage = {
         ts,
         channelId: payload.channelId,
-        channelName: channel?.name ?? payload.channelId,
+        channelName: name,
         author: payload.sendAsUser ? 'you' : 'bot',
         kind: 'normal',
         blocks: payload.blocks
       };
       return [...prev, posted];
     });
+    const count = `${payload.blocks.length} block${payload.blocks.length === 1 ? '' : 's'}`;
+    window.alert(`Sent a new message to #${name} (${count}, as ${payload.sendAsUser ? 'you' : 'the bot'}).`);
     return { ok: true };
   }, []);
 
@@ -279,11 +282,18 @@ export function App() {
       : { ok: true, ...base, editableVia: 'user' };
   }, []);
 
-  const onUpdate = useCallback(async ({ ts, blocks: updated }: UpdatePayload): Promise<UpdateResult> => {
-    await new Promise((r) => setTimeout(r, 300));
-    setStore((prev) => prev.map((m) => (m.ts === ts ? { ...m, blocks: updated } : m)));
-    return { ok: true };
-  }, []);
+  const onUpdate = useCallback(
+    async ({ channelId, ts, blocks: updated, asUser }: UpdatePayload): Promise<UpdateResult> => {
+      await new Promise((r) => setTimeout(r, 300));
+      const channel = MOCK_CHANNELS.find((c) => c.id === channelId);
+      const name = channel?.name ?? channelId;
+      setStore((prev) => prev.map((m) => (m.ts === ts ? { ...m, blocks: updated } : m)));
+      const count = `${updated.length} block${updated.length === 1 ? '' : 's'}`;
+      window.alert(`Updated the message in #${name} (${count}, as ${asUser ? 'you' : 'the bot'}).`);
+      return { ok: true };
+    },
+    []
+  );
 
   // "Recent messages from this app" — round-trippable fixtures the app
   // authored, whether posted as the bot or as the current user (plus anything

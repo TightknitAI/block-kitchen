@@ -322,7 +322,7 @@ export function Toolbar({
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-muted px-2 py-2 text-foreground sm:px-3">
           <Pencil className="h-4 w-4 shrink-0 text-primary" />
           <span className="min-w-0 flex-1 text-sm">
-            Editing an existing message in <span className="font-semibold">{editBadge.channelLabel}</span>
+            References an existing message in <span className="font-semibold">{editBadge.channelLabel}</span>
             <span className="ml-1 font-mono text-xs opacity-70">{editBadge.ts}</span>
           </span>
           <Button type="button" variant="ghost" size="sm" onClick={onExitEdit} className="shrink-0">
