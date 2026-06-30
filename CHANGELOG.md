@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.8.11](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.10...block-kitchen-v0.8.11) (2026-06-30)
+
+
+### Features
+
+* **editing:** opt-in message edit mode (load existing + update) ([2eac3cf](https://github.com/TightknitAI/block-kitchen/commit/2eac3cfe06b62b6048aa0cdd6a58118fc61e420e))
+* **editing:** optional author username + icon for the loaded message ([d14c429](https://github.com/TightknitAI/block-kitchen/commit/d14c4294bb21cc2eb9b2ffab26eddb00e642ccba))
+* **editing:** restore Load button; split update into update/send-as-new ([345c727](https://github.com/TightknitAI/block-kitchen/commit/345c72716f7a36465316b2652e3d31476e318301))
+* **editing:** show a formatted date in the edit banner ([b0e1b5b](https://github.com/TightknitAI/block-kitchen/commit/b0e1b5b28d238f0e292ca75a63cd7ad768b0e483))
+* **toolbar:** default the send button label to "Review & send" ([2e076ca](https://github.com/TightknitAI/block-kitchen/commit/2e076ca4309f49758a9ec701f2eb0f15715a94e5))
+
+
+### Bug Fixes
+
+* **toolbar:** align Docs link sizing with the other buttons ([f0f4367](https://github.com/TightknitAI/block-kitchen/commit/f0f4367a605b82b23cd90b230a4155175a50c504))
+
 ## [0.8.10](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.9...block-kitchen-v0.8.10) (2026-06-30)
 
 
