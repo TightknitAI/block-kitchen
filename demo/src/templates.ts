@@ -1232,7 +1232,7 @@ const TEAM_DASHBOARD_BLOCKS: SupportedBlock[] = [
         type: 'card',
         icon: {
           type: 'image',
-          image_url: 'https://placehold.co/36x36/16a34a/ffffff?text=✓',
+          image_url: 'https://placehold.co/36x36/16a34a/ffffff?text=OK',
           alt_text: 'Deploy icon'
         },
         title: { type: 'mrkdwn', text: '*Release v412.1*' },
