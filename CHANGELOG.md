@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.2](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.1...block-kitchen-v0.9.2) (2026-06-30)
+
+
+### Bug Fixes
+
+* **hooks:** resolve worktree-local lefthook instead of path-baking shim ([9797918](https://github.com/TightknitAI/block-kitchen/commit/9797918b196ee9e359a2630af0254e2452727d4e))
+* **hooks:** resolve worktree-local lefthook instead of path-baking shim ([d8bc585](https://github.com/TightknitAI/block-kitchen/commit/d8bc585bf24dc8b889858bb52666e95a6fb8b7fc))
+
 ## [0.9.1](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.0...block-kitchen-v0.9.1) (2026-06-30)
 
 
