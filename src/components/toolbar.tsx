@@ -90,7 +90,7 @@ export function Toolbar({
   showThemeControl = true,
   docsLink,
   errorCount,
-  sendButtonLabel = 'Send',
+  sendButtonLabel = 'Review & send',
   editingEnabled = false,
   editBadge,
   onOpenLoad,

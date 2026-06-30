@@ -94,7 +94,7 @@ export const EditingEnabled: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Load message' }));
     await expect(args.onOpenLoad).toHaveBeenCalledOnce();
-    await expect(await canvas.findByRole('button', { name: 'Send' })).toBeInTheDocument();
+    await expect(await canvas.findByRole('button', { name: 'Review & send' })).toBeInTheDocument();
   }
 };
 

@@ -123,7 +123,7 @@ export function MyBuilderPage() {
 | `showThemeControl` | `boolean` | no | Defaults to `true`. When `false`, the toolbar's light/dark toggle is hidden and the theme stays at `defaultPreviewTheme`. Ignored when `previewTheme` is set (a controlled theme always hides the toggle). |
 | `defaultPreviewTheme` | `'light' \| 'dark'` | no | Initial (uncontrolled) preview theme. Pass the host app's current theme so the preview opens matched to the consuming app's appearance. Ignored when `previewTheme` is provided. |
 | `previewTheme` | `'light' \| 'dark'` | no | Controlled preview theme. When set, the preview renders in this theme, follows it reactively, and the toolbar's light/dark toggle is hidden so the host app fully owns the theme. Leave unset to keep the preview uncontrolled (seeded from `defaultPreviewTheme`, toggle shown). |
-| `sendButtonLabel` | `string` | no | Label and accessible name for the toolbar's Send button (which opens the send dialog). Defaults to `'Send'`. Use it to signal that a configuration step follows, e.g. `'Send to channel…'`. |
+| `sendButtonLabel` | `string` | no | Label and accessible name for the toolbar's Send button (which opens the send dialog). Defaults to `'Review & send'` (the dialog is the review step). Override it for product-specific copy, e.g. `'Send to channel…'`. |
 | `confirmSendLabel` | `string` | no | Label for the send dialog's final confirm button. Defaults to `'Send'` (shows `'Sending…'` while in flight). |
 | `theme` | `BrandTheme \| BrandPreset` | no | Branding tokens applied to the builder chrome (toolbar, palette, popovers, dialogs). Accepts a `Partial<BrandTokens>` map and optional `light`/`dark` overrides. See [Styling](#styling) below. |
 

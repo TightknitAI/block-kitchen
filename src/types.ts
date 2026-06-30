@@ -872,9 +872,9 @@ export interface BlockKitchenProps {
   previewTheme?: PreviewTheme;
   /**
    * Label for the toolbar's Send button, which opens the send dialog.
-   * Defaults to `'Send'`. Use this to signal that a configuration step
-   * follows (e.g. `'Send to channel…'`) without hardcoding
-   * product-specific copy in the package. Also used as the button's
+   * Defaults to `'Review & send'` (the dialog is the review step). Use this to
+   * override the copy (e.g. `'Send to channel…'`) without hardcoding
+   * product-specific text in the package. Also used as the button's
    * accessible name.
    */
   sendButtonLabel?: string;

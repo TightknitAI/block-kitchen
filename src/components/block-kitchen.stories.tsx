@@ -248,7 +248,7 @@ export const AddSectionFromPalette: Story = {
     await userEvent.click(addSection);
 
     await expect(args.onChange).toHaveBeenCalled();
-    const sendBtn = await canvas.findByRole('button', { name: /^send$/i });
+    const sendBtn = await canvas.findByRole('button', { name: /review & send/i });
     await expect(sendBtn).toBeEnabled();
   }
 };
