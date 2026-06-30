@@ -184,7 +184,7 @@ export function LoadMessageDialog({
       >
         <DialogHeader>
           <DialogTitle>Edit an existing message</DialogTitle>
-          <div className="flex items-start gap-1.5">
+          <div className="flex items-start gap-1.5 text-left">
             <DialogDescription>
               {hasRecent
                 ? 'Paste a Slack message link, or pick a recent message your app posted.'
@@ -318,13 +318,8 @@ export function LoadMessageDialog({
                         className="flex min-w-0 flex-col gap-0.5 rounded-md border border-input bg-background px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       >
                         <span className="flex min-w-0 items-baseline justify-between gap-2">
-                          <span className="flex min-w-0 items-baseline gap-1.5">
-                            <span className="truncate font-medium">
-                              {m.channelName ? `#${m.channelName}` : m.channelId}
-                            </span>
-                            <span className="shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                              {asUser ? 'You' : 'Bot'}
-                            </span>
+                          <span className="shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                            {asUser ? 'You' : 'Bot'}
                           </span>
                           <span className="shrink-0 text-xs text-muted-foreground">
                             <span className="font-semibold text-foreground">
