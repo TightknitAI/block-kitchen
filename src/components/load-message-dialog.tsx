@@ -327,8 +327,7 @@ export function LoadMessageDialog({
                             </span>
                           </span>
                           <span className="shrink-0 text-xs text-muted-foreground">
-                            {new Date(Number(m.ts) * 1000).toLocaleString()}{" "}
-                            <span className="font-mono">({m.ts})</span>
+                            {new Date(Number(m.ts) * 1000).toLocaleString()} <span className="font-mono">({m.ts})</span>
                           </span>
                         </span>
                         {m.label && <span className="truncate text-xs text-muted-foreground">{m.label}</span>}
