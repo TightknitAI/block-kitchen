@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.8.10](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.9...block-kitchen-v0.8.10) (2026-06-30)
+
+
+### Bug Fixes
+
+* **carousel:** full card editor per card + Home Tabs template icon URL ([e32874b](https://github.com/TightknitAI/block-kitchen/commit/e32874b4e8b9b68fb304868719094cd4ce42e15a))
+* **carousel:** full card editor per card; fix Home Tabs template icon URL ([0825ef4](https://github.com/TightknitAI/block-kitchen/commit/0825ef4ac798ca7a88916b52bcd7737776b58a36))
+
 ## [0.8.9](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.8...block-kitchen-v0.8.9) (2026-06-29)
 
 
