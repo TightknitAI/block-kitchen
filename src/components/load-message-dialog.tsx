@@ -326,7 +326,9 @@ export function LoadMessageDialog({
                               {asUser ? 'You' : 'Bot'}
                             </span>
                           </span>
-                          <span className="shrink-0 font-mono text-xs text-muted-foreground">{m.ts}</span>
+                          <span className="shrink-0 text-xs text-muted-foreground">
+                            {new Date(Number(m.ts) * 1000).toLocaleString()} <span className="font-mono">({m.ts})</span>
+                          </span>
                         </span>
                         {m.label && <span className="truncate text-xs text-muted-foreground">{m.label}</span>}
                       </button>
