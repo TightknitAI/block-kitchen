@@ -159,29 +159,6 @@ export function SendDialog({
 
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="channel-picker">Channel</Label>
-            {channels === null && !channelsError && <p className="text-xs text-muted-foreground">Loading channels…</p>}
-            {channelsError && <p className="text-xs text-destructive">{channelsError}</p>}
-            {channels && channels.length === 0 && (
-              <p className="text-xs text-muted-foreground">No public channels available.</p>
-            )}
-            {channels && channels.length > 0 && (
-              <select
-                id="channel-picker"
-                value={channelId}
-                onChange={(e) => setChannelId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {channels.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    #{c.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
-
-          <div className="flex flex-col gap-1.5">
             <Label htmlFor="send-as-picker">Post as</Label>
             <select
               id="send-as-picker"
@@ -207,6 +184,29 @@ export function SendDialog({
                 </a>{' '}
                 to post as yourself.
               </p>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="channel-picker">Channel</Label>
+            {channels === null && !channelsError && <p className="text-xs text-muted-foreground">Loading channels…</p>}
+            {channelsError && <p className="text-xs text-destructive">{channelsError}</p>}
+            {channels && channels.length === 0 && (
+              <p className="text-xs text-muted-foreground">No public channels available.</p>
+            )}
+            {channels && channels.length > 0 && (
+              <select
+                id="channel-picker"
+                value={channelId}
+                onChange={(e) => setChannelId(e.target.value)}
+                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                {channels.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    #{c.name}
+                  </option>
+                ))}
+              </select>
             )}
           </div>
 

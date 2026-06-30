@@ -7,6 +7,7 @@ import {
   Code2,
   ExternalLink,
   Home,
+  MailSearch,
   MessageSquare,
   Moon,
   Pencil,
@@ -162,7 +163,7 @@ export function Toolbar({
         <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
           {editingEnabled && !editBadge ? (
             <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
-              <Pencil className="h-3.5 w-3.5" />
+              <MailSearch className="h-3.5 w-3.5" />
               <span className="hidden md:inline">{loadButtonLabel}</span>
             </Button>
           ) : null}
