@@ -307,7 +307,14 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     : null
                 }
                 onOpenLoad={() => setLoadOpen(true)}
-                onExitEdit={() => setEditTarget(null)}
+                onExitEdit={() => {
+                  // Leaving edit mode discards the loaded message's draft and
+                  // reopens the loader so the user can start fresh or pick
+                  // another message to edit.
+                  setEditTarget(null);
+                  replaceAll([]);
+                  setLoadOpen(true);
+                }}
                 loadButtonLabel={loadButtonLabel}
                 updateButtonLabel={updateButtonLabel}
               />
