@@ -215,7 +215,7 @@ export function Toolbar({
               href={docsHref}
               target="_blank"
               rel="noreferrer noopener"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 py-1 text-sm text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs font-medium text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               aria-label={`${docsLabel} (opens in a new tab)`}
             >
               <BookOpen className="h-3.5 w-3.5" />
