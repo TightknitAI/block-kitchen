@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '../lib/ui/input';
 import { Label } from '../lib/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
-import type { LoadResult, RecentMessage, SupportedBlock } from '../types';
+import type { ChannelOption, LoadResult, RecentMessage, SupportedBlock } from '../types';
 
 /** Map a {@link RecentMessage} onto the `ok` verdict so it reuses the load path. */
 function recentToResult(msg: RecentMessage): Extract<LoadResult, { ok: true }> {
@@ -39,7 +39,8 @@ type LoadStatus =
  * @param props.open - whether the dialog is open
  * @param props.onOpenChange - notified when the user closes the dialog
  * @param props.onLoadMessage - host loader returning an editability verdict
- * @param props.loadRecentMessages - optional loader for the "recent messages" picker
+ * @param props.loadRecentMessages - optional loader for the "recent messages" picker, scoped to a channel
+ * @param props.loadChannels - returns channels to scope the recent-messages picker by
  * @param props.onLoaded - called with the `ok` result so the parent enters edit mode
  * @param props.onOpenAsNew - called with optional blocks for the "open as new" fallback
  * @returns the rendered load-message dialog
@@ -49,20 +50,26 @@ export function LoadMessageDialog({
   onOpenChange,
   onLoadMessage,
   loadRecentMessages,
+  loadChannels,
   onLoaded,
   onOpenAsNew
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onLoadMessage: (input: { link: string }) => Promise<LoadResult>;
-  loadRecentMessages?: () => Promise<RecentMessage[]>;
+  loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
+  loadChannels: () => Promise<ChannelOption[]>;
   onLoaded: (result: Extract<LoadResult, { ok: true }>) => void;
   onOpenAsNew: (blocks?: SupportedBlock[]) => void;
 }) {
   const [link, setLink] = useState('');
   const [status, setStatus] = useState<LoadStatus>({ kind: 'idle' });
-  // Recent-messages picker (only loaded when `loadRecentMessages` is given).
-  // `null` means "loading / not loaded yet".
+  // Channel selector for the recent-messages picker (only when `loadRecentMessages`
+  // is given). The user must pick a channel before any recent lookup runs.
+  const [channels, setChannels] = useState<ChannelOption[] | null>(null);
+  const [channelsError, setChannelsError] = useState<string | null>(null);
+  const [channelId, setChannelId] = useState<string>('');
+  // Recent messages for the selected channel. `null` means "loading / not loaded yet".
   const [recent, setRecent] = useState<RecentMessage[] | null>(null);
   const [recentError, setRecentError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,31 +78,62 @@ export function LoadMessageDialog({
   // (consumers often pass a fresh arrow) without us needing them as deps.
   const onLoadMessageRef = useRef(onLoadMessage);
   const loadRecentMessagesRef = useRef(loadRecentMessages);
+  const loadChannelsRef = useRef(loadChannels);
   useEffect(() => {
     onLoadMessageRef.current = onLoadMessage;
     loadRecentMessagesRef.current = loadRecentMessages;
+    loadChannelsRef.current = loadChannels;
   });
 
   const hasRecent = !!loadRecentMessages;
 
-  // Reset to a clean slate each time the dialog opens, and (re)load the recent
-  // list so a fresh open reflects any messages posted since.
+  // Reset to a clean slate each time the dialog opens, and load the channel
+  // list so the user can scope the recent-messages picker.
   useEffect(() => {
     if (!open) {
       return;
     }
     setLink('');
     setStatus({ kind: 'idle' });
+    setChannelId('');
+    setRecent(null);
+    setRecentError(null);
     if (!loadRecentMessagesRef.current) {
-      setRecent([]);
-      setRecentError(null);
+      setChannels([]);
+      setChannelsError(null);
+      return;
+    }
+    setChannels(null);
+    setChannelsError(null);
+    let cancelled = false;
+    loadChannelsRef
+      .current()
+      .then((list) => {
+        if (!cancelled) {
+          setChannels(list);
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setChannelsError(e instanceof Error ? e.message : 'Failed to load channels');
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
+
+  // (Re)load the recent list whenever the selected channel changes, scoping the
+  // lookup to that one channel.
+  useEffect(() => {
+    if (!open || !loadRecentMessagesRef.current || !channelId) {
       return;
     }
     setRecent(null);
     setRecentError(null);
     let cancelled = false;
     loadRecentMessagesRef
-      .current()
+      .current(channelId)
       .then((list) => {
         if (!cancelled) {
           setRecent(list);
@@ -109,7 +147,7 @@ export function LoadMessageDialog({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, channelId]);
 
   const handleLoad = async () => {
     const trimmed = link.trim();
@@ -226,14 +264,47 @@ export function LoadMessageDialog({
                 or pick a recent message
                 <span className="h-px flex-1 bg-border" />
               </div>
-              {recent === null && !recentError && (
+
+              {/* Pick a channel first — the recent lookup is scoped to it. */}
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="recent-channel-picker">Channel</Label>
+                {channels === null && !channelsError && (
+                  <p className="text-xs text-muted-foreground">Loading channels…</p>
+                )}
+                {channelsError && <p className="text-xs text-destructive">{channelsError}</p>}
+                {channels && channels.length === 0 && !channelsError && (
+                  <p className="text-xs text-muted-foreground">No public channels available.</p>
+                )}
+                {channels && channels.length > 0 && (
+                  <select
+                    id="recent-channel-picker"
+                    value={channelId}
+                    onChange={(e) => setChannelId(e.target.value)}
+                    className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                  >
+                    <option value="" disabled>
+                      Select a channel…
+                    </option>
+                    {channels.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        #{c.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {!channelId && channels && channels.length > 0 && (
+                <p className="text-xs text-muted-foreground">Select a channel to see recent messages.</p>
+              )}
+              {channelId && recent === null && !recentError && (
                 <p className="text-xs text-muted-foreground">Loading recent messages…</p>
               )}
-              {recentError && <p className="text-xs text-destructive">{recentError}</p>}
-              {recent && recent.length === 0 && !recentError && (
-                <p className="text-xs text-muted-foreground">No recent messages from this app.</p>
+              {channelId && recentError && <p className="text-xs text-destructive">{recentError}</p>}
+              {channelId && recent && recent.length === 0 && !recentError && (
+                <p className="text-xs text-muted-foreground">No recent messages from this app in this channel.</p>
               )}
-              {recent && recent.length > 0 && (
+              {channelId && recent && recent.length > 0 && (
                 <div className="flex max-h-48 flex-col gap-1 overflow-y-auto">
                   {recent.map((m) => {
                     // Which identity the message was posted as — drives both

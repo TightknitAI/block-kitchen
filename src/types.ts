@@ -574,9 +574,10 @@ export interface UpdateResult {
 
 /**
  * One entry in the "recent messages from this app" picker, returned by
- * {@link EditingConfig.loadRecentMessages}. These are editable-by-construction
- * — the app authored them — so they load straight into edit mode without a
- * separate verdict round-trip. `editableVia` defaults to `'bot'` when omitted.
+ * {@link EditingConfig.loadRecentMessages} for the selected channel. These are
+ * editable-by-construction — the app authored them — so they load straight into
+ * edit mode without a separate verdict round-trip. `editableVia` defaults to
+ * `'bot'` when omitted.
  */
 export interface RecentMessage {
   channelId: string;
@@ -614,11 +615,14 @@ export interface EditingConfig {
   onUpdate: (payload: UpdatePayload) => Promise<UpdateResult>;
   /**
    * Optional. When provided, the load dialog adds a "recent messages from this
-   * app" picker alongside the paste-a-link input. Returns messages the app
-   * authored (editable-by-construction); picking one loads it straight into
-   * edit mode. Omit to offer the paste-link entry only.
+   * app" picker alongside the paste-a-link input. The user first picks a channel
+   * (reusing {@link BlockKitchenProps.loadChannels}); only then is this called
+   * with the chosen `channelId`, scoping the lookup to that single channel.
+   * Returns messages the app authored in that channel (editable-by-construction);
+   * picking one loads it straight into edit mode. Omit to offer the paste-link
+   * entry only.
    */
-  loadRecentMessages?: () => Promise<RecentMessage[]>;
+  loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
 }
 
 /**

@@ -108,7 +108,7 @@ export function MyBuilderPage() {
 | `loadChannels` | `() => Promise<{ id: string; name: string }[]>` | yes | Returns channels available to send to. The package never makes Slack API calls itself. |
 | `loadSendAsUserStatus` | `() => Promise<{ canSendAsUser: boolean; oauthUrl?: string }>` | yes | Whether the current user has a Slack user-token and can post as themselves. If `canSendAsUser` is false, `oauthUrl` is shown as a "Sign in with Slack" link. |
 | `onSend` | `(payload) => Promise<{ ok: boolean; error?: string }>` | yes | Called when the user submits the send dialog. Payload is `{ channelId, blocks, sendAsUser }`. |
-| `editing` | `{ onLoadMessage, onUpdate, loadRecentMessages? }` | no | Opt-in edit mode. When present, the toolbar exposes "Edit message": the user pastes a Slack message link, `onLoadMessage({ link })` returns a host-computed [editability verdict](#editing-an-existing-message-opt-in), and a successful load flips the primary action to "Update message" wired to `onUpdate`. Pass `loadRecentMessages` to add a "recent messages from this app" picker beside the paste input. Omit `editing` to keep send-only behavior. |
+| `editing` | `{ onLoadMessage, onUpdate, loadRecentMessages? }` | no | Opt-in edit mode. When present, the toolbar exposes "Edit message": the user pastes a Slack message link, `onLoadMessage({ link })` returns a host-computed [editability verdict](#editing-an-existing-message-opt-in), and a successful load flips the primary action to "Update message" wired to `onUpdate`. Pass `loadRecentMessages` to add a "recent messages from this app" picker beside the paste input; the user picks a channel first (reusing `loadChannels`) and the lookup is scoped to it. Omit `editing` to keep send-only behavior. |
 | `loadButtonLabel` | `string` | no | Label + accessible name for the toolbar button that opens the load-message dialog (the edit-mode entry point). Defaults to `'Load message'`. Only shown when `editing` is set and no message is loaded. |
 | `updateButtonLabel` | `string` | no | Label for the toolbar's primary button while a message is loaded for editing. It's a split button: clicking it updates the message in place; the menu beside it also offers "Send as a new message" (post the current blocks as new). Defaults to `'Review & update'`. |
 | `confirmUpdateLabel` | `string` | no | Label for the update dialog's final confirm button. Defaults to `'Update message'` (shows `'Updating…'` while in flight). |
@@ -162,10 +162,12 @@ nothing about who can edit; the host does both.
       return { ok: true };
     },
     // Optional: adds a "recent messages from this app" picker beside the paste
-    // input. These are editable-by-construction (the app authored them), so
-    // picking one loads it straight into edit mode (no verdict needed).
-    loadRecentMessages: async () => {
-      const msgs = await fetchRecentAppMessages(); // your code
+    // input. The user first picks a channel (reusing `loadChannels`), then this
+    // is called with that `channelId` so the lookup scans only one channel.
+    // These are editable-by-construction (the app authored them), so picking one
+    // loads it straight into edit mode (no verdict needed).
+    loadRecentMessages: async (channelId) => {
+      const msgs = await fetchRecentAppMessages(channelId); // your code
       return msgs.map((m) => ({
         channelId: m.channel,
         channelName: m.channelName,
