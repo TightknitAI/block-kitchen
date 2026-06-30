@@ -446,40 +446,27 @@ export function App() {
               onIncludeOauthUrlChange={setIncludeOauthUrl}
               store={store}
             />
-            <label
-              htmlFor="brand-preset-picker"
+            <select
+              id="brand-preset-picker"
+              aria-label="Theme"
+              value={preset}
+              onChange={(e) => setPreset(e.target.value as BrandPreset)}
               style={{
                 fontSize: 12,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
+                padding: '6px 8px',
+                borderRadius: 6,
+                border: '1px solid hsl(var(--border))',
+                background: 'hsl(var(--background))',
                 color: 'hsl(var(--foreground))',
-                whiteSpace: 'nowrap'
+                cursor: 'pointer'
               }}
             >
-              <span className="hidden md:inline">Theme</span>
-              <select
-                id="brand-preset-picker"
-                aria-label="Theme"
-                value={preset}
-                onChange={(e) => setPreset(e.target.value as BrandPreset)}
-                style={{
-                  fontSize: 12,
-                  padding: '6px 8px',
-                  borderRadius: 6,
-                  border: '1px solid hsl(var(--border))',
-                  background: 'hsl(var(--background))',
-                  color: 'hsl(var(--foreground))',
-                  cursor: 'pointer'
-                }}
-              >
-                {PRESET_OPTIONS.map(({ value, label }) => (
-                  <option key={value} value={value}>
-                    {label}
-                  </option>
-                ))}
-              </select>
-            </label>
+              {PRESET_OPTIONS.map(({ value, label }) => (
+                <option key={value} value={value}>
+                  Theme: {label}
+                </option>
+              ))}
+            </select>
             <button
               type="button"
               onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
@@ -746,7 +733,7 @@ function EditingMenu({
         }}
       >
         <span className="hidden md:inline" style={{ opacity: 0.7 }}>
-          Editing:
+          Mode:
         </span>
         {editingEnabled ? 'Read & Write' : 'Write-only'}
       </button>
