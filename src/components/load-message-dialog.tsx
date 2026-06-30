@@ -16,7 +16,9 @@ function recentToResult(msg: RecentMessage): Extract<LoadResult, { ok: true }> {
     ts: msg.ts,
     blocks: msg.blocks,
     editableVia: msg.editableVia ?? 'bot',
-    workspaceName: msg.workspaceName
+    workspaceName: msg.workspaceName,
+    username: msg.username,
+    iconUrl: msg.iconUrl
   };
 }
 

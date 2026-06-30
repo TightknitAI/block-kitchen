@@ -14,6 +14,8 @@ export interface EditTarget {
   ts: string;
   editableVia: EditableVia;
   workspaceName?: string;
+  username?: string;
+  iconUrl?: string;
 }
 
 type UpdateStatus = { kind: 'idle' } | { kind: 'updating' } | { kind: 'error'; error: string };

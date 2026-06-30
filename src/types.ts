@@ -538,6 +538,16 @@ export type LoadResult =
       blocks: SupportedBlock[];
       editableVia: EditableVia;
       workspaceName?: string;
+      /**
+       * Display name of the existing message's author. When provided, the
+       * preview header shows it instead of `workspaceName`. Optional.
+       */
+      username?: string;
+      /**
+       * Avatar image URL of the existing message's author, shown in the
+       * preview header. Optional; ignored if it isn't a safe `http(s)` URL.
+       */
+      iconUrl?: string;
     }
   | { ok: false; reason: string; blocks?: SupportedBlock[] };
 
@@ -578,6 +588,10 @@ export interface RecentMessage {
   /** Short preview shown in the picker row (e.g. the first line of the message). */
   label?: string;
   workspaceName?: string;
+  /** Display name of the message's author; shown in the preview header. Optional. */
+  username?: string;
+  /** Avatar image URL shown in the preview header. Optional; ignored unless a safe `http(s)` URL. */
+  iconUrl?: string;
 }
 
 /**

@@ -64,6 +64,14 @@ interface StoredMessage {
 
 const WORKSPACE_NAME = 'Acme Inc.';
 
+// Display identity per author, surfaced as the preview header's username + icon
+// when a message is loaded for editing.
+const AUTHOR_IDENTITY: Record<MessageAuthor, { username: string; iconUrl: string }> = {
+  bot: { username: 'Acme Bot', iconUrl: 'https://api.dicebear.com/9.x/identicon/png?seed=acme-bot&backgroundColor=4a154b' },
+  you: { username: 'Stephen Cook', iconUrl: 'https://api.dicebear.com/9.x/identicon/png?seed=stephen&backgroundColor=2eb67d' },
+  someoneElse: { username: 'Jordan Lee', iconUrl: 'https://api.dicebear.com/9.x/identicon/png?seed=jordan&backgroundColor=e01e5a' }
+};
+
 // Slack's "Copy link" permalink shape: …/archives/<channel>/p<ts-without-dot>.
 function permalinkFor(msg: Pick<StoredMessage, 'channelId' | 'ts'>): string {
   return `https://acme.slack.com/archives/${msg.channelId}/p${msg.ts.replace('.', '')}`;
@@ -270,12 +278,15 @@ export function App() {
         blocks: msg.blocks
       };
     }
+    const identity = AUTHOR_IDENTITY[msg.author];
     const base = {
       channelId: msg.channelId,
       channelName: msg.channelName,
       ts: msg.ts,
       blocks: msg.blocks,
-      workspaceName: WORKSPACE_NAME
+      workspaceName: WORKSPACE_NAME,
+      username: identity.username,
+      iconUrl: identity.iconUrl
     } as const;
     return msg.author === 'bot'
       ? { ok: true, ...base, editableVia: 'bot' }
@@ -317,7 +328,9 @@ export function App() {
         blocks: m.blocks,
         editableVia: m.author === 'you' ? 'user' : 'bot',
         label: previewOf(m.blocks),
-        workspaceName: WORKSPACE_NAME
+        workspaceName: WORKSPACE_NAME,
+        username: AUTHOR_IDENTITY[m.author].username,
+        iconUrl: AUTHOR_IDENTITY[m.author].iconUrl
       }));
   }, [canSendAsUser]);
 

@@ -146,10 +146,13 @@ nothing about who can edit; the host does both.
       const msg = await fetchMessageFromPermalink(link); // your code
       if (!msg) return { ok: false, reason: "Couldn't find that message." };
       if (!msg.blocks?.length) return { ok: false, reason: 'This message has no editable blocks.' };
+      // `username` + `iconUrl` are optional; when present they show in the
+      // preview header instead of the generic workspace name/avatar.
+      const author = { username: msg.authorName, iconUrl: msg.authorAvatarUrl };
       if (msg.appId === MY_APP_ID)
-        return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'bot' };
+        return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'bot', ...author };
       if (msg.userId === currentUserId)
-        return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'user' };
+        return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'user', ...author };
       return { ok: false, reason: 'Only messages your app or you posted can be edited.', blocks: msg.blocks };
     },
     // Sibling to onSend; carries the source channel + ts. `asUser` follows

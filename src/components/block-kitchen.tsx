@@ -335,6 +335,10 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 <Surface
                   blocks={blocks}
                   workspaceName={workspaceName}
+                  // When a message is loaded for editing, show its author in
+                  // the preview header instead of the generic workspace name.
+                  authorName={activeEditTarget?.username}
+                  authorIcon={activeEditTarget?.iconUrl}
                   previewHooks={mergedPreviewHooks}
                   previewTheme={previewTheme}
                   previewSurface={previewSurface}
@@ -433,7 +437,9 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     channelName: result.channelName,
                     ts: result.ts,
                     editableVia: result.editableVia,
-                    workspaceName: result.workspaceName
+                    workspaceName: result.workspaceName,
+                    username: result.username,
+                    iconUrl: result.iconUrl
                   });
                   setLoadOpen(false);
                 }}
