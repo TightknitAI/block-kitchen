@@ -846,20 +846,26 @@ function EditingMenu({
                             borderRadius: 6
                           }}
                         >
+                          <img
+                            src={AUTHOR_IDENTITY[m.author].iconUrl}
+                            alt=""
+                            style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0, objectFit: 'cover' }}
+                          />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div
                               style={{
-                                fontFamily: 'monospace',
+                                fontWeight: 600,
                                 fontSize: 12,
                                 overflow: 'hidden',
                                 textOverflow: 'ellipsis',
                                 whiteSpace: 'nowrap'
                               }}
                             >
-                              {m.ts}
+                              {AUTHOR_IDENTITY[m.author].username}{' '}
+                              <span style={{ fontWeight: 400, opacity: 0.7 }}>#{m.channelName}</span>
                             </div>
-                            <div style={{ opacity: 0.7, fontSize: 12 }}>
-                              #{m.channelName} · {AUTHOR_LABEL[m.author]}
+                            <div style={{ opacity: 0.7, fontSize: 11 }}>
+                              <span style={{ fontFamily: 'monospace' }}>{m.ts}</span> · {AUTHOR_LABEL[m.author]}
                               {KIND_NOTE[m.kind]} · {m.blocks.length} block{m.blocks.length === 1 ? '' : 's'}
                             </div>
                           </div>
