@@ -68,7 +68,7 @@ const WORKSPACE_NAME = 'Acme Inc.';
 // when a message is loaded for editing.
 const AUTHOR_IDENTITY: Record<MessageAuthor, { username: string; iconUrl: string }> = {
   bot: { username: 'Acme Bot', iconUrl: 'https://api.dicebear.com/9.x/identicon/png?seed=acme-bot&backgroundColor=4a154b' },
-  you: { username: 'Stephen Cook', iconUrl: 'https://api.dicebear.com/9.x/identicon/png?seed=stephen&backgroundColor=2eb67d' },
+  you: { username: 'Riley Park', iconUrl: 'https://api.dicebear.com/9.x/identicon/png?seed=riley&backgroundColor=2eb67d' },
   someoneElse: { username: 'Jordan Lee', iconUrl: 'https://api.dicebear.com/9.x/identicon/png?seed=jordan&backgroundColor=e01e5a' }
 };
 
