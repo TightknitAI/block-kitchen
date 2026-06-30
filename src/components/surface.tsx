@@ -171,7 +171,7 @@ export function Surface({
 }
 
 /**
- * Slack message chrome: avatar + app name + APP badge + timestamp
+ * Slack message chrome: avatar + author name + timestamp
  * across the top, blocks below. Mimics the library's `<Message>` wrapper
  * without wiring each block through its own library wrapper (so per-block
  * editing affordances still work).
@@ -222,14 +222,6 @@ function MessageFrame({
           </span>
         )}
         <span className={cn('font-bold text-sm', isDark ? 'text-white' : 'text-[#1d1c1d]')}>{displayName}</span>
-        <span
-          className={cn(
-            'rounded px-1 text-[10px] font-semibold',
-            isDark ? 'bg-white/10 text-white/70' : 'bg-[#f3f3f3] text-[#616061]'
-          )}
-        >
-          APP
-        </span>
         <span>10:37 AM</span>
       </div>
       {children}
