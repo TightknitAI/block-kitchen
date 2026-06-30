@@ -3,6 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { LayoutGrid, Plus, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
+import { isSafeImageSrc } from '../lib/url-safety';
 import type { BuilderBlock, PreviewHooks, PreviewSurface, PreviewTheme, SupportedBlock } from '../types';
 import { BlockRow } from './block-row';
 import { ContainerRow } from './container-row';
@@ -35,6 +36,8 @@ export const SURFACE_DROPPABLE_ID = 'builder-surface';
 export function Surface({
   blocks,
   workspaceName,
+  authorName,
+  authorIcon,
   previewHooks,
   previewTheme,
   previewSurface = 'message',
@@ -50,6 +53,10 @@ export function Surface({
 }: {
   blocks: BuilderBlock[];
   workspaceName?: string;
+  /** Author name shown in the message-frame header (overrides `workspaceName`). */
+  authorName?: string;
+  /** Author avatar URL shown in the message-frame header. */
+  authorIcon?: string;
   previewHooks?: PreviewHooks;
   previewTheme?: PreviewTheme;
   previewSurface?: PreviewSurface;
@@ -154,7 +161,7 @@ export function Surface({
             {blocksList}
           </AppHomeFrame>
         ) : (
-          <MessageFrame workspaceName={workspaceName} isDark={isDark}>
+          <MessageFrame workspaceName={workspaceName} authorName={authorName} authorIcon={authorIcon} isDark={isDark}>
             {blocksList}
           </MessageFrame>
         )}
@@ -164,7 +171,7 @@ export function Surface({
 }
 
 /**
- * Slack message chrome: avatar + app name + APP badge + timestamp
+ * Slack message chrome: avatar + author name + timestamp
  * across the top, blocks below. Mimics the library's `<Message>` wrapper
  * without wiring each block through its own library wrapper (so per-block
  * editing affordances still work).
@@ -176,14 +183,22 @@ export function Surface({
  */
 function MessageFrame({
   workspaceName,
+  authorName,
+  authorIcon,
   isDark,
   children
 }: {
   workspaceName?: string;
+  authorName?: string;
+  authorIcon?: string;
   isDark: boolean;
   children: ReactNode;
 }) {
-  const initial = (workspaceName ?? 'A').slice(0, 1).toUpperCase();
+  const displayName = authorName ?? workspaceName ?? 'Your app';
+  const initial = displayName.slice(0, 1).toUpperCase();
+  // Only render the author image when it's a safe http(s) URL — it flows into
+  // an <img src> just like block image URLs do.
+  const safeIcon = authorIcon && isSafeImageSrc(authorIcon) ? authorIcon : null;
   return (
     <div
       className={cn(
@@ -194,25 +209,19 @@ function MessageFrame({
       <div
         className={cn('flex items-center gap-2 px-5 pt-3 pb-1 text-xs', isDark ? 'text-white/60' : 'text-[#616061]')}
       >
-        <span
-          className={cn(
-            'inline-flex h-7 w-7 items-center justify-center rounded text-[12px] font-semibold',
-            isDark ? 'bg-white/10 text-white' : 'bg-[#4a154b]/10 text-[#1d1c1d]'
-          )}
-        >
-          {initial}
-        </span>
-        <span className={cn('font-bold text-sm', isDark ? 'text-white' : 'text-[#1d1c1d]')}>
-          {workspaceName ?? 'Your app'}
-        </span>
-        <span
-          className={cn(
-            'rounded px-1 text-[10px] font-semibold',
-            isDark ? 'bg-white/10 text-white/70' : 'bg-[#f3f3f3] text-[#616061]'
-          )}
-        >
-          APP
-        </span>
+        {safeIcon ? (
+          <img src={safeIcon} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
+        ) : (
+          <span
+            className={cn(
+              'inline-flex h-7 w-7 items-center justify-center rounded text-[12px] font-semibold',
+              isDark ? 'bg-white/10 text-white' : 'bg-[#4a154b]/10 text-[#1d1c1d]'
+            )}
+          >
+            {initial}
+          </span>
+        )}
+        <span className={cn('font-bold text-sm', isDark ? 'text-white' : 'text-[#1d1c1d]')}>{displayName}</span>
         <span>10:37 AM</span>
       </div>
       {children}

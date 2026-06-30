@@ -167,7 +167,7 @@ function TextItemCard({
           id={`ctx-text-${index}`}
           value={element.text}
           rows={2}
-          placeholder="e.g. Posted by @stephen"
+          placeholder="e.g. Posted by @riley"
           onChange={(e) => onChange({ ...element, text: e.target.value })}
         />
       </EditorField>
@@ -257,7 +257,7 @@ function ImageItemCard({
         <Input
           id={`ctx-img-alt-${index}`}
           value={element.alt_text}
-          placeholder="e.g. Stephen's avatar"
+          placeholder="e.g. Riley's avatar"
           onChange={(e) => onChange({ ...element, alt_text: e.target.value })}
         />
       </EditorField>

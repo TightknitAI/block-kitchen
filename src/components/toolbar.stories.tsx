@@ -85,3 +85,34 @@ export const ClickSendInvokesHandler: Story = {
     await expect(args.onOpenSend).toHaveBeenCalledOnce();
   }
 };
+
+// Edit mode configured but no message loaded yet: the "Load message" entry
+// appears and the primary action is a plain "Send".
+export const EditingEnabled: Story = {
+  args: { editingEnabled: true, onOpenLoad: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Load message' }));
+    await expect(args.onOpenLoad).toHaveBeenCalledOnce();
+    await expect(await canvas.findByRole('button', { name: 'Review & send' })).toBeInTheDocument();
+  }
+};
+
+// A message is loaded for editing: the badge shows and the primary split
+// button reads "Review & update" with a "More message options" menu.
+export const EditingActive: Story = {
+  args: {
+    editingEnabled: true,
+    editBadge: { channelLabel: '#engineering', ts: '1718000042.000100' },
+    onOpenUpdate: fn(),
+    onExitEdit: fn()
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Review & update' }));
+    await expect(args.onOpenUpdate).toHaveBeenCalledOnce();
+    await expect(await canvas.findByRole('button', { name: 'More message options' })).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole('button', { name: 'Switch to a new message' }));
+    await expect(args.onExitEdit).toHaveBeenCalledOnce();
+  }
+};

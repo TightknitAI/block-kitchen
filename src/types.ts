@@ -498,6 +498,130 @@ export interface SendResult {
 }
 
 /**
+ * Which token can edit a loaded message, as computed by the host.
+ * `chat.update` only edits a message authored by the calling token:
+ * - `'bot'` — the message was posted by this app; edit via the bot token.
+ * - `'user'` — the message was posted by the current user; edit via their
+ *   user token (gated behind {@link BlockKitchenProps.loadSendAsUserStatus}).
+ */
+export type EditableVia = 'bot' | 'user';
+
+/**
+ * Input passed to {@link EditingConfig.onLoadMessage}. The user pastes a
+ * Slack message permalink (Slack's "Copy link"); the host parses
+ * `channel + ts` out of it — the package never touches raw timestamps.
+ */
+export interface LoadMessageInput {
+  link: string;
+}
+
+/**
+ * Result of loading an existing message for editing, computed by the host.
+ *
+ * On `ok`, the package enters edit mode: it hydrates the editor with
+ * `blocks`, locks the destination to `channelId`, and constrains the
+ * post-as identity to `editableVia`.
+ *
+ * On `!ok`, the package renders the host's `reason` inline and offers
+ * "Open as a new message instead". If the message round-trips through the
+ * block editor (e.g. someone else's block message), the host may include
+ * `blocks` so that fallback can hydrate the draft; for non-block or
+ * attachment-only messages, omit it.
+ */
+export type LoadResult =
+  | {
+      ok: true;
+      channelId: string;
+      /** Channel name for the edit-mode badge (display only). Falls back to `channelId`. */
+      channelName?: string;
+      ts: string;
+      blocks: SupportedBlock[];
+      editableVia: EditableVia;
+      workspaceName?: string;
+      /**
+       * Display name of the existing message's author. When provided, the
+       * preview header shows it instead of `workspaceName`. Optional.
+       */
+      username?: string;
+      /**
+       * Avatar image URL of the existing message's author, shown in the
+       * preview header. Optional; ignored if it isn't a safe `http(s)` URL.
+       */
+      iconUrl?: string;
+    }
+  | { ok: false; reason: string; blocks?: SupportedBlock[] };
+
+/**
+ * Payload passed to {@link EditingConfig.onUpdate}. Sibling to
+ * {@link SendPayload} but carries the source `channel + ts`. `chat.update`
+ * requires re-sending the full blocks payload (no partial update).
+ */
+export interface UpdatePayload {
+  channelId: string;
+  ts: string;
+  blocks: SupportedBlock[];
+  asUser: boolean;
+}
+
+/**
+ * Result returned from {@link EditingConfig.onUpdate}. Mirrors
+ * {@link SendResult}; `error` is rendered as-is.
+ */
+export interface UpdateResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * One entry in the "recent messages from this app" picker, returned by
+ * {@link EditingConfig.loadRecentMessages}. These are editable-by-construction
+ * — the app authored them — so they load straight into edit mode without a
+ * separate verdict round-trip. `editableVia` defaults to `'bot'` when omitted.
+ */
+export interface RecentMessage {
+  channelId: string;
+  /** Channel name for display + the edit-mode badge. Falls back to `channelId`. */
+  channelName?: string;
+  ts: string;
+  blocks: SupportedBlock[];
+  editableVia?: EditableVia;
+  /** Short preview shown in the picker row (e.g. the first line of the message). */
+  label?: string;
+  workspaceName?: string;
+  /** Display name of the message's author; shown in the preview header. Optional. */
+  username?: string;
+  /** Avatar image URL shown in the preview header. Optional; ignored unless a safe `http(s)` URL. */
+  iconUrl?: string;
+}
+
+/**
+ * Opt-in edit-mode configuration. Presence of {@link BlockKitchenProps.editing}
+ * enables loading an existing message and dispatching an update; omit it to
+ * keep the send-only behavior. The package stays integration-agnostic — it
+ * makes no network calls and has no Slack-token knowledge; the host brokers
+ * I/O and computes the editability verdict.
+ */
+export interface EditingConfig {
+  /**
+   * Host parses the pasted permalink, fetches the message, and returns a
+   * host-computed editability verdict plus blocks. See {@link LoadResult}.
+   */
+  onLoadMessage: (input: LoadMessageInput) => Promise<LoadResult>;
+  /**
+   * Dispatches the update for the loaded message. Sibling to
+   * {@link BlockKitchenProps.onSend}; carries `channel + ts`.
+   */
+  onUpdate: (payload: UpdatePayload) => Promise<UpdateResult>;
+  /**
+   * Optional. When provided, the load dialog adds a "recent messages from this
+   * app" picker alongside the paste-a-link input. Returns messages the app
+   * authored (editable-by-construction); picking one loads it straight into
+   * edit mode. Omit to offer the paste-link entry only.
+   */
+  loadRecentMessages?: () => Promise<RecentMessage[]>;
+}
+
+/**
  * A workspace custom emoji as configured in Slack. Mirrors the shape Slack's
  * `emoji.list` API returns once normalized:
  *
@@ -626,6 +750,35 @@ export interface BlockKitchenProps {
    */
   onSend: (payload: SendPayload) => Promise<SendResult>;
   /**
+   * Opt-in edit mode. When provided, the toolbar exposes an "Edit existing
+   * message" entry: the user pastes a Slack message link, the host loads it
+   * and returns an editability verdict ({@link EditingConfig.onLoadMessage}),
+   * and a successful load flips the primary action from Send to "Update
+   * message" ({@link EditingConfig.onUpdate}). Omit to keep today's send-only
+   * behavior. The user-token path reuses {@link BlockKitchenProps.loadSendAsUserStatus}.
+   */
+  editing?: EditingConfig;
+  /**
+   * Label + accessible name for the toolbar button that opens the
+   * load-message dialog (the edit-mode entry point). Defaults to
+   * `'Load message'`. Only shown when {@link BlockKitchenProps.editing} is set
+   * and no message is currently loaded.
+   */
+  loadButtonLabel?: string;
+  /**
+   * Label for the toolbar's primary button when a message is loaded for
+   * editing. The button is a split control: clicking it updates the message
+   * in place; a menu beside it also offers "Send as a new message" (post the
+   * current blocks as a brand-new message). Defaults to `'Review & update'`.
+   */
+  updateButtonLabel?: string;
+  /**
+   * Label for the update dialog's final confirm button, which dispatches the
+   * update via {@link EditingConfig.onUpdate}. Defaults to `'Update message'`
+   * (and shows `'Updating…'` while in flight).
+   */
+  confirmUpdateLabel?: string;
+  /**
    * The palette shown on the left-hand side. When omitted, the built-in
    * `defaultPalette` is used. Pass a custom array (typically built by
    * spreading and filtering `defaultPalette`, plus your own sections) to
@@ -733,9 +886,9 @@ export interface BlockKitchenProps {
   previewTheme?: PreviewTheme;
   /**
    * Label for the toolbar's Send button, which opens the send dialog.
-   * Defaults to `'Send'`. Use this to signal that a configuration step
-   * follows (e.g. `'Send to channel…'`) without hardcoding
-   * product-specific copy in the package. Also used as the button's
+   * Defaults to `'Review & send'` (the dialog is the review step). Use this to
+   * override the copy (e.g. `'Send to channel…'`) without hardcoding
+   * product-specific text in the package. Also used as the button's
    * accessible name.
    */
   sendButtonLabel?: string;
