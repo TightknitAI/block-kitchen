@@ -45,6 +45,19 @@ const SURFACE_OPTIONS: {
 const DEFAULT_DOCS_HREF = 'https://docs.slack.dev/reference/block-kit/blocks';
 const DEFAULT_DOCS_LABEL = 'Docs';
 
+/**
+ * Render a Slack message timestamp (`<unix-seconds>.<micro>`) as a readable
+ * date for the edit-mode banner. Falls back to the raw value if it doesn't
+ * parse as a number.
+ */
+function formatMessageTs(ts: string): string {
+  const seconds = Number.parseFloat(ts);
+  if (!Number.isFinite(seconds)) return ts;
+  const date = new Date(seconds * 1000);
+  if (Number.isNaN(date.getTime())) return ts;
+  return date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
 const SEND_MENU_ITEM =
   'flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50';
 
@@ -335,7 +348,9 @@ export function Toolbar({
           <Pencil className="h-4 w-4 shrink-0 text-primary" />
           <span className="min-w-0 flex-1 text-sm">
             References an existing message in <span className="font-semibold">{editBadge.channelLabel}</span>
-            <span className="ml-1 font-mono text-xs opacity-70">{editBadge.ts}</span>
+            <span className="ml-1 text-xs opacity-70" title={editBadge.ts}>
+              {formatMessageTs(editBadge.ts)}
+            </span>
           </span>
           <Button type="button" variant="ghost" size="sm" onClick={onExitEdit} className="shrink-0">
             <X className="h-3.5 w-3.5" />
