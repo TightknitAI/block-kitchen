@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.1](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.0...block-kitchen-v0.9.1) (2026-06-30)
+
+
+### Features
+
+* **load-dialog:** keep Load button visible and always show a content preview ([e71d192](https://github.com/TightknitAI/block-kitchen/commit/e71d192a02512cec00c3f2bc0f9300d3004f0cd0))
+* **load-dialog:** show pretty date with raw ts in parens for recent messages ([45c55c3](https://github.com/TightknitAI/block-kitchen/commit/45c55c388df9671fe022a6c797a4d957f4a9e563))
+* reorder send-dialog inputs and switch Load button to mail-search icon ([3278291](https://github.com/TightknitAI/block-kitchen/commit/3278291255640cc31b78e87d6561fb9522d50571))
+* **toolbar:** keep Load message button visible after a message is loaded ([de947a6](https://github.com/TightknitAI/block-kitchen/commit/de947a6cdb79c4a46908c4aa988ac7207b157e65))
+
 ## [0.9.0](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.11...block-kitchen-v0.9.0) (2026-06-30)
 
 
