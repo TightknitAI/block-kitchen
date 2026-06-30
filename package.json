@@ -46,7 +46,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --fix .",
     "format": "biome format --write .",
-    "prepare": "lefthook install",
+    "prepare": "node ./scripts/install-hooks.mjs",
     "prepublishOnly": "pnpm run build:clean",
     "demo:dev": "cd demo && pnpm install && pnpm dev",
     "demo:build": "cd demo && CI=true pnpm install --frozen-lockfile && pnpm build",
