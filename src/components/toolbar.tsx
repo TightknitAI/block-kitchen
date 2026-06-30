@@ -161,7 +161,7 @@ export function Toolbar({
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-background px-2 py-1.5 sm:px-3 sm:py-2">
         <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
-          {editingEnabled && !editBadge ? (
+          {editingEnabled ? (
             <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
               <MailSearch className="h-3.5 w-3.5" />
               <span className="hidden md:inline">{loadButtonLabel}</span>
