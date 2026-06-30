@@ -430,6 +430,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 onOpenChange={setLoadOpen}
                 onLoadMessage={editing.onLoadMessage}
                 loadRecentMessages={editing.loadRecentMessages}
+                loadChannels={loadChannels}
                 onLoaded={(result) => {
                   replaceAll(result.blocks);
                   setEditTarget({

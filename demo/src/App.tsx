@@ -307,16 +307,18 @@ export function App() {
   );
 
   // "Recent messages from this app" — round-trippable fixtures the app
-  // authored, whether posted as the bot or as the current user (plus anything
-  // sent during the session). Each carries the identity it was posted as via
+  // authored, scoped to the channel the user picks in the load dialog, whether
+  // posted as the bot or as the current user (plus anything sent during the
+  // session). Each carries the identity it was posted as via
   // `editableVia`, which the picker surfaces and the update uses to pick the
   // token. Messages by someone else (or that don't round-trip) are excluded.
   // Conservative host behavior: drop the user's own messages when there's no
   // user token, rather than offer an edit that can't complete without re-auth.
-  const loadRecentMessages = useCallback(async (): Promise<RecentMessage[]> => {
+  const loadRecentMessages = useCallback(async (channelId: string): Promise<RecentMessage[]> => {
     await new Promise((r) => setTimeout(r, 200));
     return storeRef.current
       .filter((m) => {
+        if (m.channelId !== channelId) return false;
         if (m.kind !== 'normal' || m.blocks.length === 0) return false;
         if (m.author === 'bot') return true;
         return m.author === 'you' && canSendAsUser;
