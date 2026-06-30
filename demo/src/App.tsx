@@ -403,9 +403,9 @@ export function App() {
                   textOverflow: 'ellipsis'
                 }}
               >
-                block-kitchen <span className="hidden sm:inline">— live demo</span>
+                block-kitchen <span className="hidden md:inline">— live demo</span>
               </div>
-              <div className="hidden sm:block" style={{ fontSize: 12, opacity: 0.7 }}>
+              <div className="hidden md:block" style={{ fontSize: 12, opacity: 0.7 }}>
                 Drag blocks from the palette, edit them in place, and send to a (mocked) Slack channel.{' '}
                 <a
                   href="https://github.com/TightknitAI/block-kitchen"
