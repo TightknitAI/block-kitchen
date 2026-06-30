@@ -86,29 +86,32 @@ export const ClickSendInvokesHandler: Story = {
   }
 };
 
-// Edit mode configured but no message loaded yet: the primary action is the
-// "Review & send" split button with its options dropdown.
+// Edit mode configured but no message loaded yet: the "Load message" entry
+// appears and the primary action is a plain "Send".
 export const EditingEnabled: Story = {
-  args: { editingEnabled: true, onOpenLoad: fn(), onSendAsNew: fn() },
-  play: async ({ canvasElement }) => {
+  args: { editingEnabled: true, onOpenLoad: fn() },
+  play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByRole('button', { name: 'Review & send' })).toBeInTheDocument();
-    await expect(await canvas.findByRole('button', { name: 'More message options' })).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole('button', { name: 'Load message' }));
+    await expect(args.onOpenLoad).toHaveBeenCalledOnce();
+    await expect(await canvas.findByRole('button', { name: 'Send' })).toBeInTheDocument();
   }
 };
 
 // A message is loaded for editing: the badge shows and the primary split
-// button reads "Review & update".
+// button reads "Review & update" with a "More message options" menu.
 export const EditingActive: Story = {
   args: {
     editingEnabled: true,
     editBadge: { channelLabel: '#engineering', ts: '1718000042.000100' },
-    onExitEdit: fn(),
-    onSendAsNew: fn()
+    onOpenUpdate: fn(),
+    onExitEdit: fn()
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(await canvas.findByRole('button', { name: 'Review & update' })).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole('button', { name: 'Review & update' }));
+    await expect(args.onOpenUpdate).toHaveBeenCalledOnce();
+    await expect(await canvas.findByRole('button', { name: 'More message options' })).toBeInTheDocument();
     await userEvent.click(await canvas.findByRole('button', { name: 'Switch to a new message' }));
     await expect(args.onExitEdit).toHaveBeenCalledOnce();
   }

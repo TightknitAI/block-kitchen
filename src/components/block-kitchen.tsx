@@ -54,6 +54,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
     loadSendAsUserStatus,
     onSend,
     editing,
+    loadButtonLabel,
     updateButtonLabel,
     confirmUpdateLabel,
     palette,
@@ -119,7 +120,9 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const [jsonOpen, setJsonOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
   // Edit mode (opt-in via `editing`). `editTarget` is the loaded message;
-  // when set, the primary action updates it instead of sending a new message.
+  // when set, the split button can update it in place (`updateOpen`) or post
+  // the current blocks as a new message (`sendOpen`).
+  const [updateOpen, setUpdateOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
   // Edit mode only counts as active while `editing` is configured. If the host
@@ -306,6 +309,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     : null
                 }
                 onOpenLoad={() => setLoadOpen(true)}
+                onOpenUpdate={() => setUpdateOpen(true)}
                 onExitEdit={() => {
                   // Banner exit: discard the loaded message's draft and reopen
                   // the loader so the user starts fresh or picks another message.
@@ -313,11 +317,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                   replaceAll([]);
                   setLoadOpen(true);
                 }}
-                onSendAsNew={() => {
-                  // Split-menu "Send as a new message": keep the edited draft
-                  // but drop the link to the original so it posts as new.
-                  setEditTarget(null);
-                }}
+                loadButtonLabel={loadButtonLabel}
                 updateButtonLabel={updateButtonLabel}
               />
               <div className="flex min-h-0 flex-1 items-stretch">
@@ -387,12 +387,27 @@ export function BlockKitchen(props: BlockKitchenProps) {
               </SheetContent>
             </Sheet>
             <JsonDrawer open={jsonOpen} onOpenChange={setJsonOpen} blocks={blockPayloads} onApply={replaceAll} />
-            {/* One primary-action dialog at a time: Update when a message is
-              loaded for editing, Send otherwise. Both gate on `sendOpen`. */}
+            {/* The Send dialog always posts a brand-new message (used by both
+              plain Send and the edit-mode "Send as a new message"). The Update
+              dialog (channel locked) only exists while a message is loaded. */}
+            <SendDialog
+              open={sendOpen}
+              onOpenChange={setSendOpen}
+              blocks={blockPayloads}
+              loadChannels={loadChannels}
+              loadSendAsUserStatus={loadSendAsUserStatus}
+              onSend={onSend}
+              confirmSendLabel={confirmSendLabel}
+              errorCount={validation.total}
+              onShowIssues={() => {
+                setSendOpen(false);
+                setIssuesOpen(true);
+              }}
+            />
             {activeEditTarget && editing ? (
               <UpdateDialog
-                open={sendOpen}
-                onOpenChange={setSendOpen}
+                open={updateOpen}
+                onOpenChange={setUpdateOpen}
                 target={activeEditTarget}
                 blocks={blockPayloads}
                 loadSendAsUserStatus={loadSendAsUserStatus}
@@ -400,26 +415,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 confirmUpdateLabel={confirmUpdateLabel}
                 errorCount={validation.total}
                 onShowIssues={() => {
-                  setSendOpen(false);
+                  setUpdateOpen(false);
                   setIssuesOpen(true);
                 }}
               />
-            ) : (
-              <SendDialog
-                open={sendOpen}
-                onOpenChange={setSendOpen}
-                blocks={blockPayloads}
-                loadChannels={loadChannels}
-                loadSendAsUserStatus={loadSendAsUserStatus}
-                onSend={onSend}
-                confirmSendLabel={confirmSendLabel}
-                errorCount={validation.total}
-                onShowIssues={() => {
-                  setSendOpen(false);
-                  setIssuesOpen(true);
-                }}
-              />
-            )}
+            ) : null}
             {editing ? (
               <LoadMessageDialog
                 open={loadOpen}

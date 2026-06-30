@@ -46,7 +46,7 @@ const DEFAULT_DOCS_HREF = 'https://docs.slack.dev/reference/block-kit/blocks';
 const DEFAULT_DOCS_LABEL = 'Docs';
 
 const SEND_MENU_ITEM =
-  'flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none';
+  'flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50';
 
 /**
  * Top toolbar with the preview theme picker, View JSON escape hatch, and
@@ -94,8 +94,9 @@ export function Toolbar({
   editingEnabled = false,
   editBadge,
   onOpenLoad,
+  onOpenUpdate,
   onExitEdit,
-  onSendAsNew,
+  loadButtonLabel = 'Load message',
   updateButtonLabel = 'Review & update'
 }: {
   onClear: () => void;
@@ -118,12 +119,14 @@ export function Toolbar({
   editingEnabled?: boolean;
   /** When set, a message is loaded for editing: renders the edit-mode badge. */
   editBadge?: { channelLabel: string; ts: string } | null;
-  /** Opens the load-message dialog (the split menu's "Edit message" action). */
+  /** Opens the load-message dialog (edit-mode entry point). */
   onOpenLoad?: () => void;
+  /** Opens the update dialog (split button's main action + "Update message"). */
+  onOpenUpdate?: () => void;
   /** Switches back to a new message, clearing the loaded edit target. */
   onExitEdit?: () => void;
-  /** Leaves edit mode keeping the draft (the split menu's "Send as a new message"). */
-  onSendAsNew?: () => void;
+  /** Label for the load-message entry button. Defaults to `'Load message'`. */
+  loadButtonLabel?: string;
   /** Label for the primary button while editing. Defaults to `'Review & update'`. */
   updateButtonLabel?: string;
 }) {
@@ -139,12 +142,17 @@ export function Toolbar({
   const [surfaceMenuOpen, setSurfaceMenuOpen] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
   const [sendMenuOpen, setSendMenuOpen] = useState(false);
-  const reviewSendLabel = 'Review & send';
 
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-background px-2 py-1.5 sm:px-3 sm:py-2">
         <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
+          {editingEnabled && !editBadge ? (
+            <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
+              <Pencil className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{loadButtonLabel}</span>
+            </Button>
+          ) : null}
           {onOpenPalette ? (
             <Button
               type="button"
@@ -255,18 +263,20 @@ export function Toolbar({
             <Code2 className="h-3.5 w-3.5" />
             <span className="hidden md:inline">View JSON</span>
           </Button>
-          {editingEnabled ? (
+          {editBadge ? (
+            // A message is loaded: split button. Main action updates it in
+            // place; the menu also offers posting the blocks as a new message.
             <div className="flex items-stretch">
               <Button
                 type="button"
                 size="sm"
-                onClick={onOpenSend}
+                onClick={onOpenUpdate}
                 disabled={!canSend}
-                aria-label={editBadge ? updateButtonLabel : reviewSendLabel}
+                aria-label={updateButtonLabel}
                 className="rounded-r-none"
               >
-                {editBadge ? <Pencil className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
-                <span className="hidden md:inline">{editBadge ? updateButtonLabel : reviewSendLabel}</span>
+                <Pencil className="h-3.5 w-3.5" />
+                <span className="hidden md:inline">{updateButtonLabel}</span>
               </Button>
               <Popover open={sendMenuOpen} onOpenChange={setSendMenuOpen}>
                 <PopoverTrigger asChild>
@@ -280,26 +290,28 @@ export function Toolbar({
                     <ChevronDown className="h-3.5 w-3.5" />
                   </Button>
                 </PopoverTrigger>
-                <PopoverContent align="end" className="w-52 p-1">
+                <PopoverContent align="end" className="w-56 p-1">
                   <div role="menu" aria-label="Message options" className="flex flex-col">
                     <button
                       type="button"
                       role="menuitem"
+                      disabled={!canSend}
                       onClick={() => {
                         setSendMenuOpen(false);
-                        onOpenLoad?.();
+                        onOpenUpdate?.();
                       }}
                       className={SEND_MENU_ITEM}
                     >
                       <Pencil className="h-3.5 w-3.5" />
-                      <span className="flex-1">Edit a message</span>
+                      <span className="flex-1">Update message</span>
                     </button>
                     <button
                       type="button"
                       role="menuitem"
+                      disabled={!canSend}
                       onClick={() => {
                         setSendMenuOpen(false);
-                        onSendAsNew?.();
+                        onOpenSend();
                       }}
                       className={SEND_MENU_ITEM}
                     >
