@@ -17,17 +17,26 @@ type ButtonStyle = 'default' | 'primary' | 'danger';
  * Editor form for card blocks. Edits title, subtitle, body, hero image,
  * icon, and a list of button actions. At least one of hero image, title,
  * actions, or body must be set; the validator surfaces this constraint.
+ *
+ * `idPrefix` namespaces the input ids so the editor can be rendered more
+ * than once on a page (the carousel editor reuses it per card); it
+ * defaults to `card` for the standalone block.
  * @param props - editor props
  * @param props.block - the card block to edit
  * @param props.onChange - called with the updated block payload
+ * @param props.idPrefix - prefix for input ids (defaults to `card`)
  * @returns the rendered card editor form
  */
-export function CardEditor({ block, onChange }: BlockEditorProps<CardBlock>) {
+export function CardEditor({
+  block,
+  onChange,
+  idPrefix = 'card'
+}: BlockEditorProps<CardBlock> & { idPrefix?: string }) {
   return (
     <div className="flex flex-col gap-4">
-      <EditorField label="Title" help="Up to 150 characters. Supports mrkdwn formatting." htmlFor="card-title">
+      <EditorField label="Title" help="Up to 150 characters. Supports mrkdwn formatting." htmlFor={`${idPrefix}-title`}>
         <Input
-          id="card-title"
+          id={`${idPrefix}-title`}
           value={block.title?.text ?? ''}
           maxLength={150}
           placeholder="e.g. New launch update"
@@ -40,9 +49,9 @@ export function CardEditor({ block, onChange }: BlockEditorProps<CardBlock>) {
         />
       </EditorField>
 
-      <EditorField label="Subtitle" help="Up to 150 characters." htmlFor="card-subtitle">
+      <EditorField label="Subtitle" help="Up to 150 characters." htmlFor={`${idPrefix}-subtitle`}>
         <Input
-          id="card-subtitle"
+          id={`${idPrefix}-subtitle`}
           value={block.subtitle?.text ?? ''}
           maxLength={150}
           placeholder="e.g. Released April 28"
@@ -55,9 +64,9 @@ export function CardEditor({ block, onChange }: BlockEditorProps<CardBlock>) {
         />
       </EditorField>
 
-      <EditorField label="Body" help="Up to 200 characters. Supports mrkdwn formatting." htmlFor="card-body">
+      <EditorField label="Body" help="Up to 200 characters. Supports mrkdwn formatting." htmlFor={`${idPrefix}-body`}>
         <Textarea
-          id="card-body"
+          id={`${idPrefix}-body`}
           value={block.body?.text ?? ''}
           maxLength={200}
           rows={3}
@@ -74,7 +83,7 @@ export function CardEditor({ block, onChange }: BlockEditorProps<CardBlock>) {
       <ImageFields
         label="Hero image"
         help="Wide image displayed at the top of the card."
-        idPrefix="card-hero"
+        idPrefix={`${idPrefix}-hero`}
         image={block.hero_image}
         onChange={(next) => onChange({ ...block, hero_image: next })}
       />
@@ -82,12 +91,13 @@ export function CardEditor({ block, onChange }: BlockEditorProps<CardBlock>) {
       <ImageFields
         label="Icon"
         help="Small image shown next to the title."
-        idPrefix="card-icon"
+        idPrefix={`${idPrefix}-icon`}
         image={block.icon}
         onChange={(next) => onChange({ ...block, icon: next })}
       />
 
       <ButtonsField
+        idPrefix={idPrefix}
         buttons={block.actions ?? []}
         onChange={(next) => onChange({ ...block, actions: next.length > 0 ? next : undefined })}
       />
@@ -176,7 +186,15 @@ function ImageFields({
  * @param props.onChange - called with the updated actions array
  * @returns the rendered actions editor
  */
-function ButtonsField({ buttons, onChange }: { buttons: SlackButton[]; onChange: (next: SlackButton[]) => void }) {
+function ButtonsField({
+  buttons,
+  onChange,
+  idPrefix = 'card'
+}: {
+  buttons: SlackButton[];
+  onChange: (next: SlackButton[]) => void;
+  idPrefix?: string;
+}) {
   const update = (idx: number, change: Partial<SlackButton>) => {
     onChange(buttons.map((b, i) => (i === idx ? { ...b, ...change } : b)));
   };
@@ -223,9 +241,9 @@ function ButtonsField({ buttons, onChange }: { buttons: SlackButton[]; onChange:
                 <Trash2 className="h-3.5 w-3.5" />
               </button>
             </div>
-            <EditorField label="Label" htmlFor={`card-btn-label-${idx}`}>
+            <EditorField label="Label" htmlFor={`${idPrefix}-btn-label-${idx}`}>
               <Input
-                id={`card-btn-label-${idx}`}
+                id={`${idPrefix}-btn-label-${idx}`}
                 value={label}
                 placeholder="e.g. Open"
                 onChange={(e) =>
@@ -242,10 +260,10 @@ function ButtonsField({ buttons, onChange }: { buttons: SlackButton[]; onChange:
             <EditorField
               label="Link URL"
               help="Optional. If set, the button opens this link."
-              htmlFor={`card-btn-url-${idx}`}
+              htmlFor={`${idPrefix}-btn-url-${idx}`}
             >
               <Input
-                id={`card-btn-url-${idx}`}
+                id={`${idPrefix}-btn-url-${idx}`}
                 type="url"
                 value={url}
                 placeholder="e.g. https://example.com"
@@ -263,8 +281,8 @@ function ButtonsField({ buttons, onChange }: { buttons: SlackButton[]; onChange:
               >
                 {(['default', 'primary', 'danger'] as const).map((s) => (
                   <div key={s} className="flex items-center gap-1.5">
-                    <RadioGroupItem value={s} id={`card-btn-style-${idx}-${s}`} />
-                    <Label htmlFor={`card-btn-style-${idx}-${s}`} className="text-xs capitalize">
+                    <RadioGroupItem value={s} id={`${idPrefix}-btn-style-${idx}-${s}`} />
+                    <Label htmlFor={`${idPrefix}-btn-style-${idx}-${s}`} className="text-xs capitalize">
                       {s}
                     </Label>
                   </div>
