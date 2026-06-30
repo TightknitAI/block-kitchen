@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.9.0](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.11...block-kitchen-v0.9.0) (2026-06-30)
+
+
+### ⚠ BREAKING CHANGES
+
+* **editing:** `EditingConfig.loadRecentMessages` now takes a `channelId`
+
+### Features
+
+* **editing:** scope recent-messages picker to a chosen channel ([6ed0ad7](https://github.com/TightknitAI/block-kitchen/commit/6ed0ad7e65d282cce1ea2bef68685e0fa09c0812))
+
 ## [0.8.11](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.8.10...block-kitchen-v0.8.11) (2026-06-30)
 
 
