@@ -54,7 +54,6 @@ export function BlockKitchen(props: BlockKitchenProps) {
     loadSendAsUserStatus,
     onSend,
     editing,
-    loadButtonLabel,
     updateButtonLabel,
     confirmUpdateLabel,
     palette,
@@ -308,14 +307,17 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 }
                 onOpenLoad={() => setLoadOpen(true)}
                 onExitEdit={() => {
-                  // Leaving edit mode discards the loaded message's draft and
-                  // reopens the loader so the user can start fresh or pick
-                  // another message to edit.
+                  // Banner exit: discard the loaded message's draft and reopen
+                  // the loader so the user starts fresh or picks another message.
                   setEditTarget(null);
                   replaceAll([]);
                   setLoadOpen(true);
                 }}
-                loadButtonLabel={loadButtonLabel}
+                onSendAsNew={() => {
+                  // Split-menu "Send as a new message": keep the edited draft
+                  // but drop the link to the original so it posts as new.
+                  setEditTarget(null);
+                }}
                 updateButtonLabel={updateButtonLabel}
               />
               <div className="flex min-h-0 flex-1 items-stretch">

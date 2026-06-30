@@ -86,25 +86,25 @@ export const ClickSendInvokesHandler: Story = {
   }
 };
 
-// Edit mode configured but no message loaded yet: the "Load message" entry
-// appears and the primary action stays "Send".
+// Edit mode configured but no message loaded yet: the primary action is the
+// "Review & send" split button with its options dropdown.
 export const EditingEnabled: Story = {
-  args: { editingEnabled: true, onOpenLoad: fn() },
-  play: async ({ canvasElement, args }) => {
+  args: { editingEnabled: true, onOpenLoad: fn(), onSendAsNew: fn() },
+  play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByRole('button', { name: 'Load message' }));
-    await expect(args.onOpenLoad).toHaveBeenCalledOnce();
-    await expect(await canvas.findByRole('button', { name: 'Send' })).toBeInTheDocument();
+    await expect(await canvas.findByRole('button', { name: 'Review & send' })).toBeInTheDocument();
+    await expect(await canvas.findByRole('button', { name: 'More message options' })).toBeInTheDocument();
   }
 };
 
-// A message is loaded for editing: the badge shows and the primary action
-// flips to "Review & update".
+// A message is loaded for editing: the badge shows and the primary split
+// button reads "Review & update".
 export const EditingActive: Story = {
   args: {
     editingEnabled: true,
     editBadge: { channelLabel: '#engineering', ts: '1718000042.000100' },
-    onExitEdit: fn()
+    onExitEdit: fn(),
+    onSendAsNew: fn()
   },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);

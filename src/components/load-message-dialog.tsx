@@ -63,6 +63,7 @@ export function LoadMessageDialog({
   // `null` means "loading / not loaded yet".
   const [recent, setRecent] = useState<RecentMessage[] | null>(null);
   const [recentError, setRecentError] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   // Hold the latest loaders in refs so they can change identity between renders
   // (consumers often pass a fresh arrow) without us needing them as deps.
@@ -131,7 +132,16 @@ export function LoadMessageDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-1.5rem)] max-w-lg rounded-lg">
+      <DialogContent
+        className="w-[calc(100vw-1.5rem)] max-w-lg rounded-lg"
+        // Focus the link input on open instead of letting Radix focus the
+        // first tabbable element (the info button), which would pop its
+        // tooltip open every time the dialog appears.
+        onOpenAutoFocus={(e) => {
+          e.preventDefault();
+          inputRef.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Edit an existing message</DialogTitle>
           <div className="flex items-start gap-1.5">
@@ -162,6 +172,7 @@ export function LoadMessageDialog({
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="message-link">Message link</Label>
             <Input
+              ref={inputRef}
               id="message-link"
               value={link}
               onChange={(e) => {

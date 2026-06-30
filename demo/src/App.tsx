@@ -447,7 +447,7 @@ export function App() {
                 whiteSpace: 'nowrap'
               }}
             >
-              <span className="hidden sm:inline">Theme</span>
+              <span className="hidden md:inline">Theme</span>
               <select
                 id="brand-preset-picker"
                 aria-label="Theme"
@@ -735,7 +735,7 @@ function EditingMenu({
           gap: 6
         }}
       >
-        <span className="hidden sm:inline" style={{ opacity: 0.7 }}>
+        <span className="hidden md:inline" style={{ opacity: 0.7 }}>
           Editing:
         </span>
         {editingEnabled ? 'Read & Write' : 'Write-only'}

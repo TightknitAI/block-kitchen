@@ -45,6 +45,9 @@ const SURFACE_OPTIONS: {
 const DEFAULT_DOCS_HREF = 'https://docs.slack.dev/reference/block-kit/blocks';
 const DEFAULT_DOCS_LABEL = 'Docs';
 
+const SEND_MENU_ITEM =
+  'flex w-full cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-left text-sm text-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground focus-visible:outline-none';
+
 /**
  * Top toolbar with the preview theme picker, View JSON escape hatch, and
  * the Send action.
@@ -92,7 +95,7 @@ export function Toolbar({
   editBadge,
   onOpenLoad,
   onExitEdit,
-  loadButtonLabel = 'Load message',
+  onSendAsNew,
   updateButtonLabel = 'Review & update'
 }: {
   onClear: () => void;
@@ -115,12 +118,12 @@ export function Toolbar({
   editingEnabled?: boolean;
   /** When set, a message is loaded for editing: renders the edit-mode badge. */
   editBadge?: { channelLabel: string; ts: string } | null;
-  /** Opens the load-message dialog (edit-mode entry point). */
+  /** Opens the load-message dialog (the split menu's "Edit message" action). */
   onOpenLoad?: () => void;
   /** Switches back to a new message, clearing the loaded edit target. */
   onExitEdit?: () => void;
-  /** Label for the load-message entry button. Defaults to `'Load message'`. */
-  loadButtonLabel?: string;
+  /** Leaves edit mode keeping the draft (the split menu's "Send as a new message"). */
+  onSendAsNew?: () => void;
   /** Label for the primary button while editing. Defaults to `'Review & update'`. */
   updateButtonLabel?: string;
 }) {
@@ -135,17 +138,13 @@ export function Toolbar({
   // `role="menuitemradio"` semantics imply activation dismisses the menu.
   const [surfaceMenuOpen, setSurfaceMenuOpen] = useState(false);
   const [themeMenuOpen, setThemeMenuOpen] = useState(false);
+  const [sendMenuOpen, setSendMenuOpen] = useState(false);
+  const reviewSendLabel = 'Review & send';
 
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-background px-2 py-1.5 sm:px-3 sm:py-2">
         <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
-          {editingEnabled && !editBadge ? (
-            <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
-              <Pencil className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{loadButtonLabel}</span>
-            </Button>
-          ) : null}
           {onOpenPalette ? (
             <Button
               type="button"
@@ -164,8 +163,8 @@ export function Toolbar({
               <PopoverTrigger asChild>
                 <Button type="button" variant="ghost" size="sm" aria-label={`Preview surface: ${activeSurface.label}`}>
                   <activeSurface.Icon className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{activeSurface.label}</span>
-                  <ChevronDown className="hidden h-3.5 w-3.5 opacity-60 sm:inline" />
+                  <span className="hidden md:inline">{activeSurface.label}</span>
+                  <ChevronDown className="hidden h-3.5 w-3.5 opacity-60 md:inline" />
                 </Button>
               </PopoverTrigger>
               <PopoverContent align="start" className="w-36 p-1">
@@ -186,7 +185,7 @@ export function Toolbar({
               <PopoverTrigger asChild>
                 <Button type="button" variant="ghost" size="sm" aria-label={`Preview theme: ${activeTheme.label}`}>
                   <activeTheme.Icon className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">{activeTheme.label}</span>
+                  <span className="hidden md:inline">{activeTheme.label}</span>
                   <ChevronDown className="h-3.5 w-3.5 opacity-60" />
                 </Button>
               </PopoverTrigger>
@@ -212,8 +211,8 @@ export function Toolbar({
               aria-label={`${docsLabel} (opens in a new tab)`}
             >
               <BookOpen className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">{docsLabel}</span>
-              <ExternalLink className="hidden h-3 w-3 opacity-50 sm:inline" />
+              <span className="hidden md:inline">{docsLabel}</span>
+              <ExternalLink className="hidden h-3 w-3 opacity-50 md:inline" />
             </a>
           ) : null}
         </div>
@@ -236,7 +235,7 @@ export function Toolbar({
             >
               <AlertTriangle className="h-3.5 w-3.5" />
               <span>
-                {errorCount} <span className="hidden sm:inline">{errorCount === 1 ? 'issue' : 'issues'}</span>
+                {errorCount} <span className="hidden md:inline">{errorCount === 1 ? 'issue' : 'issues'}</span>
               </span>
             </Button>
           ) : null}
@@ -250,22 +249,73 @@ export function Toolbar({
             aria-label="Clear all blocks"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Clear</span>
+            <span className="hidden md:inline">Clear</span>
           </Button>
           <Button type="button" variant="ghost" size="sm" onClick={onOpenJson} aria-label="View JSON">
             <Code2 className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">View JSON</span>
+            <span className="hidden md:inline">View JSON</span>
           </Button>
-          <Button
-            type="button"
-            size="sm"
-            onClick={onOpenSend}
-            disabled={!canSend}
-            aria-label={editBadge ? updateButtonLabel : sendButtonLabel}
-          >
-            {editBadge ? <Pencil className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">{editBadge ? updateButtonLabel : sendButtonLabel}</span>
-          </Button>
+          {editingEnabled ? (
+            <div className="flex items-stretch">
+              <Button
+                type="button"
+                size="sm"
+                onClick={onOpenSend}
+                disabled={!canSend}
+                aria-label={editBadge ? updateButtonLabel : reviewSendLabel}
+                className="rounded-r-none"
+              >
+                {editBadge ? <Pencil className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
+                <span className="hidden md:inline">{editBadge ? updateButtonLabel : reviewSendLabel}</span>
+              </Button>
+              <Popover open={sendMenuOpen} onOpenChange={setSendMenuOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    type="button"
+                    size="sm"
+                    aria-label="More message options"
+                    aria-haspopup="menu"
+                    className="rounded-l-none border-l border-l-primary-foreground/30! px-1.5"
+                  >
+                    <ChevronDown className="h-3.5 w-3.5" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent align="end" className="w-52 p-1">
+                  <div role="menu" aria-label="Message options" className="flex flex-col">
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setSendMenuOpen(false);
+                        onOpenLoad?.();
+                      }}
+                      className={SEND_MENU_ITEM}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="flex-1">Edit a message</span>
+                    </button>
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setSendMenuOpen(false);
+                        onSendAsNew?.();
+                      }}
+                      className={SEND_MENU_ITEM}
+                    >
+                      <Send className="h-3.5 w-3.5" />
+                      <span className="flex-1">Send as a new message</span>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          ) : (
+            <Button type="button" size="sm" onClick={onOpenSend} disabled={!canSend} aria-label={sendButtonLabel}>
+              <Send className="h-3.5 w-3.5" />
+              <span className="hidden md:inline">{sendButtonLabel}</span>
+            </Button>
+          )}
         </div>
       </div>
       {editingEnabled && editBadge ? (

@@ -745,15 +745,10 @@ export interface BlockKitchenProps {
    */
   editing?: EditingConfig;
   /**
-   * Label + accessible name for the toolbar button that opens the
-   * load-message dialog (the edit-mode entry point). Defaults to
-   * `'Load message'`. Only shown when {@link BlockKitchenProps.editing} is set
-   * and no message is currently loaded.
-   */
-  loadButtonLabel?: string;
-  /**
    * Label for the toolbar's primary button when a message is loaded for
-   * editing — it opens the update dialog. Defaults to `'Review & update'`.
+   * editing; it opens the update dialog. Defaults to `'Review & update'`.
+   * When edit mode is enabled but no message is loaded, the button instead
+   * reads `'Review & send'`, with a split menu to edit a message or send as new.
    */
   updateButtonLabel?: string;
   /**
