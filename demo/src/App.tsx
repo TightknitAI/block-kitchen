@@ -446,27 +446,13 @@ export function App() {
               onIncludeOauthUrlChange={setIncludeOauthUrl}
               store={store}
             />
-            <select
-              id="brand-preset-picker"
-              aria-label="Theme"
+            <HeaderSelect
+              label="Theme"
+              ariaLabel="Theme"
               value={preset}
-              onChange={(e) => setPreset(e.target.value as BrandPreset)}
-              style={{
-                fontSize: 12,
-                padding: '6px 8px',
-                borderRadius: 6,
-                border: '1px solid hsl(var(--border))',
-                background: 'hsl(var(--background))',
-                color: 'hsl(var(--foreground))',
-                cursor: 'pointer'
-              }}
-            >
-              {PRESET_OPTIONS.map(({ value, label }) => (
-                <option key={value} value={value}>
-                  Theme: {label}
-                </option>
-              ))}
-            </select>
+              options={PRESET_OPTIONS}
+              onChange={setPreset}
+            />
             <button
               type="button"
               onClick={() => setTheme((t) => (t === 'light' ? 'dark' : 'light'))}
@@ -896,5 +882,127 @@ function EditingMenu({
           document.body
         )}
     </>
+  );
+}
+
+/**
+ * Small button-style dropdown for the header. Unlike a native `<select>`, the
+ * label only prefixes the closed control ("Theme: Default"); the open list
+ * shows the bare option labels.
+ */
+function HeaderSelect<T extends string>({
+  label,
+  ariaLabel,
+  value,
+  options,
+  onChange
+}: {
+  label: string;
+  ariaLabel: string;
+  value: T;
+  options: readonly { value: T; label: string }[];
+  onChange: (v: T) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const wrapRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (wrapRef.current && !wrapRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const selected = options.find((o) => o.value === value)?.label ?? value;
+
+  return (
+    <div ref={wrapRef} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        aria-label={ariaLabel}
+        onClick={() => setOpen((v) => !v)}
+        style={{
+          fontSize: 12,
+          padding: '6px 8px',
+          borderRadius: 6,
+          border: '1px solid hsl(var(--border))',
+          background: 'hsl(var(--background))',
+          color: 'hsl(var(--foreground))',
+          cursor: 'pointer',
+          whiteSpace: 'nowrap',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6
+        }}
+      >
+        <span className="hidden md:inline" style={{ opacity: 0.7 }}>
+          {label}:
+        </span>
+        {selected}
+        <span aria-hidden="true" style={{ opacity: 0.6 }}>
+          ▾
+        </span>
+      </button>
+      {open && (
+        <div
+          role="listbox"
+          aria-label={ariaLabel}
+          style={{
+            position: 'absolute',
+            top: '100%',
+            right: 0,
+            marginTop: 4,
+            minWidth: '100%',
+            zIndex: 50,
+            border: '1px solid hsl(var(--border))',
+            borderRadius: 8,
+            background: 'hsl(var(--background))',
+            color: 'hsl(var(--foreground))',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
+            padding: 4,
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {options.map((o) => (
+            <button
+              key={o.value}
+              type="button"
+              role="option"
+              aria-selected={o.value === value}
+              onClick={() => {
+                onChange(o.value);
+                setOpen(false);
+              }}
+              style={{
+                fontSize: 12,
+                textAlign: 'left',
+                padding: '6px 10px',
+                borderRadius: 6,
+                border: 'none',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: o.value === value ? 'hsl(var(--muted))' : 'transparent',
+                color: 'hsl(var(--foreground))',
+                fontWeight: o.value === value ? 600 : 400
+              }}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
