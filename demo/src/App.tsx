@@ -88,10 +88,65 @@ function previewOf(blocks: SupportedBlock[]): string {
   return `${blocks.length} block${blocks.length === 1 ? '' : 's'}`;
 }
 
-function sampleBlocks(text: string): SupportedBlock[] {
+// A deliberately rich, multi-block message so the editor and previews have
+// something realistic to render: header, byline context, a formatted body with
+// an image accessory, a code snippet, an action row, and a footer.
+function sampleBlocks(title: string): SupportedBlock[] {
   return [
-    { type: 'header', text: { type: 'plain_text', text } },
-    { type: 'section', text: { type: 'mrkdwn', text: `Loaded from the store at *${text}*. Edit me and update.` } }
+    { type: 'header', text: { type: 'plain_text', text: title, emoji: true } },
+    {
+      type: 'context',
+      elements: [
+        { type: 'image', image_url: 'https://placehold.co/24x24/4a154b/ffffff?text=BK', alt_text: 'Avatar' },
+        { type: 'mrkdwn', text: '*Block Kitchen* · loaded from the store · <https://example.com|view source>' }
+      ]
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*${title}*\nThis fixture mixes _italics_, *bold*, \`inline code\`, a <https://example.com|link>, and a list:\n• First point worth reviewing\n• Second point with a little more detail\n• Third and final point`
+      },
+      accessory: { type: 'image', image_url: 'https://placehold.co/72x72/0ea5e9/ffffff?text=IMG', alt_text: 'Thumbnail' }
+    },
+    { type: 'divider' },
+    {
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_preformatted',
+          elements: [{ type: 'text', text: 'const status = await slack.auth.test();\nconsole.log(status.user_id);' }]
+        }
+      ]
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          action_id: 'sample_approve',
+          text: { type: 'plain_text', text: 'Approve', emoji: true },
+          style: 'primary',
+          value: 'approve'
+        },
+        {
+          type: 'button',
+          action_id: 'sample_details',
+          text: { type: 'plain_text', text: 'View details', emoji: true },
+          value: 'details'
+        },
+        {
+          type: 'button',
+          action_id: 'sample_docs',
+          text: { type: 'plain_text', text: 'Open docs', emoji: true },
+          url: 'https://example.com/docs'
+        }
+      ]
+    },
+    {
+      type: 'context',
+      elements: [{ type: 'mrkdwn', text: 'Edit any block above, then click *Update message* to save your changes.' }]
+    }
   ];
 }
 
@@ -103,7 +158,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'engineering',
     author: 'bot',
     kind: 'normal',
-    blocks: sampleBlocks('Bot message')
+    blocks: sampleBlocks('Deploy #482 shipped to production')
   },
   {
     ts: '1718000099.000200',
@@ -111,7 +166,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'general',
     author: 'you',
     kind: 'normal',
-    blocks: sampleBlocks('Your message')
+    blocks: sampleBlocks('Q3 launch recap')
   },
   {
     ts: '1718000150.000300',
@@ -119,7 +174,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'random',
     author: 'someoneElse',
     kind: 'normal',
-    blocks: sampleBlocks("Someone else's message")
+    blocks: sampleBlocks('Weekly design review')
   },
   {
     ts: '1718000200.000400',
@@ -135,7 +190,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'product',
     author: 'you',
     kind: 'edit-window-closed',
-    blocks: sampleBlocks('Old message')
+    blocks: sampleBlocks('Sprint 24 retro')
   }
 ];
 
