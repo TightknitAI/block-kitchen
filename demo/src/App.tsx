@@ -896,7 +896,7 @@ function EditingMenu({
                 {editingEnabled ? (
                   <>
                     <div style={{ opacity: 0.7, marginBottom: 12 }}>
-                      Copy a link below, then use “Load message” in the toolbar, or pick a recent message.
+                      Copy a link below, then use “Find message” in the toolbar, or pick a recent message.
                     </div>
 
                     <div style={{ fontWeight: 600, marginBottom: 8 }}>User-token settings</div>
@@ -973,7 +973,7 @@ function EditingMenu({
                   </>
                 ) : (
                   <div style={{ opacity: 0.7 }}>
-                    The <code>editing</code> prop is omitted, so the builder is a plain composer. “Load message” is
+                    The <code>editing</code> prop is omitted, so the builder is a plain composer. “Find message” is
                     hidden and the primary action stays “Send”.
                   </div>
                 )}

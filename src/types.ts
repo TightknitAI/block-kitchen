@@ -765,7 +765,7 @@ export interface BlockKitchenProps {
   /**
    * Label + accessible name for the toolbar button that opens the
    * load-message dialog (the edit-mode entry point). Defaults to
-   * `'Load message'`. Only shown when {@link BlockKitchenProps.editing} is set
+   * `'Find message'`. Only shown when {@link BlockKitchenProps.editing} is set
    * and no message is currently loaded.
    */
   loadButtonLabel?: string;

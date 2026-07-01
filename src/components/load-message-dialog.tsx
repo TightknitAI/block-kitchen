@@ -92,7 +92,7 @@ export function LoadMessageDialog({
   // Recent messages for the selected channel. `null` means "loading / not loaded yet".
   const [recent, setRecent] = useState<RecentMessage[] | null>(null);
   const [recentError, setRecentError] = useState<string | null>(null);
-  // The recent-message row the user has picked. The footer "Load message"
+  // The recent-message row the user has picked. The footer "Find message"
   // button loads it; mutually exclusive with the pasted link.
   const [selectedRecent, setSelectedRecent] = useState<RecentMessage | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -214,7 +214,7 @@ export function LoadMessageDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>Edit an existing message</DialogTitle>
+          <DialogTitle>Find an existing message</DialogTitle>
           <div className="flex items-start gap-1.5 text-left">
             <DialogDescription>
               {hasRecent
@@ -411,7 +411,7 @@ export function LoadMessageDialog({
             onClick={handleLoad}
             disabled={status.kind === 'loading' || (!selectedRecent && !link.trim())}
           >
-            {status.kind === 'loading' ? 'Loading…' : 'Load message'}
+            {status.kind === 'loading' ? 'Loading…' : 'Find message'}
           </Button>
         </DialogFooter>
       </DialogContent>
