@@ -135,6 +135,19 @@ describe('retrieval-only image metadata', () => {
     expect(Object.hasOwn(out.elements[0], 'is_animated')).toBe(false);
     expect(Object.hasOwn(out.elements[0], 'image_bytes')).toBe(false);
   });
+
+  it('leaves the same field names untouched on non-image objects', () => {
+    const block = {
+      type: 'section',
+      text: { type: 'mrkdwn', text: 'hi' },
+      fallback: 'keep me',
+      is_animated: true
+    } as unknown as SupportedBlock;
+    const out = sanitizeBlock(block) as Record<string, unknown>;
+    expect(out.fallback).toBe('keep me');
+    expect(out.is_animated).toBe(true);
+    expect(out).toBe(block);
+  });
 });
 
 describe('prototype pollution shape', () => {
