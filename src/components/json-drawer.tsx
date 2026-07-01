@@ -1,4 +1,5 @@
 import { validateBlockKit } from '@tightknitai/slack-block-kit-validator';
+import { Check, Copy } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BLOCKS_INPUT_SHAPE_ERROR, unwrapBlocksInput } from '../lib/parse-blocks-input';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/sheet';
@@ -47,9 +48,11 @@ export function JsonDrawer({
   const [value, setValue] = useState<string>('');
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
+  const [copied, setCopied] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const gutterRef = useRef<HTMLDivElement | null>(null);
+  const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Hold the latest blocks in a ref so the open-seed effect can read them
   // without listing them as a dependency. While the drawer is open the
@@ -64,8 +67,34 @@ export function JsonDrawer({
       setValue(JSON.stringify(blocksRef.current, null, 2));
       setParseError(null);
       setValidationErrors([]);
+      setCopied(false);
     }
   }, [open]);
+
+  // Clear the "copied" reset timer on unmount.
+  useEffect(
+    () => () => {
+      if (copyResetRef.current) {
+        clearTimeout(copyResetRef.current);
+      }
+    },
+    []
+  );
+
+  const handleCopy = () => {
+    navigator.clipboard
+      ?.writeText(value)
+      .then(() => {
+        setCopied(true);
+        if (copyResetRef.current) {
+          clearTimeout(copyResetRef.current);
+        }
+        copyResetRef.current = setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        // Clipboard can be unavailable (insecure context / denied); no-op.
+      });
+  };
 
   const handleChange = (next: string) => {
     setValue(next);
@@ -121,7 +150,15 @@ export function JsonDrawer({
           <SheetTitle>Block Kit JSON</SheetTitle>
           <SheetDescription>Edits update the preview as you type. Parse errors show below.</SheetDescription>
         </div>
-        <div className="flex flex-1 overflow-hidden rounded-md border border-input bg-muted/30 shadow-sm focus-within:ring-1 focus-within:ring-ring">
+        <div className="relative flex flex-1 overflow-hidden rounded-md border border-input bg-muted/30 shadow-sm focus-within:ring-1 focus-within:ring-ring">
+          <button
+            type="button"
+            onClick={handleCopy}
+            aria-label={copied ? 'Copied to clipboard' : 'Copy JSON'}
+            className="absolute right-2 top-2 z-10 inline-flex items-center justify-center rounded-md border border-input bg-background/80 p-1.5 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+          </button>
           <div
             ref={gutterRef}
             aria-hidden="true"
