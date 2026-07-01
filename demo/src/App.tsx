@@ -88,10 +88,70 @@ function previewOf(blocks: SupportedBlock[]): string {
   return `${blocks.length} block${blocks.length === 1 ? '' : 's'}`;
 }
 
-function sampleBlocks(text: string): SupportedBlock[] {
+// localStorage flag the mock OAuth page (public/mock-oauth.html) sets to
+// simulate a completed Slack sign-in. `loadSendAsUserStatus` polls it, so the
+// dialog's background poll unlocks once "sign-in" finishes.
+const MOCK_SIGNIN_KEY = 'bk-demo-signed-in';
+
+// A deliberately rich, multi-block message so the editor and previews have
+// something realistic to render: header, byline context, a formatted body with
+// an image accessory, a code snippet, an action row, and a footer.
+function sampleBlocks(title: string): SupportedBlock[] {
   return [
-    { type: 'header', text: { type: 'plain_text', text } },
-    { type: 'section', text: { type: 'mrkdwn', text: `Loaded from the store at *${text}*. Edit me and update.` } }
+    { type: 'header', text: { type: 'plain_text', text: title, emoji: true } },
+    {
+      type: 'context',
+      elements: [
+        { type: 'image', image_url: 'https://placehold.co/24x24/4a154b/ffffff?text=BK', alt_text: 'Avatar' },
+        { type: 'mrkdwn', text: '*Block Kitchen* · loaded from the store · <https://example.com|view source>' }
+      ]
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: `*${title}*\nThis fixture mixes _italics_, *bold*, \`inline code\`, a <https://example.com|link>, and a list:\n• First point worth reviewing\n• Second point with a little more detail\n• Third and final point`
+      },
+      accessory: { type: 'image', image_url: 'https://placehold.co/72x72/0ea5e9/ffffff?text=IMG', alt_text: 'Thumbnail' }
+    },
+    { type: 'divider' },
+    {
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_preformatted',
+          elements: [{ type: 'text', text: 'const status = await slack.auth.test();\nconsole.log(status.user_id);' }]
+        }
+      ]
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          action_id: 'sample_approve',
+          text: { type: 'plain_text', text: 'Approve', emoji: true },
+          style: 'primary',
+          value: 'approve'
+        },
+        {
+          type: 'button',
+          action_id: 'sample_details',
+          text: { type: 'plain_text', text: 'View details', emoji: true },
+          value: 'details'
+        },
+        {
+          type: 'button',
+          action_id: 'sample_docs',
+          text: { type: 'plain_text', text: 'Open docs', emoji: true },
+          url: 'https://example.com/docs'
+        }
+      ]
+    },
+    {
+      type: 'context',
+      elements: [{ type: 'mrkdwn', text: 'Edit any block above, then click *Update message* to save your changes.' }]
+    }
   ];
 }
 
@@ -103,7 +163,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'engineering',
     author: 'bot',
     kind: 'normal',
-    blocks: sampleBlocks('Bot message')
+    blocks: sampleBlocks('Deploy #482 shipped to production')
   },
   {
     ts: '1718000099.000200',
@@ -111,7 +171,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'general',
     author: 'you',
     kind: 'normal',
-    blocks: sampleBlocks('Your message')
+    blocks: sampleBlocks('Q3 launch recap')
   },
   {
     ts: '1718000150.000300',
@@ -119,7 +179,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'random',
     author: 'someoneElse',
     kind: 'normal',
-    blocks: sampleBlocks("Someone else's message")
+    blocks: sampleBlocks('Weekly design review')
   },
   {
     ts: '1718000200.000400',
@@ -135,7 +195,7 @@ const SEED_MESSAGES: StoredMessage[] = [
     channelName: 'product',
     author: 'you',
     kind: 'edit-window-closed',
-    blocks: sampleBlocks('Old message')
+    blocks: sampleBlocks('Sprint 24 retro')
   }
 ];
 
@@ -223,16 +283,32 @@ export function App() {
     storeRef.current = store;
   });
 
+  // Start each session signed-out for the mock flow, clearing any flag left by
+  // a previous run.
+  useEffect(() => {
+    localStorage.removeItem(MOCK_SIGNIN_KEY);
+  }, []);
+
   const loadSendAsUserStatus = useCallback(async (): Promise<SendAsUserStatus> => {
     await new Promise((r) => setTimeout(r, 150));
-    if (canSendAsUser) {
+    const signedInViaMock = localStorage.getItem(MOCK_SIGNIN_KEY) === '1';
+    if (canSendAsUser || signedInViaMock) {
       return { canSendAsUser: true };
     }
     return {
       canSendAsUser: false,
-      oauthUrl: includeOauthUrl ? 'https://slack.com/oauth/v2/authorize?mock=1' : undefined
+      oauthUrl: includeOauthUrl ? `${import.meta.env.BASE_URL}mock-oauth.html` : undefined
     };
   }, [canSendAsUser, includeOauthUrl]);
+
+  // Reset any prior mock sign-in when the user re-arms the signed-out scenario,
+  // so the sign-in + poll loop is repeatable without a reload.
+  const handleCanSendAsUserChange = useCallback((v: boolean) => {
+    if (!v) {
+      localStorage.removeItem(MOCK_SIGNIN_KEY);
+    }
+    setCanSendAsUser(v);
+  }, []);
 
   const onSend = useCallback(async (payload: SendPayload): Promise<SendResult> => {
     await new Promise((r) => setTimeout(r, 300));
@@ -260,7 +336,7 @@ export function App() {
     await new Promise((r) => setTimeout(r, 250));
     const msg = findMessageByLink(storeRef.current, link);
     if (!msg) {
-      return { ok: false, reason: 'No message matched that link. Copy a link from the store on the right.' };
+      return { ok: false, reason: 'No message matched that link.' };
     }
     if (msg.kind === 'non-block') {
       return {
@@ -288,10 +364,23 @@ export function App() {
       username: identity.username,
       iconUrl: identity.iconUrl
     } as const;
-    return msg.author === 'bot'
-      ? { ok: true, ...base, editableVia: 'bot' }
-      : { ok: true, ...base, editableVia: 'user' };
-  }, []);
+    if (msg.author === 'bot') {
+      return { ok: true, ...base, editableVia: 'bot' };
+    }
+    // Editing the user's own message needs a user token. Gate up front when
+    // there's none, offering the sign-in link so the find dialog can surface it
+    // (the mock OAuth page flips the flag, and the dialog re-checks the load).
+    const hasUserToken = canSendAsUser || localStorage.getItem(MOCK_SIGNIN_KEY) === '1';
+    if (!hasUserToken) {
+      return {
+        ok: false,
+        reason: 'Connect your Slack account to edit your own messages.',
+        blocks: msg.blocks,
+        oauthUrl: includeOauthUrl ? `${import.meta.env.BASE_URL}mock-oauth.html` : undefined
+      };
+    }
+    return { ok: true, ...base, editableVia: 'user' };
+  }, [canSendAsUser, includeOauthUrl]);
 
   const onUpdate = useCallback(
     async ({ channelId, ts, blocks: updated, asUser }: UpdatePayload): Promise<UpdateResult> => {
@@ -456,7 +545,7 @@ export function App() {
               editingEnabled={editingEnabled}
               onEditingEnabledChange={setEditingEnabled}
               canSendAsUser={canSendAsUser}
-              onCanSendAsUserChange={setCanSendAsUser}
+              onCanSendAsUserChange={handleCanSendAsUserChange}
               includeOauthUrl={includeOauthUrl}
               onIncludeOauthUrlChange={setIncludeOauthUrl}
               store={store}
@@ -820,7 +909,7 @@ function EditingMenu({
                 {editingEnabled ? (
                   <>
                     <div style={{ opacity: 0.7, marginBottom: 12 }}>
-                      Copy a link below, then use “Load message” in the toolbar, or pick a recent message.
+                      Copy a link below, then use “Find message” in the toolbar, or pick a recent message.
                     </div>
 
                     <div style={{ fontWeight: 600, marginBottom: 8 }}>User-token settings</div>
@@ -832,6 +921,10 @@ function EditingMenu({
                         onIncludeOauthUrlChange,
                         canSendAsUser
                       )}
+                    </div>
+                    <div style={{ opacity: 0.7, fontSize: 12, marginTop: -10, marginBottom: 18 }}>
+                      Uncheck the first box, then open the Send or Edit dialog to try “Sign in with Slack”. It opens a
+                      mock OAuth page; the dialog polls in the background and unlocks once that page loads.
                     </div>
 
                     <div style={{ fontWeight: 600, marginBottom: 8 }}>Message store</div>
@@ -893,7 +986,7 @@ function EditingMenu({
                   </>
                 ) : (
                   <div style={{ opacity: 0.7 }}>
-                    The <code>editing</code> prop is omitted, so the builder is a plain composer. “Load message” is
+                    The <code>editing</code> prop is omitted, so the builder is a plain composer. “Find message” is
                     hidden and the primary action stays “Send”.
                   </div>
                 )}

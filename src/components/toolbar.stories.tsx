@@ -86,13 +86,13 @@ export const ClickSendInvokesHandler: Story = {
   }
 };
 
-// Edit mode configured but no message loaded yet: the "Load message" entry
+// Edit mode configured but no message loaded yet: the "Find message" entry
 // appears and the primary action is a plain "Send".
 export const EditingEnabled: Story = {
   args: { editingEnabled: true, onOpenLoad: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByRole('button', { name: 'Load message' }));
+    await userEvent.click(await canvas.findByRole('button', { name: 'Find message' }));
     await expect(args.onOpenLoad).toHaveBeenCalledOnce();
     await expect(await canvas.findByRole('button', { name: 'Review & send' })).toBeInTheDocument();
   }

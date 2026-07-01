@@ -110,7 +110,7 @@ export function Toolbar({
   onOpenLoad,
   onOpenUpdate,
   onExitEdit,
-  loadButtonLabel = 'Load message',
+  loadButtonLabel = 'Find message',
   updateButtonLabel = 'Review & update'
 }: {
   onClear: () => void;
@@ -139,7 +139,7 @@ export function Toolbar({
   onOpenUpdate?: () => void;
   /** Switches back to a new message, clearing the loaded edit target. */
   onExitEdit?: () => void;
-  /** Label for the load-message entry button. Defaults to `'Load message'`. */
+  /** Label for the load-message entry button. Defaults to `'Find message'`. */
   loadButtonLabel?: string;
   /** Label for the primary button while editing. Defaults to `'Review & update'`. */
   updateButtonLabel?: string;

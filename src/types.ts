@@ -549,7 +549,19 @@ export type LoadResult =
        */
       iconUrl?: string;
     }
-  | { ok: false; reason: string; blocks?: SupportedBlock[] };
+  | {
+      ok: false;
+      reason: string;
+      blocks?: SupportedBlock[];
+      /**
+       * When the message can't be edited only because the user isn't signed in
+       * (e.g. editing their own message needs a user token), the host may
+       * return the Slack OAuth URL here. The find dialog then shows a
+       * "Sign in with Slack" button that opens it and re-checks the load once
+       * sign-in completes. Ignored unless it's a safe `http(s)`/relative URL.
+       */
+      oauthUrl?: string;
+    };
 
 /**
  * Payload passed to {@link EditingConfig.onUpdate}. Sibling to
@@ -765,7 +777,7 @@ export interface BlockKitchenProps {
   /**
    * Label + accessible name for the toolbar button that opens the
    * load-message dialog (the edit-mode entry point). Defaults to
-   * `'Load message'`. Only shown when {@link BlockKitchenProps.editing} is set
+   * `'Find message'`. Only shown when {@link BlockKitchenProps.editing} is set
    * and no message is currently loaded.
    */
   loadButtonLabel?: string;

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mock Slack sign-in</title>
+    <style>
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: system-ui, -apple-system, sans-serif;
+        background: #f8f8f7;
+        color: #1d1c1d;
+      }
+      .card {
+        max-width: 22rem;
+        margin: 1.5rem;
+        padding: 1.75rem;
+        background: #fff;
+        border: 1px solid #e2e2e0;
+        border-radius: 12px;
+        text-align: center;
+      }
+      h1 {
+        margin: 0 0 0.5rem;
+        font-size: 1.1rem;
+      }
+      p {
+        margin: 0 0 1rem;
+        font-size: 0.9rem;
+        line-height: 1.5;
+        color: #616061;
+      }
+      button {
+        font: inherit;
+        cursor: pointer;
+        padding: 0.5rem 1rem;
+        border: 1px solid #c9c9c6;
+        border-radius: 8px;
+        background: #fff;
+      }
+      button:hover {
+        background: #f4f4f3;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>Signed in with Slack</h1>
+      <p>
+        This is a mock OAuth page for the Block Kitchen demo. Your account is now connected. Return to the app tab. The
+        dialog will unlock on its own within a couple of seconds.
+      </p>
+      <button type="button" onclick="window.close()">Close this tab</button>
+    </div>
+    <script>
+      // Grant the mock user token the demo's loadSendAsUserStatus polls for.
+      try {
+        localStorage.setItem('bk-demo-signed-in', '1');
+      } catch (e) {
+        // localStorage can be unavailable (private mode); the demo just won't unlock.
+      }
+      // Try to close automatically; browsers may ignore this, hence the button.
+      setTimeout(function () {
+        window.close();
+      }, 2000);
+    </script>
+  </body>
+</html>

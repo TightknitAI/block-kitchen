@@ -1,11 +1,12 @@
-import { AlertTriangle, ExternalLink } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { toSlackBlocks } from '../lib/to-slack-blocks';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Label } from '../lib/ui/label';
 import { isSafeHref } from '../lib/url-safety';
 import type { ChannelOption, SendAsUserStatus, SendPayload, SupportedBlock } from '../types';
+import { SlackSignInButton, useSlackSignIn } from './slack-sign-in';
 
 type SendStatus = { kind: 'idle' } | { kind: 'sending' } | { kind: 'success' } | { kind: 'error'; error: string };
 
@@ -54,26 +55,18 @@ export function SendDialog({
   const [channels, setChannels] = useState<ChannelOption[] | null>(null);
   const [channelsError, setChannelsError] = useState<string | null>(null);
   const [channelId, setChannelId] = useState<string>('');
-  const [userStatus, setUserStatus] = useState<SendAsUserStatus | null>(null);
   const [sendAs, setSendAs] = useState<'bot' | 'user'>('bot');
   const [status, setStatus] = useState<SendStatus>({ kind: 'idle' });
 
-  // Hold the latest callback props in refs so the effects below can depend
-  // only on `open` without retriggering when the consumer passes a fresh
-  // arrow function each render.
+  const { userStatus, polling, startSignIn } = useSlackSignIn(loadSendAsUserStatus, { open, enabled: true });
+
+  // Hold the latest channels loader in a ref so the open effect can depend only
+  // on `open` without retriggering when the consumer passes a fresh arrow
+  // function each render.
   const loadChannelsRef = useRef(loadChannels);
-  const loadSendAsUserStatusRef = useRef(loadSendAsUserStatus);
   useEffect(() => {
     loadChannelsRef.current = loadChannels;
-    loadSendAsUserStatusRef.current = loadSendAsUserStatus;
   });
-
-  const refreshSendAsUser = useCallback(() => {
-    loadSendAsUserStatusRef
-      .current()
-      .then(setUserStatus)
-      .catch(() => setUserStatus({ canSendAsUser: false }));
-  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -82,7 +75,6 @@ export function SendDialog({
     setStatus({ kind: 'idle' });
     setChannels(null);
     setChannelsError(null);
-    setUserStatus(null);
     setChannelId('');
     setSendAs('bot');
     let cancelled = false;
@@ -101,23 +93,10 @@ export function SendDialog({
         }
         setChannelsError(e instanceof Error ? e.message : 'Failed to load channels');
       });
-    refreshSendAsUser();
     return () => {
       cancelled = true;
     };
-  }, [open, refreshSendAsUser]);
-
-  // Refresh user-token status when the window regains focus, so a completed
-  // OAuth round-trip flips the option from disabled to enabled without
-  // a manual reload.
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const handler = () => refreshSendAsUser();
-    window.addEventListener('focus', handler);
-    return () => window.removeEventListener('focus', handler);
-  }, [open, refreshSendAsUser]);
+  }, [open]);
 
   const handleSubmit = async () => {
     if (!channelId) {
@@ -173,17 +152,10 @@ export function SendDialog({
               </option>
             </select>
             {userStatus && !userStatus.canSendAsUser && userStatus.oauthUrl && isSafeHref(userStatus.oauthUrl) && (
-              <p className="text-xs text-muted-foreground">
-                <a
-                  href={userStatus.oauthUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:underline"
-                >
-                  Sign in with Slack <ExternalLink className="h-3 w-3" />
-                </a>{' '}
-                to post as yourself.
-              </p>
+              <>
+                <p className="text-xs text-muted-foreground">Connect your Slack account to post as yourself.</p>
+                <SlackSignInButton onClick={startSignIn} polling={polling} />
+              </>
             )}
           </div>
 

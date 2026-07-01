@@ -1,11 +1,12 @@
-import { AlertTriangle, ExternalLink } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toSlackBlocks } from '../lib/to-slack-blocks';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Label } from '../lib/ui/label';
 import { isSafeHref } from '../lib/url-safety';
 import type { EditableVia, SendAsUserStatus, SupportedBlock, UpdatePayload, UpdateResult } from '../types';
+import { SlackSignInButton, useSlackSignIn } from './slack-sign-in';
 
 /** The loaded message being edited. Destination + identity are fixed by the host's verdict. */
 export interface EditTarget {
@@ -61,43 +62,18 @@ export function UpdateDialog({
   onShowIssues?: () => void;
 }) {
   const asUser = target.editableVia === 'user';
-  const [userStatus, setUserStatus] = useState<SendAsUserStatus | null>(null);
   const [status, setStatus] = useState<UpdateStatus>({ kind: 'idle' });
-
-  const loadSendAsUserStatusRef = useRef(loadSendAsUserStatus);
-  useEffect(() => {
-    loadSendAsUserStatusRef.current = loadSendAsUserStatus;
-  });
-
-  const refreshSendAsUser = useCallback(() => {
-    loadSendAsUserStatusRef
-      .current()
-      .then(setUserStatus)
-      .catch(() => setUserStatus({ canSendAsUser: false }));
-  }, []);
 
   // Only the user-token path needs a token check; the bot path can always edit
   // its own message.
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setStatus({ kind: 'idle' });
-    if (asUser) {
-      setUserStatus(null);
-      refreshSendAsUser();
-    }
-  }, [open, asUser, refreshSendAsUser]);
+  const { userStatus, polling, startSignIn } = useSlackSignIn(loadSendAsUserStatus, { open, enabled: asUser });
 
-  // Pick up a completed OAuth round-trip when the window regains focus.
+  // Reset the update status whenever the dialog opens.
   useEffect(() => {
-    if (!open || !asUser) {
-      return;
+    if (open) {
+      setStatus({ kind: 'idle' });
     }
-    const handler = () => refreshSendAsUser();
-    window.addEventListener('focus', handler);
-    return () => window.removeEventListener('focus', handler);
-  }, [open, asUser, refreshSendAsUser]);
+  }, [open]);
 
   // Editing as the user requires a usable user token. The bot path never gates.
   const needsSignIn = asUser && userStatus !== null && !userStatus.canSendAsUser;
@@ -148,17 +124,10 @@ export function UpdateDialog({
               {asUser ? 'Your account' : 'App bot'}
             </p>
             {needsSignIn && userStatus?.oauthUrl && isSafeHref(userStatus.oauthUrl) && (
-              <p className="text-xs text-muted-foreground">
-                <a
-                  href={userStatus.oauthUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:underline"
-                >
-                  Sign in with Slack <ExternalLink className="h-3 w-3" />
-                </a>{' '}
-                to update your own message.
-              </p>
+              <>
+                <p className="text-xs text-muted-foreground">Connect your Slack account to edit your own messages.</p>
+                <SlackSignInButton onClick={startSignIn} polling={polling} />
+              </>
             )}
             {needsSignIn && !userStatus?.oauthUrl && (
               <p className="text-xs text-muted-foreground">Sign in with Slack to update your own message.</p>

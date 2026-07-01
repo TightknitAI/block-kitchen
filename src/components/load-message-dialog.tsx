@@ -1,11 +1,14 @@
 import { AlertTriangle, Info } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Input } from '../lib/ui/input';
 import { Label } from '../lib/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
+import { isSafeHref, isSafeImageSrc } from '../lib/url-safety';
 import type { ChannelOption, LoadResult, RecentMessage, SupportedBlock } from '../types';
+import { SlackSignInButton } from './slack-sign-in';
 
 /** Map a {@link RecentMessage} onto the `ok` verdict so it reuses the load path. */
 function recentToResult(msg: RecentMessage): Extract<LoadResult, { ok: true }> {
@@ -22,17 +25,35 @@ function recentToResult(msg: RecentMessage): Extract<LoadResult, { ok: true }> {
   };
 }
 
+/**
+ * Snippet shown as the row body: the host's `label` if given, else the first
+ * header/section text from the message blocks, else a block-count fallback.
+ */
+function previewText(m: RecentMessage): string {
+  if (m.label) {
+    return m.label;
+  }
+  for (const b of m.blocks) {
+    if ((b.type === 'header' || b.type === 'section') && 'text' in b && b.text && 'text' in b.text) {
+      return b.text.text;
+    }
+  }
+  return `${m.blocks.length} block${m.blocks.length === 1 ? '' : 's'}`;
+}
+
 type LoadStatus =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'error'; error: string }
-  | { kind: 'not-editable'; reason: string; blocks?: SupportedBlock[] };
+  | { kind: 'not-editable'; reason: string; blocks?: SupportedBlock[]; oauthUrl?: string };
 
 /**
  * Edit-mode entry point. Collects a Slack message permalink and hands it to
  * the host's `onLoadMessage`. On a successful load the parent flips into
  * edit mode (`onLoaded`); on a not-editable verdict the dialog renders the
- * host's `reason` inline and offers "Open as a new message instead".
+ * host's `reason` inline and, when that verdict carries blocks, offers
+ * "Open as a new message instead" (a no-match verdict has none, so only the
+ * reason shows).
  *
  * The package never parses the permalink — the host extracts `channel + ts`.
  * @param props - dialog props
@@ -72,7 +93,14 @@ export function LoadMessageDialog({
   // Recent messages for the selected channel. `null` means "loading / not loaded yet".
   const [recent, setRecent] = useState<RecentMessage[] | null>(null);
   const [recentError, setRecentError] = useState<string | null>(null);
+  // The recent-message row the user has picked. The footer "Find message"
+  // button loads it; mutually exclusive with the pasted link.
+  const [selectedRecent, setSelectedRecent] = useState<RecentMessage | null>(null);
+  // True while re-checking the load after the user opened the Slack OAuth tab
+  // from a "sign in to edit" verdict.
+  const [signInPolling, setSignInPolling] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const signInPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Hold the latest loaders in refs so they can change identity between renders
   // (consumers often pass a fresh arrow) without us needing them as deps.
@@ -98,6 +126,7 @@ export function LoadMessageDialog({
     setChannelId('');
     setRecent(null);
     setRecentError(null);
+    setSelectedRecent(null);
     if (!loadRecentMessagesRef.current) {
       setChannels([]);
       setChannelsError(null);
@@ -131,6 +160,7 @@ export function LoadMessageDialog({
     }
     setRecent(null);
     setRecentError(null);
+    setSelectedRecent(null);
     let cancelled = false;
     loadRecentMessagesRef
       .current(channelId)
@@ -149,7 +179,30 @@ export function LoadMessageDialog({
     };
   }, [open, channelId]);
 
+  const stopSignInPoll = useCallback(() => {
+    if (signInPollRef.current) {
+      clearInterval(signInPollRef.current);
+      signInPollRef.current = null;
+    }
+    setSignInPolling(false);
+  }, []);
+
+  // Stop the sign-in retry loop when the dialog closes or the component unmounts.
+  useEffect(() => {
+    if (!open) {
+      stopSignInPoll();
+    }
+    return stopSignInPoll;
+  }, [open, stopSignInPoll]);
+
   const handleLoad = async () => {
+    stopSignInPoll();
+    // A picked recent message loads directly — it's already fully resolved, so
+    // there's no link to fetch.
+    if (selectedRecent) {
+      onLoaded(recentToResult(selectedRecent));
+      return;
+    }
     const trimmed = link.trim();
     if (!trimmed) {
       setStatus({ kind: 'error', error: 'Paste a Slack message link first.' });
@@ -162,13 +215,50 @@ export function LoadMessageDialog({
         onLoaded(result);
         return;
       }
-      setStatus({ kind: 'not-editable', reason: result.reason, blocks: result.blocks });
+      setStatus({ kind: 'not-editable', reason: result.reason, blocks: result.blocks, oauthUrl: result.oauthUrl });
     } catch (e) {
       setStatus({ kind: 'error', error: e instanceof Error ? e.message : 'Failed to load message.' });
     }
   };
 
+  // Opens the Slack OAuth tab, then re-runs the load on an interval so the
+  // dialog advances into edit mode once the host reports the message editable
+  // (i.e. the user finished signing in). Capped so it can't poll forever.
+  const startFindSignIn = (oauthUrl: string) => {
+    if (!isSafeHref(oauthUrl)) {
+      return;
+    }
+    const trimmed = link.trim();
+    if (!trimmed) {
+      return;
+    }
+    window.open(oauthUrl, '_blank', 'noopener,noreferrer');
+    stopSignInPoll();
+    setSignInPolling(true);
+    let tries = 0;
+    const POLL_INTERVAL_MS = 2500;
+    const MAX_POLLS = 24; // ~1 minute before giving up
+    signInPollRef.current = setInterval(() => {
+      tries += 1;
+      onLoadMessageRef
+        .current({ link: trimmed })
+        .then((result) => {
+          if (result.ok) {
+            stopSignInPoll();
+            onLoaded(result);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (tries >= MAX_POLLS) {
+            stopSignInPoll();
+          }
+        });
+    }, POLL_INTERVAL_MS);
+  };
+
   const notEditable = status.kind === 'not-editable' ? status : null;
+  const signInUrl = notEditable?.oauthUrl && isSafeHref(notEditable.oauthUrl) ? notEditable.oauthUrl : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -183,7 +273,7 @@ export function LoadMessageDialog({
         }}
       >
         <DialogHeader>
-          <DialogTitle>Edit an existing message</DialogTitle>
+          <DialogTitle>Find an existing message</DialogTitle>
           <div className="flex items-start gap-1.5 text-left">
             <DialogDescription>
               {hasRecent
@@ -217,6 +307,10 @@ export function LoadMessageDialog({
               value={link}
               onChange={(e) => {
                 setLink(e.target.value);
+                // Typing a link takes over from a picked recent message and
+                // abandons any in-flight sign-in retry for the old link.
+                setSelectedRecent(null);
+                stopSignInPoll();
                 if (status.kind !== 'idle' && status.kind !== 'loading') {
                   setStatus({ kind: 'idle' });
                 }
@@ -245,15 +339,21 @@ export function LoadMessageDialog({
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span className="flex-1">{notEditable.reason}</span>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="self-start"
-                onClick={() => onOpenAsNew(notEditable.blocks)}
-              >
-                Open as a new message instead
-              </Button>
+              {/* Sign-in verdict: open OAuth and re-check the load on completion. */}
+              {signInUrl && <SlackSignInButton onClick={() => startFindSignIn(signInUrl)} polling={signInPolling} />}
+              {/* Only offer "open as new" when there are blocks to carry over.
+                  A no-match verdict has none, so there's nothing to open. */}
+              {notEditable.blocks && notEditable.blocks.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => onOpenAsNew(notEditable.blocks)}
+                >
+                  Open as a new message instead
+                </Button>
+              )}
             </div>
           )}
 
@@ -310,25 +410,52 @@ export function LoadMessageDialog({
                     // Which identity the message was posted as — drives both
                     // this badge and (on load) the token the update uses.
                     const asUser = (m.editableVia ?? 'bot') === 'user';
+                    const authorName = m.username || (asUser ? 'You' : 'App bot');
+                    const safeIcon = isSafeImageSrc(m.iconUrl) ? m.iconUrl : undefined;
+                    const isSelected = selectedRecent?.channelId === m.channelId && selectedRecent?.ts === m.ts;
                     return (
                       <button
                         key={`${m.channelId}:${m.ts}`}
                         type="button"
-                        onClick={() => onLoaded(recentToResult(m))}
-                        className="flex min-w-0 flex-col gap-0.5 rounded-md border border-input bg-background px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          // Pick the row; the footer button does the load.
+                          setSelectedRecent(m);
+                          setLink('');
+                          if (status.kind !== 'idle' && status.kind !== 'loading') {
+                            setStatus({ kind: 'idle' });
+                          }
+                        }}
+                        className={cn(
+                          // Inset rings so the scroll container's overflow clip
+                          // can't shave the corners off the selected outline.
+                          'flex min-w-0 items-start gap-2.5 rounded-md border border-input bg-background px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring',
+                          isSelected && 'border-primary! bg-accent ring-1 ring-inset ring-primary'
+                        )}
                       >
-                        <span className="flex min-w-0 items-baseline justify-between gap-2">
-                          <span className="shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            {asUser ? 'You' : 'Bot'}
+                        {/* Slack-style square avatar. */}
+                        {safeIcon ? (
+                          <img src={safeIcon} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+                        ) : (
+                          <span
+                            aria-hidden
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-semibold text-muted-foreground"
+                          >
+                            {authorName.charAt(0).toUpperCase()}
                           </span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            <span className="font-semibold text-foreground">
-                              {new Date(Number(m.ts) * 1000).toLocaleString()}
-                            </span>{' '}
-                            <span className="font-mono">({m.ts})</span>
+                        )}
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate text-sm font-semibold text-foreground">{authorName}</span>
+                            <span className="shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                              {asUser ? 'You' : 'Bot'}
+                            </span>
                           </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(Number(m.ts) * 1000).toLocaleString()} <span className="font-mono">({m.ts})</span>
+                          </span>
+                          <span className="line-clamp-2 text-sm text-foreground">{previewText(m)}</span>
                         </span>
-                        {m.label && <span className="truncate text-sm text-muted-foreground">{m.label}</span>}
                       </button>
                     );
                   })}
@@ -342,8 +469,12 @@ export function LoadMessageDialog({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleLoad} disabled={status.kind === 'loading' || !link.trim()}>
-            {status.kind === 'loading' ? 'Loading…' : 'Load message'}
+          <Button
+            type="button"
+            onClick={handleLoad}
+            disabled={status.kind === 'loading' || (!selectedRecent && !link.trim())}
+          >
+            {status.kind === 'loading' ? 'Loading…' : 'Find message'}
           </Button>
         </DialogFooter>
       </DialogContent>
