@@ -19,6 +19,14 @@ const HREF_KEYS = new Set(['url']);
 const IMAGE_KEYS = new Set(['image_url']);
 
 /**
+ * Read-only metadata Slack attaches to image blocks/elements when a message
+ * is *retrieved* via the API, but rejects on *send*. Blocks loaded from an
+ * existing message carry these; drop them anywhere they appear so a
+ * round-tripped payload stays send-valid.
+ */
+const DROP_KEYS = new Set(['image_width', 'image_height', 'image_bytes', 'fallback', 'is_animated']);
+
+/**
  * Recursively sanitize all known URL-bearing string fields inside a
  * Slack Block Kit payload fragment. Returns a value with the same
  * structural shape, where any field whose name matches an href or
@@ -46,6 +54,11 @@ function sanitizeValue(value: unknown): unknown {
   const src = value as Record<string, unknown>;
   let copy: Record<string, unknown> | null = null;
   for (const key of Object.keys(src)) {
+    if (DROP_KEYS.has(key)) {
+      copy ??= { ...src };
+      delete copy[key];
+      continue;
+    }
     const original = src[key];
     let next: unknown = original;
     if (typeof original === 'string') {

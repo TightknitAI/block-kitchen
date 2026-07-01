@@ -106,6 +106,37 @@ describe('sanitizeBlocks', () => {
   });
 });
 
+describe('retrieval-only image metadata', () => {
+  it('drops send-invalid fields Slack adds to retrieved image blocks', () => {
+    const block = {
+      type: 'image',
+      image_url: 'https://example.com/a.png',
+      alt_text: 'ok',
+      image_width: 800,
+      image_height: 600,
+      image_bytes: 12345,
+      fallback: '800x600px image',
+      is_animated: false
+    } as unknown as SupportedBlock;
+    const out = sanitizeBlock(block) as Record<string, unknown>;
+    for (const k of ['image_width', 'image_height', 'image_bytes', 'fallback', 'is_animated']) {
+      expect(Object.hasOwn(out, k)).toBe(false);
+    }
+    expect(out.image_url).toBe('https://example.com/a.png');
+    expect(out.alt_text).toBe('ok');
+  });
+
+  it('strips the same fields from a nested image element (e.g. context block)', () => {
+    const block = {
+      type: 'context',
+      elements: [{ type: 'image', image_url: 'https://x/y.gif', alt_text: 'g', is_animated: true, image_bytes: 9 }]
+    } as unknown as SupportedBlock;
+    const out = sanitizeBlock(block) as { elements: Record<string, unknown>[] };
+    expect(Object.hasOwn(out.elements[0], 'is_animated')).toBe(false);
+    expect(Object.hasOwn(out.elements[0], 'image_bytes')).toBe(false);
+  });
+});
+
 describe('prototype pollution shape', () => {
   it('a JSON object with __proto__ key does not pollute Object.prototype', () => {
     const parsed = JSON.parse('{"__proto__": {"polluted": true}}');
