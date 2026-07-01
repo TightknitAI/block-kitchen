@@ -88,6 +88,11 @@ function previewOf(blocks: SupportedBlock[]): string {
   return `${blocks.length} block${blocks.length === 1 ? '' : 's'}`;
 }
 
+// localStorage flag the mock OAuth page (public/mock-oauth.html) sets to
+// simulate a completed Slack sign-in. `loadSendAsUserStatus` polls it, so the
+// dialog's background poll unlocks once "sign-in" finishes.
+const MOCK_SIGNIN_KEY = 'bk-demo-signed-in';
+
 // A deliberately rich, multi-block message so the editor and previews have
 // something realistic to render: header, byline context, a formatted body with
 // an image accessory, a code snippet, an action row, and a footer.
@@ -278,16 +283,32 @@ export function App() {
     storeRef.current = store;
   });
 
+  // Start each session signed-out for the mock flow, clearing any flag left by
+  // a previous run.
+  useEffect(() => {
+    localStorage.removeItem(MOCK_SIGNIN_KEY);
+  }, []);
+
   const loadSendAsUserStatus = useCallback(async (): Promise<SendAsUserStatus> => {
     await new Promise((r) => setTimeout(r, 150));
-    if (canSendAsUser) {
+    const signedInViaMock = localStorage.getItem(MOCK_SIGNIN_KEY) === '1';
+    if (canSendAsUser || signedInViaMock) {
       return { canSendAsUser: true };
     }
     return {
       canSendAsUser: false,
-      oauthUrl: includeOauthUrl ? 'https://slack.com/oauth/v2/authorize?mock=1' : undefined
+      oauthUrl: includeOauthUrl ? `${import.meta.env.BASE_URL}mock-oauth.html` : undefined
     };
   }, [canSendAsUser, includeOauthUrl]);
+
+  // Reset any prior mock sign-in when the user re-arms the signed-out scenario,
+  // so the sign-in + poll loop is repeatable without a reload.
+  const handleCanSendAsUserChange = useCallback((v: boolean) => {
+    if (!v) {
+      localStorage.removeItem(MOCK_SIGNIN_KEY);
+    }
+    setCanSendAsUser(v);
+  }, []);
 
   const onSend = useCallback(async (payload: SendPayload): Promise<SendResult> => {
     await new Promise((r) => setTimeout(r, 300));
@@ -511,7 +532,7 @@ export function App() {
               editingEnabled={editingEnabled}
               onEditingEnabledChange={setEditingEnabled}
               canSendAsUser={canSendAsUser}
-              onCanSendAsUserChange={setCanSendAsUser}
+              onCanSendAsUserChange={handleCanSendAsUserChange}
               includeOauthUrl={includeOauthUrl}
               onIncludeOauthUrlChange={setIncludeOauthUrl}
               store={store}
@@ -887,6 +908,10 @@ function EditingMenu({
                         onIncludeOauthUrlChange,
                         canSendAsUser
                       )}
+                    </div>
+                    <div style={{ opacity: 0.7, fontSize: 12, marginTop: -10, marginBottom: 18 }}>
+                      Uncheck the first box, then open the Send or Edit dialog to try “Sign in with Slack”. It opens a
+                      mock OAuth page; the dialog polls in the background and unlocks once that page loads.
                     </div>
 
                     <div style={{ fontWeight: 600, marginBottom: 8 }}>Message store</div>
