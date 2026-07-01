@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.9.4](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.3...block-kitchen-v0.9.4) (2026-07-01)
+
+
+### Features
+
+* **json-drawer:** add a copy-to-clipboard button on the JSON pane ([949f8c5](https://github.com/TightknitAI/block-kitchen/commit/949f8c57b4c8573adfb77a48441ef000ae48b107))
+* **load-dialog:** make recent-message previews select-then-load ([3a815ae](https://github.com/TightknitAI/block-kitchen/commit/3a815ae59ba1423fdc0edfce4a1aa53634a2d459))
+* **load-dialog:** rename Load/Edit copy to Find ([0bd5d40](https://github.com/TightknitAI/block-kitchen/commit/0bd5d401c6ab978aad84bd3e5832795cb1284634))
+* **load-dialog:** shape recent-message previews like Slack messages ([d9f0cd1](https://github.com/TightknitAI/block-kitchen/commit/d9f0cd1228e4dd6a0b130b1d52a179f88313d293))
+* **load-dialog:** surface Slack sign-in in the find dialog ([9736c06](https://github.com/TightknitAI/block-kitchen/commit/9736c06773cf79e7f0d2813e8ad64a9a79f75c28))
+* **update-dialog:** add Slack sign-in button with background polling ([d144fff](https://github.com/TightknitAI/block-kitchen/commit/d144fff541ce5f5dc6f6d98136934afc9cf4caa5))
+* **update-dialog:** Slack sign-in button with background polling ([cf2bb4b](https://github.com/TightknitAI/block-kitchen/commit/cf2bb4b89cc6f5e8463eaa35ea9b3712d2c7bf0a))
+
+
+### Bug Fixes
+
+* **load-dialog:** hide "open as new" for no-match verdicts ([6f92686](https://github.com/TightknitAI/block-kitchen/commit/6f926869e84c7d421f91f8661cc7dae92459851e))
+* **load-dialog:** stop clipping the selected-row outline ([53079f1](https://github.com/TightknitAI/block-kitchen/commit/53079f19fba4d5afd686b021afac7936d3a68c6b))
+
 ## [0.9.3](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.2...block-kitchen-v0.9.3) (2026-07-01)
 
 
