@@ -1,11 +1,12 @@
-import { AlertTriangle, ExternalLink, Loader2 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { toSlackBlocks } from '../lib/to-slack-blocks';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Label } from '../lib/ui/label';
 import { isSafeHref } from '../lib/url-safety';
 import type { EditableVia, SendAsUserStatus, SupportedBlock, UpdatePayload, UpdateResult } from '../types';
+import { SlackSignInButton, useSlackSignIn } from './slack-sign-in';
 
 /** The loaded message being edited. Destination + identity are fixed by the host's verdict. */
 export interface EditTarget {
@@ -61,95 +62,18 @@ export function UpdateDialog({
   onShowIssues?: () => void;
 }) {
   const asUser = target.editableVia === 'user';
-  const [userStatus, setUserStatus] = useState<SendAsUserStatus | null>(null);
   const [status, setStatus] = useState<UpdateStatus>({ kind: 'idle' });
-  const [polling, setPolling] = useState(false);
-
-  const loadSendAsUserStatusRef = useRef(loadSendAsUserStatus);
-  useEffect(() => {
-    loadSendAsUserStatusRef.current = loadSendAsUserStatus;
-  });
-
-  const refreshSendAsUser = useCallback(() => {
-    loadSendAsUserStatusRef
-      .current()
-      .then(setUserStatus)
-      .catch(() => setUserStatus({ canSendAsUser: false }));
-  }, []);
-
-  // Background poll after the user opens the OAuth tab: re-check token status on
-  // an interval so the dialog unlocks itself once Slack sign-in completes,
-  // instead of waiting for the window-focus handler. Capped so a never-finished
-  // sign-in doesn't poll forever.
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const stopPolling = useCallback(() => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
-    setPolling(false);
-  }, []);
-
-  const startSignIn = useCallback(() => {
-    const url = userStatus?.oauthUrl;
-    if (!url || !isSafeHref(url)) {
-      return;
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
-    stopPolling();
-    setPolling(true);
-    let tries = 0;
-    const POLL_INTERVAL_MS = 2500;
-    const MAX_POLLS = 24; // ~1 minute before giving up
-    pollRef.current = setInterval(() => {
-      tries += 1;
-      loadSendAsUserStatusRef
-        .current()
-        .then((next) => {
-          setUserStatus(next);
-          if (next.canSendAsUser) {
-            stopPolling();
-          }
-        })
-        .catch(() => {})
-        .finally(() => {
-          if (tries >= MAX_POLLS) {
-            stopPolling();
-          }
-        });
-    }, POLL_INTERVAL_MS);
-  }, [userStatus, stopPolling]);
-
-  // Stop background polling when the dialog closes or the component unmounts.
-  useEffect(() => {
-    if (!open) {
-      stopPolling();
-    }
-    return stopPolling;
-  }, [open, stopPolling]);
 
   // Only the user-token path needs a token check; the bot path can always edit
   // its own message.
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    setStatus({ kind: 'idle' });
-    if (asUser) {
-      setUserStatus(null);
-      refreshSendAsUser();
-    }
-  }, [open, asUser, refreshSendAsUser]);
+  const { userStatus, polling, startSignIn } = useSlackSignIn(loadSendAsUserStatus, { open, enabled: asUser });
 
-  // Pick up a completed OAuth round-trip when the window regains focus.
+  // Reset the update status whenever the dialog opens.
   useEffect(() => {
-    if (!open || !asUser) {
-      return;
+    if (open) {
+      setStatus({ kind: 'idle' });
     }
-    const handler = () => refreshSendAsUser();
-    window.addEventListener('focus', handler);
-    return () => window.removeEventListener('focus', handler);
-  }, [open, asUser, refreshSendAsUser]);
+  }, [open]);
 
   // Editing as the user requires a usable user token. The bot path never gates.
   const needsSignIn = asUser && userStatus !== null && !userStatus.canSendAsUser;
@@ -202,24 +126,7 @@ export function UpdateDialog({
             {needsSignIn && userStatus?.oauthUrl && isSafeHref(userStatus.oauthUrl) && (
               <>
                 <p className="text-xs text-muted-foreground">Connect your Slack account to edit your own messages.</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="w-fit"
-                  onClick={startSignIn}
-                  disabled={polling}
-                >
-                  {polling ? (
-                    <>
-                      <Loader2 className="animate-spin" /> Waiting for Slack…
-                    </>
-                  ) : (
-                    <>
-                      Sign in with Slack <ExternalLink />
-                    </>
-                  )}
-                </Button>
+                <SlackSignInButton onClick={startSignIn} polling={polling} />
               </>
             )}
             {needsSignIn && !userStatus?.oauthUrl && (
