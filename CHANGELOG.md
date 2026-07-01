@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.9.3](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.2...block-kitchen-v0.9.3) (2026-07-01)
+
+
+### Bug Fixes
+
+* **load:** cleanse blocks on load, not only on send ([d56ce81](https://github.com/TightknitAI/block-kitchen/commit/d56ce81f8977ce74db3448121f97766fff453181))
+* **sanitize:** scope image-metadata strip to image objects only ([001a41b](https://github.com/TightknitAI/block-kitchen/commit/001a41b3cd6b935cb218df8907ca794e225fb306))
+* **sanitize:** strip retrieval-only image metadata before send ([d9032fe](https://github.com/TightknitAI/block-kitchen/commit/d9032fe40e7c58146535b979620915c631330916))
+* **sanitize:** strip retrieval-only image metadata before send ([bb1e0b4](https://github.com/TightknitAI/block-kitchen/commit/bb1e0b4e1c0530b5e1fb5f19258bcbbcb3203678))
+
 ## [0.9.2](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.1...block-kitchen-v0.9.2) (2026-06-30)
 
 
