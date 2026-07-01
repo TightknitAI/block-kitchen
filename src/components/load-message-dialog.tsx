@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from '../lib/ui/input';
 import { Label } from '../lib/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
+import { isSafeImageSrc } from '../lib/url-safety';
 import type { ChannelOption, LoadResult, RecentMessage, SupportedBlock } from '../types';
 
 /** Map a {@link RecentMessage} onto the `ok` verdict so it reuses the load path. */
@@ -20,6 +21,22 @@ function recentToResult(msg: RecentMessage): Extract<LoadResult, { ok: true }> {
     username: msg.username,
     iconUrl: msg.iconUrl
   };
+}
+
+/**
+ * Snippet shown as the row body: the host's `label` if given, else the first
+ * header/section text from the message blocks, else a block-count fallback.
+ */
+function previewText(m: RecentMessage): string {
+  if (m.label) {
+    return m.label;
+  }
+  for (const b of m.blocks) {
+    if ((b.type === 'header' || b.type === 'section') && 'text' in b && b.text && 'text' in b.text) {
+      return b.text.text;
+    }
+  }
+  return `${m.blocks.length} block${m.blocks.length === 1 ? '' : 's'}`;
 }
 
 type LoadStatus =
@@ -310,25 +327,38 @@ export function LoadMessageDialog({
                     // Which identity the message was posted as — drives both
                     // this badge and (on load) the token the update uses.
                     const asUser = (m.editableVia ?? 'bot') === 'user';
+                    const authorName = m.username || (asUser ? 'You' : 'App bot');
+                    const safeIcon = isSafeImageSrc(m.iconUrl) ? m.iconUrl : undefined;
                     return (
                       <button
                         key={`${m.channelId}:${m.ts}`}
                         type="button"
                         onClick={() => onLoaded(recentToResult(m))}
-                        className="flex min-w-0 flex-col gap-0.5 rounded-md border border-input bg-background px-3 py-2 text-left text-sm hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        className="flex min-w-0 items-start gap-2.5 rounded-md border border-input bg-background px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                       >
-                        <span className="flex min-w-0 items-baseline justify-between gap-2">
-                          <span className="shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                            {asUser ? 'You' : 'Bot'}
+                        {/* Slack-style square avatar. */}
+                        {safeIcon ? (
+                          <img src={safeIcon} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover" />
+                        ) : (
+                          <span
+                            aria-hidden
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-sm font-semibold text-muted-foreground"
+                          >
+                            {authorName.charAt(0).toUpperCase()}
                           </span>
-                          <span className="shrink-0 text-xs text-muted-foreground">
-                            <span className="font-semibold text-foreground">
-                              {new Date(Number(m.ts) * 1000).toLocaleString()}
-                            </span>{' '}
-                            <span className="font-mono">({m.ts})</span>
+                        )}
+                        <span className="flex min-w-0 flex-col gap-0.5">
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="truncate text-sm font-semibold text-foreground">{authorName}</span>
+                            <span className="shrink-0 rounded border px-1 py-px text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                              {asUser ? 'You' : 'Bot'}
+                            </span>
                           </span>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(Number(m.ts) * 1000).toLocaleString()} <span className="font-mono">({m.ts})</span>
+                          </span>
+                          <span className="line-clamp-2 text-sm text-foreground">{previewText(m)}</span>
                         </span>
-                        {m.label && <span className="truncate text-sm text-muted-foreground">{m.label}</span>}
                       </button>
                     );
                   })}
