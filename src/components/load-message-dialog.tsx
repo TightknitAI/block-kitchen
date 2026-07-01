@@ -364,8 +364,10 @@ export function LoadMessageDialog({
                           }
                         }}
                         className={cn(
-                          'flex min-w-0 items-start gap-2.5 rounded-md border border-input bg-background px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                          isSelected && 'bg-accent ring-2 ring-ring'
+                          // Inset rings so the scroll container's overflow clip
+                          // can't shave the corners off the selected outline.
+                          'flex min-w-0 items-start gap-2.5 rounded-md border border-input bg-background px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring',
+                          isSelected && 'border-primary! bg-accent ring-1 ring-inset ring-primary'
                         )}
                       >
                         {/* Slack-style square avatar. */}
