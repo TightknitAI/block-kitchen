@@ -364,10 +364,23 @@ export function App() {
       username: identity.username,
       iconUrl: identity.iconUrl
     } as const;
-    return msg.author === 'bot'
-      ? { ok: true, ...base, editableVia: 'bot' }
-      : { ok: true, ...base, editableVia: 'user' };
-  }, []);
+    if (msg.author === 'bot') {
+      return { ok: true, ...base, editableVia: 'bot' };
+    }
+    // Editing the user's own message needs a user token. Gate up front when
+    // there's none, offering the sign-in link so the find dialog can surface it
+    // (the mock OAuth page flips the flag, and the dialog re-checks the load).
+    const hasUserToken = canSendAsUser || localStorage.getItem(MOCK_SIGNIN_KEY) === '1';
+    if (!hasUserToken) {
+      return {
+        ok: false,
+        reason: 'Connect your Slack account to edit your own messages.',
+        blocks: msg.blocks,
+        oauthUrl: includeOauthUrl ? `${import.meta.env.BASE_URL}mock-oauth.html` : undefined
+      };
+    }
+    return { ok: true, ...base, editableVia: 'user' };
+  }, [canSendAsUser, includeOauthUrl]);
 
   const onUpdate = useCallback(
     async ({ channelId, ts, blocks: updated, asUser }: UpdatePayload): Promise<UpdateResult> => {

@@ -1,13 +1,14 @@
 import { AlertTriangle, Info } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Input } from '../lib/ui/input';
 import { Label } from '../lib/ui/label';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
-import { isSafeImageSrc } from '../lib/url-safety';
+import { isSafeHref, isSafeImageSrc } from '../lib/url-safety';
 import type { ChannelOption, LoadResult, RecentMessage, SupportedBlock } from '../types';
+import { SlackSignInButton } from './slack-sign-in';
 
 /** Map a {@link RecentMessage} onto the `ok` verdict so it reuses the load path. */
 function recentToResult(msg: RecentMessage): Extract<LoadResult, { ok: true }> {
@@ -44,7 +45,7 @@ type LoadStatus =
   | { kind: 'idle' }
   | { kind: 'loading' }
   | { kind: 'error'; error: string }
-  | { kind: 'not-editable'; reason: string; blocks?: SupportedBlock[] };
+  | { kind: 'not-editable'; reason: string; blocks?: SupportedBlock[]; oauthUrl?: string };
 
 /**
  * Edit-mode entry point. Collects a Slack message permalink and hands it to
@@ -95,7 +96,11 @@ export function LoadMessageDialog({
   // The recent-message row the user has picked. The footer "Find message"
   // button loads it; mutually exclusive with the pasted link.
   const [selectedRecent, setSelectedRecent] = useState<RecentMessage | null>(null);
+  // True while re-checking the load after the user opened the Slack OAuth tab
+  // from a "sign in to edit" verdict.
+  const [signInPolling, setSignInPolling] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const signInPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Hold the latest loaders in refs so they can change identity between renders
   // (consumers often pass a fresh arrow) without us needing them as deps.
@@ -174,7 +179,24 @@ export function LoadMessageDialog({
     };
   }, [open, channelId]);
 
+  const stopSignInPoll = useCallback(() => {
+    if (signInPollRef.current) {
+      clearInterval(signInPollRef.current);
+      signInPollRef.current = null;
+    }
+    setSignInPolling(false);
+  }, []);
+
+  // Stop the sign-in retry loop when the dialog closes or the component unmounts.
+  useEffect(() => {
+    if (!open) {
+      stopSignInPoll();
+    }
+    return stopSignInPoll;
+  }, [open, stopSignInPoll]);
+
   const handleLoad = async () => {
+    stopSignInPoll();
     // A picked recent message loads directly — it's already fully resolved, so
     // there's no link to fetch.
     if (selectedRecent) {
@@ -193,13 +215,50 @@ export function LoadMessageDialog({
         onLoaded(result);
         return;
       }
-      setStatus({ kind: 'not-editable', reason: result.reason, blocks: result.blocks });
+      setStatus({ kind: 'not-editable', reason: result.reason, blocks: result.blocks, oauthUrl: result.oauthUrl });
     } catch (e) {
       setStatus({ kind: 'error', error: e instanceof Error ? e.message : 'Failed to load message.' });
     }
   };
 
+  // Opens the Slack OAuth tab, then re-runs the load on an interval so the
+  // dialog advances into edit mode once the host reports the message editable
+  // (i.e. the user finished signing in). Capped so it can't poll forever.
+  const startFindSignIn = (oauthUrl: string) => {
+    if (!isSafeHref(oauthUrl)) {
+      return;
+    }
+    const trimmed = link.trim();
+    if (!trimmed) {
+      return;
+    }
+    window.open(oauthUrl, '_blank', 'noopener,noreferrer');
+    stopSignInPoll();
+    setSignInPolling(true);
+    let tries = 0;
+    const POLL_INTERVAL_MS = 2500;
+    const MAX_POLLS = 24; // ~1 minute before giving up
+    signInPollRef.current = setInterval(() => {
+      tries += 1;
+      onLoadMessageRef
+        .current({ link: trimmed })
+        .then((result) => {
+          if (result.ok) {
+            stopSignInPoll();
+            onLoaded(result);
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (tries >= MAX_POLLS) {
+            stopSignInPoll();
+          }
+        });
+    }, POLL_INTERVAL_MS);
+  };
+
   const notEditable = status.kind === 'not-editable' ? status : null;
+  const signInUrl = notEditable?.oauthUrl && isSafeHref(notEditable.oauthUrl) ? notEditable.oauthUrl : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -248,8 +307,10 @@ export function LoadMessageDialog({
               value={link}
               onChange={(e) => {
                 setLink(e.target.value);
-                // Typing a link takes over from a picked recent message.
+                // Typing a link takes over from a picked recent message and
+                // abandons any in-flight sign-in retry for the old link.
                 setSelectedRecent(null);
+                stopSignInPoll();
                 if (status.kind !== 'idle' && status.kind !== 'loading') {
                   setStatus({ kind: 'idle' });
                 }
@@ -278,6 +339,8 @@ export function LoadMessageDialog({
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span className="flex-1">{notEditable.reason}</span>
               </div>
+              {/* Sign-in verdict: open OAuth and re-check the load on completion. */}
+              {signInUrl && <SlackSignInButton onClick={() => startFindSignIn(signInUrl)} polling={signInPolling} />}
               {/* Only offer "open as new" when there are blocks to carry over.
                   A no-match verdict has none, so there's nothing to open. */}
               {notEditable.blocks && notEditable.blocks.length > 0 && (
