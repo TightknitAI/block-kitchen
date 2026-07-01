@@ -1,6 +1,7 @@
 import { nanoid } from 'nanoid';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isContainerChildType, MAX_CONTAINER_CHILDREN } from '../lib/container-blocks';
+import { sanitizeBlocks } from '../lib/sanitize-blocks';
 import type { BuilderBlock, ContainerBlock, SupportedBlock } from '../types';
 
 /**
@@ -257,8 +258,12 @@ export function useBlockKitchenState({
     });
   }, []);
 
+  // Full-replace entry point for loading an existing message, "open as new",
+  // and JSON-drawer apply. Cleanse here (not just at send) so blocks pulled
+  // from a retrieved message enter the working state already send-valid —
+  // dropping Slack's retrieval-only fields and scrubbing unsafe URLs.
   const replaceAll = useCallback((newBlocks: SupportedBlock[]) => {
-    setBlocks(newBlocks.map(wrap));
+    setBlocks(sanitizeBlocks(newBlocks).map(wrap));
   }, []);
 
   return {
