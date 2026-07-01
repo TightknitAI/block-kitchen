@@ -77,4 +77,20 @@ describe('LoadMessageDialog recent-messages picker', () => {
     fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
     await screen.findByText('boom');
   });
+
+  it('selects a recent message on click and loads it via the footer button', async () => {
+    const loaded: string[] = [];
+    renderDialog({ onLoaded: (r) => loaded.push(r.ts) });
+
+    fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+    const row = (await screen.findByText('hi general')).closest('button') as HTMLButtonElement;
+
+    // Clicking a row only selects it — the load happens on the footer button.
+    fireEvent.click(row);
+    expect(loaded).toEqual([]);
+    expect(row.getAttribute('aria-pressed')).toBe('true');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Load message' }));
+    expect(loaded).toEqual(['111.1']);
+  });
 });

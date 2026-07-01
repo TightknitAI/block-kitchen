@@ -1,5 +1,6 @@
 import { AlertTriangle, Info } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Input } from '../lib/ui/input';
@@ -89,6 +90,9 @@ export function LoadMessageDialog({
   // Recent messages for the selected channel. `null` means "loading / not loaded yet".
   const [recent, setRecent] = useState<RecentMessage[] | null>(null);
   const [recentError, setRecentError] = useState<string | null>(null);
+  // The recent-message row the user has picked. The footer "Load message"
+  // button loads it; mutually exclusive with the pasted link.
+  const [selectedRecent, setSelectedRecent] = useState<RecentMessage | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   // Hold the latest loaders in refs so they can change identity between renders
@@ -115,6 +119,7 @@ export function LoadMessageDialog({
     setChannelId('');
     setRecent(null);
     setRecentError(null);
+    setSelectedRecent(null);
     if (!loadRecentMessagesRef.current) {
       setChannels([]);
       setChannelsError(null);
@@ -148,6 +153,7 @@ export function LoadMessageDialog({
     }
     setRecent(null);
     setRecentError(null);
+    setSelectedRecent(null);
     let cancelled = false;
     loadRecentMessagesRef
       .current(channelId)
@@ -167,6 +173,12 @@ export function LoadMessageDialog({
   }, [open, channelId]);
 
   const handleLoad = async () => {
+    // A picked recent message loads directly — it's already fully resolved, so
+    // there's no link to fetch.
+    if (selectedRecent) {
+      onLoaded(recentToResult(selectedRecent));
+      return;
+    }
     const trimmed = link.trim();
     if (!trimmed) {
       setStatus({ kind: 'error', error: 'Paste a Slack message link first.' });
@@ -234,6 +246,8 @@ export function LoadMessageDialog({
               value={link}
               onChange={(e) => {
                 setLink(e.target.value);
+                // Typing a link takes over from a picked recent message.
+                setSelectedRecent(null);
                 if (status.kind !== 'idle' && status.kind !== 'loading') {
                   setStatus({ kind: 'idle' });
                 }
@@ -329,12 +343,24 @@ export function LoadMessageDialog({
                     const asUser = (m.editableVia ?? 'bot') === 'user';
                     const authorName = m.username || (asUser ? 'You' : 'App bot');
                     const safeIcon = isSafeImageSrc(m.iconUrl) ? m.iconUrl : undefined;
+                    const isSelected = selectedRecent?.channelId === m.channelId && selectedRecent?.ts === m.ts;
                     return (
                       <button
                         key={`${m.channelId}:${m.ts}`}
                         type="button"
-                        onClick={() => onLoaded(recentToResult(m))}
-                        className="flex min-w-0 items-start gap-2.5 rounded-md border border-input bg-background px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        aria-pressed={isSelected}
+                        onClick={() => {
+                          // Pick the row; the footer button does the load.
+                          setSelectedRecent(m);
+                          setLink('');
+                          if (status.kind !== 'idle' && status.kind !== 'loading') {
+                            setStatus({ kind: 'idle' });
+                          }
+                        }}
+                        className={cn(
+                          'flex min-w-0 items-start gap-2.5 rounded-md border border-input bg-background px-3 py-2 text-left hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                          isSelected && 'bg-accent ring-2 ring-ring'
+                        )}
                       >
                         {/* Slack-style square avatar. */}
                         {safeIcon ? (
@@ -372,7 +398,11 @@ export function LoadMessageDialog({
           <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" onClick={handleLoad} disabled={status.kind === 'loading' || !link.trim()}>
+          <Button
+            type="button"
+            onClick={handleLoad}
+            disabled={status.kind === 'loading' || (!selectedRecent && !link.trim())}
+          >
             {status.kind === 'loading' ? 'Loading…' : 'Load message'}
           </Button>
         </DialogFooter>
