@@ -50,7 +50,9 @@ type LoadStatus =
  * Edit-mode entry point. Collects a Slack message permalink and hands it to
  * the host's `onLoadMessage`. On a successful load the parent flips into
  * edit mode (`onLoaded`); on a not-editable verdict the dialog renders the
- * host's `reason` inline and offers "Open as a new message instead".
+ * host's `reason` inline and, when that verdict carries blocks, offers
+ * "Open as a new message instead" (a no-match verdict has none, so only the
+ * reason shows).
  *
  * The package never parses the permalink — the host extracts `channel + ts`.
  * @param props - dialog props
@@ -276,15 +278,19 @@ export function LoadMessageDialog({
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
                 <span className="flex-1">{notEditable.reason}</span>
               </div>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="self-start"
-                onClick={() => onOpenAsNew(notEditable.blocks)}
-              >
-                Open as a new message instead
-              </Button>
+              {/* Only offer "open as new" when there are blocks to carry over.
+                  A no-match verdict has none, so there's nothing to open. */}
+              {notEditable.blocks && notEditable.blocks.length > 0 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="self-start"
+                  onClick={() => onOpenAsNew(notEditable.blocks)}
+                >
+                  Open as a new message instead
+                </Button>
+              )}
             </div>
           )}
 

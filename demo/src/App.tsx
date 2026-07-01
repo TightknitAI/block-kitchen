@@ -336,7 +336,7 @@ export function App() {
     await new Promise((r) => setTimeout(r, 250));
     const msg = findMessageByLink(storeRef.current, link);
     if (!msg) {
-      return { ok: false, reason: 'No message matched that link. Copy a link from the store on the right.' };
+      return { ok: false, reason: 'No message matched that link.' };
     }
     if (msg.kind === 'non-block') {
       return {

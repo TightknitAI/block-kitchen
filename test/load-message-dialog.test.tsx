@@ -94,3 +94,24 @@ describe('LoadMessageDialog recent-messages picker', () => {
     expect(loaded).toEqual(['111.1']);
   });
 });
+
+describe('LoadMessageDialog not-editable verdict', () => {
+  async function loadViaLink(onLoadMessage: () => Promise<LoadResult>) {
+    renderDialog({ onLoadMessage });
+    fireEvent.change(await screen.findByLabelText('Message link'), {
+      target: { value: 'https://x.slack.com/archives/C1/p1' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Load message' }));
+  }
+
+  it('shows only the reason (no "open as new") when the verdict carries no blocks', async () => {
+    await loadViaLink(async () => ({ ok: false, reason: 'No message matched that link.' }));
+    await screen.findByText('No message matched that link.');
+    expect(screen.queryByRole('button', { name: 'Open as a new message instead' })).toBeNull();
+  });
+
+  it('offers "open as new" when the verdict carries blocks', async () => {
+    await loadViaLink(async () => ({ ok: false, reason: "Can't edit this one.", blocks: [{ type: 'divider' }] }));
+    await screen.findByRole('button', { name: 'Open as a new message instead' });
+  });
+});
