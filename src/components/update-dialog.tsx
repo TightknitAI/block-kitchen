@@ -1,4 +1,4 @@
-import { AlertTriangle, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ExternalLink, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toSlackBlocks } from '../lib/to-slack-blocks';
 import { Button } from '../lib/ui/button';
@@ -63,6 +63,7 @@ export function UpdateDialog({
   const asUser = target.editableVia === 'user';
   const [userStatus, setUserStatus] = useState<SendAsUserStatus | null>(null);
   const [status, setStatus] = useState<UpdateStatus>({ kind: 'idle' });
+  const [polling, setPolling] = useState(false);
 
   const loadSendAsUserStatusRef = useRef(loadSendAsUserStatus);
   useEffect(() => {
@@ -75,6 +76,57 @@ export function UpdateDialog({
       .then(setUserStatus)
       .catch(() => setUserStatus({ canSendAsUser: false }));
   }, []);
+
+  // Background poll after the user opens the OAuth tab: re-check token status on
+  // an interval so the dialog unlocks itself once Slack sign-in completes,
+  // instead of waiting for the window-focus handler. Capped so a never-finished
+  // sign-in doesn't poll forever.
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const stopPolling = useCallback(() => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    setPolling(false);
+  }, []);
+
+  const startSignIn = useCallback(() => {
+    const url = userStatus?.oauthUrl;
+    if (!url || !isSafeHref(url)) {
+      return;
+    }
+    window.open(url, '_blank', 'noopener,noreferrer');
+    stopPolling();
+    setPolling(true);
+    let tries = 0;
+    const POLL_INTERVAL_MS = 2500;
+    const MAX_POLLS = 24; // ~1 minute before giving up
+    pollRef.current = setInterval(() => {
+      tries += 1;
+      loadSendAsUserStatusRef
+        .current()
+        .then((next) => {
+          setUserStatus(next);
+          if (next.canSendAsUser) {
+            stopPolling();
+          }
+        })
+        .catch(() => {})
+        .finally(() => {
+          if (tries >= MAX_POLLS) {
+            stopPolling();
+          }
+        });
+    }, POLL_INTERVAL_MS);
+  }, [userStatus, stopPolling]);
+
+  // Stop background polling when the dialog closes or the component unmounts.
+  useEffect(() => {
+    if (!open) {
+      stopPolling();
+    }
+    return stopPolling;
+  }, [open, stopPolling]);
 
   // Only the user-token path needs a token check; the bot path can always edit
   // its own message.
@@ -148,17 +200,27 @@ export function UpdateDialog({
               {asUser ? 'Your account' : 'App bot'}
             </p>
             {needsSignIn && userStatus?.oauthUrl && isSafeHref(userStatus.oauthUrl) && (
-              <p className="text-xs text-muted-foreground">
-                <a
-                  href={userStatus.oauthUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-primary hover:underline"
+              <>
+                <p className="text-xs text-muted-foreground">Connect your Slack account to edit your own messages.</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={startSignIn}
+                  disabled={polling}
                 >
-                  Sign in with Slack <ExternalLink className="h-3 w-3" />
-                </a>{' '}
-                to update your own message.
-              </p>
+                  {polling ? (
+                    <>
+                      <Loader2 className="animate-spin" /> Waiting for Slack…
+                    </>
+                  ) : (
+                    <>
+                      Sign in with Slack <ExternalLink />
+                    </>
+                  )}
+                </Button>
+              </>
             )}
             {needsSignIn && !userStatus?.oauthUrl && (
               <p className="text-xs text-muted-foreground">Sign in with Slack to update your own message.</p>
