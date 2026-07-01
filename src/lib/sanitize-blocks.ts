@@ -25,9 +25,6 @@ const IMAGE_KEYS = new Set(['image_url']);
  * from the matching object type — some are common field names (`fallback`)
  * that are valid elsewhere — so a round-tripped payload stays send-valid
  * without over-scrubbing. Add an entry to extend this to other block types.
- *
- * A `Map` (not a plain object) so lookups by an attacker-controlled `type`
- * cannot reach inherited properties like `toString`.
  */
 const RETRIEVAL_ONLY_KEYS = new Map<string, Set<string>>([
   // Covers both the image block and the image element — both `type: 'image'`.
