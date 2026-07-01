@@ -19,6 +19,19 @@ const HREF_KEYS = new Set(['url']);
 const IMAGE_KEYS = new Set(['image_url']);
 
 /**
+ * Read-only metadata Slack attaches when a message is *retrieved* via the
+ * API, but rejects on *send*, keyed by the `type` of the object it appears
+ * on. Blocks loaded from an existing message carry these; drop them only
+ * from the matching object type — some are common field names (`fallback`)
+ * that are valid elsewhere — so a round-tripped payload stays send-valid
+ * without over-scrubbing. Add an entry to extend this to other block types.
+ */
+const RETRIEVAL_ONLY_KEYS = new Map<string, Set<string>>([
+  // Covers both the image block and the image element — both `type: 'image'`.
+  ['image', new Set(['image_width', 'image_height', 'image_bytes', 'fallback', 'is_animated'])]
+]);
+
+/**
  * Recursively sanitize all known URL-bearing string fields inside a
  * Slack Block Kit payload fragment. Returns a value with the same
  * structural shape, where any field whose name matches an href or
@@ -44,8 +57,14 @@ function sanitizeValue(value: unknown): unknown {
     return changed ? out : value;
   }
   const src = value as Record<string, unknown>;
+  const dropKeys = typeof src.type === 'string' ? RETRIEVAL_ONLY_KEYS.get(src.type) : undefined;
   let copy: Record<string, unknown> | null = null;
   for (const key of Object.keys(src)) {
+    if (dropKeys?.has(key)) {
+      copy ??= { ...src };
+      delete copy[key];
+      continue;
+    }
     const original = src[key];
     let next: unknown = original;
     if (typeof original === 'string') {

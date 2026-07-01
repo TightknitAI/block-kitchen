@@ -99,3 +99,27 @@ describe('useBlockKitchenState container nesting', () => {
     expect(payloadAt(result, 0).child_blocks).toHaveLength(1);
   });
 });
+
+describe('useBlockKitchenState replaceAll cleansing', () => {
+  it('strips Slack retrieval-only image fields when a message is loaded', () => {
+    const { result } = renderHook(() => useBlockKitchenState({}));
+    const loaded = [
+      {
+        type: 'image',
+        image_url: 'https://example.com/a.png',
+        alt_text: 'ok',
+        image_width: 800,
+        image_height: 600,
+        image_bytes: 12345,
+        fallback: '800x600px image',
+        is_animated: false
+      }
+    ] as unknown as SupportedBlock[];
+    act(() => result.current.replaceAll(loaded));
+    const stored = result.current.blocks[0].block as Record<string, unknown>;
+    for (const k of ['image_width', 'image_height', 'image_bytes', 'fallback', 'is_animated']) {
+      expect(Object.hasOwn(stored, k)).toBe(false);
+    }
+    expect(stored.image_url).toBe('https://example.com/a.png');
+  });
+});
