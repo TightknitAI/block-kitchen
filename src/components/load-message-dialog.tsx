@@ -474,7 +474,7 @@ export function LoadMessageDialog({
             onClick={handleLoad}
             disabled={status.kind === 'loading' || (!selectedRecent && !link.trim())}
           >
-            {status.kind === 'loading' ? 'Loading…' : 'Find message'}
+            {status.kind === 'loading' ? 'Loading…' : 'Load message'}
           </Button>
         </DialogFooter>
       </DialogContent>
