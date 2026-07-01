@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.5](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.4...block-kitchen-v0.9.5) (2026-07-01)
+
+
+### Bug Fixes
+
+* **load-dialog:** rename find button to "Load message" ([ae78d23](https://github.com/TightknitAI/block-kitchen/commit/ae78d23cbfd9648ad5c6460fe8960ff93651ffa0))
+* **load-dialog:** rename find button to "Load message" ([f0228b3](https://github.com/TightknitAI/block-kitchen/commit/f0228b31b80337b428fb54406ee813fd2284726c))
+
 ## [0.9.4](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.3...block-kitchen-v0.9.4) (2026-07-01)
 
 
