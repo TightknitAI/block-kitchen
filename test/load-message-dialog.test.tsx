@@ -91,7 +91,7 @@ describe('LoadMessageDialog recent-messages picker', () => {
     expect(loaded).toEqual([]);
     expect(row.getAttribute('aria-pressed')).toBe('true');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Find message' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load message' }));
     expect(loaded).toEqual(['111.1']);
   });
 });
@@ -102,7 +102,7 @@ describe('LoadMessageDialog not-editable verdict', () => {
     fireEvent.change(await screen.findByLabelText('Message link'), {
       target: { value: 'https://x.slack.com/archives/C1/p1' }
     });
-    fireEvent.click(screen.getByRole('button', { name: 'Find message' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Load message' }));
   }
 
   it('shows only the reason (no "open as new") when the verdict carries no blocks', async () => {
@@ -130,7 +130,7 @@ describe('LoadMessageDialog sign-in verdict', () => {
       target: { value: 'https://x.slack.com/archives/C1/p1' }
     });
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Find message' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Load message' }));
     });
   }
 
