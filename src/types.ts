@@ -635,6 +635,14 @@ export interface EditingConfig {
    * entry only.
    */
   loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
+  /**
+   * Optional. Pre-load a message straight into edit mode at mount, skipping the
+   * load dialog. Same shape the host returns from {@link onLoadMessage} on
+   * success. Read once at mount (like {@link BlockKitchenProps.initialBlocks});
+   * changing it later needs a remount. When set, its `blocks` seed the draft and
+   * {@link BlockKitchenProps.initialBlocks} is ignored.
+   */
+  initialTarget?: Extract<LoadResult, { ok: true }>;
 }
 
 /**
