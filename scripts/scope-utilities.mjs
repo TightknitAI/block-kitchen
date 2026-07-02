@@ -16,37 +16,50 @@
  * `.bk-root`'s own utilities (`flex h-full …`) still resolve — a plain
  * descendant-combinator wrap would miss the root elements. `bk-theme` (CSS
  * custom properties) and Tailwind's `properties` layer stay global; vars don't
- * collide. See ENG-5125.
+ * collide.
  *
  * We parse structure (not regex) so the already-minified input stays safe;
  * postcss preserves each rule's minified raws, so no re-minify step is needed.
  */
 import { readFileSync, writeFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
 import postcss from "postcss";
 
-const file = process.argv[2] ?? "./dist/styles.css";
-const root = postcss.parse(readFileSync(file, "utf8"), { from: file });
+/**
+ * Wrap the `bk-utilities` layer's rules in an `@scope` at-rule. Pure string ->
+ * string; throws unless exactly one utilities-layer body is found (guards
+ * against a future Tailwind change to how the layer is emitted).
+ */
+export function scopeUtilities(css) {
+	const root = postcss.parse(css);
 
-let wrapped = 0;
-root.walkAtRules("layer", (layer) => {
-	// Skip the `@layer bk-theme, bk-utilities;` ordering statement (no body).
-	if (layer.params.trim() !== "bk-utilities" || !layer.nodes?.length) return;
+	let wrapped = 0;
+	root.walkAtRules("layer", (layer) => {
+		// Skip the `@layer bk-theme, bk-utilities;` ordering statement (no body).
+		if (layer.params.trim() !== "bk-utilities" || !layer.nodes?.length) return;
 
-	const scope = postcss.atRule({
-		name: "scope",
-		params: "(.bk-root, .bk-portal-content)",
-		nodes: [],
+		const scope = postcss.atRule({
+			name: "scope",
+			params: "(.bk-root, .bk-portal-content)",
+			nodes: [],
+		});
+		layer.each((child) => scope.append(child.clone()));
+		layer.removeAll();
+		layer.append(scope);
+		wrapped++;
 	});
-	layer.each((child) => scope.append(child.clone()));
-	layer.removeAll();
-	layer.append(scope);
-	wrapped++;
-});
 
-if (wrapped !== 1) {
-	throw new Error(
-		`scope-utilities: expected exactly 1 bk-utilities layer with a body, wrapped ${wrapped}`,
-	);
+	if (wrapped !== 1) {
+		throw new Error(
+			`scope-utilities: expected exactly 1 bk-utilities layer with a body, wrapped ${wrapped}`,
+		);
+	}
+
+	return root.toString();
 }
 
-writeFileSync(file, root.toString());
+// CLI entry: only run when invoked directly, not when imported by tests.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+	const target = process.argv[2] ?? "./dist/styles.css";
+	writeFileSync(target, scopeUtilities(readFileSync(target, "utf8")));
+}
