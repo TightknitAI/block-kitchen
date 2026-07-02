@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.8](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.7...block-kitchen-v0.9.8) (2026-07-02)
+
+
+### Bug Fixes
+
+* drop preview_images from data_visualization blocks on retrieval ([8706a80](https://github.com/TightknitAI/block-kitchen/commit/8706a800b22e25ab18fdcd3294b68bdea52db9c1))
+* **sanitize:** drop retrieval-only preview_images from data_visualization ([5ed158c](https://github.com/TightknitAI/block-kitchen/commit/5ed158cf0a0c5d2e27069f4018267b1006922e75))
+
 ## [0.9.7](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.6...block-kitchen-v0.9.7) (2026-07-02)
 
 
