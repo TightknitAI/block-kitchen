@@ -28,7 +28,10 @@ const IMAGE_KEYS = new Set(['image_url']);
  */
 const RETRIEVAL_ONLY_KEYS = new Map<string, Set<string>>([
   // Covers both the image block and the image element — both `type: 'image'`.
-  ['image', new Set(['image_width', 'image_height', 'image_bytes', 'fallback', 'is_animated'])]
+  ['image', new Set(['image_width', 'image_height', 'image_bytes', 'fallback', 'is_animated'])],
+  // Slack renders the chart server-side and attaches the rendered previews on
+  // retrieval; sending them back is rejected as `unknown property 'preview_images'`.
+  ['data_visualization', new Set(['preview_images'])]
 ]);
 
 /**
