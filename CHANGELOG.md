@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.6](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.5...block-kitchen-v0.9.6) (2026-07-02)
+
+
+### Features
+
+* **editing:** pre-load a message into edit mode via editing.initialTarget ([aa73bf6](https://github.com/TightknitAI/block-kitchen/commit/aa73bf66fe945ec5406d64a0860783039f8a51d9))
+* **editing:** pre-load a message into edit mode via editing.initialTarget ([a7ed7e8](https://github.com/TightknitAI/block-kitchen/commit/a7ed7e87d6cc8d861c88642a944edc633b54b176))
+
 ## [0.9.5](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.4...block-kitchen-v0.9.5) (2026-07-01)
 
 
