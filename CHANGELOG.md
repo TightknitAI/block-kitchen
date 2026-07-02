@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.7](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.6...block-kitchen-v0.9.7) (2026-07-02)
+
+
+### Bug Fixes
+
+* **styles:** scope bk-utilities layer to .bk-root / .bk-portal-content ([c12ee96](https://github.com/TightknitAI/block-kitchen/commit/c12ee96869bdc5943b8062dba6f2043bf3758c1c))
+* **styles:** scope bk-utilities layer to .bk-root / .bk-portal-content ([f91db17](https://github.com/TightknitAI/block-kitchen/commit/f91db17b03595d07c6ef86b96af48ae59280453d))
+
 ## [0.9.6](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.5...block-kitchen-v0.9.6) (2026-07-02)
 
 
