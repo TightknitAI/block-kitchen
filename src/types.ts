@@ -498,6 +498,26 @@ export interface SendResult {
 }
 
 /**
+ * Snapshot of the builder's validation verdict, reported through
+ * {@link BlockKitchenBaseProps.onValidationChange}. Mirrors exactly what the
+ * built-in issues chip / issues sheet show, so a host-owned CTA (e.g. in
+ * compose-only mode) can gate on the same verdict without re-running the
+ * validator and risking drift.
+ */
+export interface ValidationSummary {
+  /** True iff the current draft has zero validation errors. */
+  valid: boolean;
+  /** Total error count — the number the toolbar's issues chip displays. */
+  errorCount: number;
+  /**
+   * Raw validator messages, verbatim from
+   * `@tightknitai/slack-block-kit-validator`. Block-scoped messages are
+   * rooted at `blocks[N]`, indexing into the payload `toSlackBlocks` emits.
+   */
+  errors: readonly string[];
+}
+
+/**
  * Which token can edit a loaded message, as computed by the host.
  * `chat.update` only edits a message authored by the calling token:
  * - `'bot'` — the message was posted by this app; edit via the bot token.
@@ -723,11 +743,15 @@ export interface Template {
 }
 
 /**
- * Props for the top-level {@link BlockKitchen} component.
+ * Props shared by every {@link BlockKitchen} configuration.
  * The package is integration-agnostic: every I/O concern is brokered
  * through these props. The component never makes a network call itself.
+ *
+ * Combined with either {@link BlockKitchenSendProps} (the built-in send
+ * flow) or {@link BlockKitchenComposeOnlyProps} (compose-only: no send
+ * button, the host owns the send flow) to form {@link BlockKitchenProps}.
  */
-export interface BlockKitchenProps {
+export interface BlockKitchenBaseProps {
   /**
    * Workspace name shown in the preview chrome to mimic a Slack message header.
    * Cosmetic only.
@@ -742,6 +766,15 @@ export interface BlockKitchenProps {
    * (URL search param, localStorage, etc).
    */
   onChange?: (blocks: SupportedBlock[]) => void;
+  /**
+   * Fires when the draft's validation verdict changes (piggybacking on the
+   * builder's own debounced validation pass — not on every keystroke, and
+   * not when the verdict is unchanged). Always scoped to the `message`
+   * surface, matching what Send would post. Useful in compose-only mode: a
+   * host-rendered CTA can disable itself on `!valid` using the exact verdict
+   * the issues sheet displays.
+   */
+  onValidationChange?: (summary: ValidationSummary) => void;
   /**
    * Optional hooks forwarded to the underlying `<Message>` component for
    * resolving user / channel / emoji directives. If omitted, those
@@ -759,29 +792,6 @@ export interface BlockKitchenProps {
    * is never serialized into the emitted Block Kit JSON.
    */
   customEmojis?: CustomEmoji[];
-  /**
-   * Returns channels available to send to. Called when the send dialog opens.
-   */
-  loadChannels: () => Promise<ChannelOption[]>;
-  /**
-   * Returns whether the current user can post as themselves and, if not, an
-   * OAuth URL to start the install flow.
-   */
-  loadSendAsUserStatus: () => Promise<SendAsUserStatus>;
-  /**
-   * Called when the user submits the send dialog. Should return
-   * `{ ok: true }` on success or `{ ok: false, error }` on failure.
-   */
-  onSend: (payload: SendPayload) => Promise<SendResult>;
-  /**
-   * Opt-in edit mode. When provided, the toolbar exposes an "Edit existing
-   * message" entry: the user pastes a Slack message link, the host loads it
-   * and returns an editability verdict ({@link EditingConfig.onLoadMessage}),
-   * and a successful load flips the primary action from Send to "Update
-   * message" ({@link EditingConfig.onUpdate}). Omit to keep today's send-only
-   * behavior. The user-token path reuses {@link BlockKitchenProps.loadSendAsUserStatus}.
-   */
-  editing?: EditingConfig;
   /**
    * Label + accessible name for the toolbar button that opens the
    * load-message dialog (the edit-mode entry point). Defaults to
@@ -948,3 +958,60 @@ export interface BlockKitchenProps {
    */
   theme?: BrandTheme | BrandPreset;
 }
+
+/**
+ * The send integration: the trio of I/O callbacks powering the built-in
+ * send dialog, plus opt-in edit mode (which reuses them). All-or-nothing by
+ * design — see {@link BlockKitchenComposeOnlyProps} for the alternative.
+ */
+export interface BlockKitchenSendProps {
+  /**
+   * Returns channels available to send to. Called when the send dialog opens.
+   */
+  loadChannels: () => Promise<ChannelOption[]>;
+  /**
+   * Returns whether the current user can post as themselves and, if not, an
+   * OAuth URL to start the install flow.
+   */
+  loadSendAsUserStatus: () => Promise<SendAsUserStatus>;
+  /**
+   * Called when the user submits the send dialog. Should return
+   * `{ ok: true }` on success or `{ ok: false, error }` on failure.
+   */
+  onSend: (payload: SendPayload) => Promise<SendResult>;
+  /**
+   * Opt-in edit mode. When provided, the toolbar exposes an "Edit existing
+   * message" entry: the user pastes a Slack message link, the host loads it
+   * and returns an editability verdict ({@link EditingConfig.onLoadMessage}),
+   * and a successful load flips the primary action from Send to "Update
+   * message" ({@link EditingConfig.onUpdate}). Omit to keep send-only
+   * behavior. The user-token path reuses {@link BlockKitchenSendProps.loadSendAsUserStatus}.
+   */
+  editing?: EditingConfig;
+}
+
+/**
+ * Compose-only mode: omit the entire send integration and the builder
+ * renders no send button — it becomes a pure editor. The host owns the
+ * moment of commitment: mirror the draft via
+ * {@link BlockKitchenBaseProps.onChange}, gate a host-rendered CTA via
+ * {@link BlockKitchenBaseProps.onValidationChange}, and hand the finished
+ * payload (`toSlackBlocks(draft)`) to your own audience/delivery flow.
+ *
+ * The explicit `undefined` members make the send trio all-or-nothing at the
+ * type level: wiring only some of the three is a type error instead of a
+ * silently dead send button.
+ */
+export interface BlockKitchenComposeOnlyProps {
+  loadChannels?: undefined;
+  loadSendAsUserStatus?: undefined;
+  onSend?: undefined;
+  /** Edit mode depends on the send integration, so it is unavailable too. */
+  editing?: undefined;
+}
+
+/**
+ * Props for the top-level {@link BlockKitchen} component: the shared base
+ * plus either the full send integration or none of it.
+ */
+export type BlockKitchenProps = BlockKitchenBaseProps & (BlockKitchenSendProps | BlockKitchenComposeOnlyProps);

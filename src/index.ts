@@ -15,7 +15,10 @@ export {
 export type {
   AlertBlock,
   AlertLevel,
+  BlockKitchenBaseProps,
+  BlockKitchenComposeOnlyProps,
   BlockKitchenProps,
+  BlockKitchenSendProps,
   BuilderBlock,
   CardBlock,
   CarouselBlock,
@@ -65,5 +68,6 @@ export type {
   UpdatePayload,
   UpdateResult,
   UrlSourceElement,
+  ValidationSummary,
   VideoBlock
 } from './types';

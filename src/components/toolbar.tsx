@@ -84,6 +84,8 @@ const SEND_MENU_ITEM =
  *   an object overrides `href` and/or `label`. Defaults to the Slack Block
  *   Kit reference docs.
  * @param props.errorCount - number of validation errors
+ * @param props.showSend - whether the send action renders at all (default
+ *   true; false in compose-only mode)
  * @param props.sendButtonLabel - label + accessible name for the Send
  *   button that opens the send dialog. Defaults to `'Send'`.
  * @returns the rendered toolbar
@@ -104,6 +106,7 @@ export function Toolbar({
   showThemeControl = true,
   docsLink,
   errorCount,
+  showSend = true,
   sendButtonLabel = 'Review & send',
   editingEnabled = false,
   editBadge,
@@ -128,6 +131,12 @@ export function Toolbar({
   showThemeControl?: boolean;
   docsLink?: false | { href?: string; label?: string };
   errorCount: number;
+  /**
+   * Whether the send action (single button, or split button in edit mode)
+   * renders at all. `false` in compose-only mode, where the host owns the
+   * send flow. Defaults to `true`.
+   */
+  showSend?: boolean;
   sendButtonLabel?: string;
   /** Whether edit mode is configured (shows the "Edit existing message" entry). */
   editingEnabled?: boolean;
@@ -277,7 +286,7 @@ export function Toolbar({
             <Code2 className="h-3.5 w-3.5" />
             <span className="hidden md:inline">View JSON</span>
           </Button>
-          {editBadge ? (
+          {!showSend ? null : editBadge ? (
             // A message is loaded: split button. Main action updates it in
             // place; the menu also offers posting the blocks as a new message.
             <div className="flex items-stretch">

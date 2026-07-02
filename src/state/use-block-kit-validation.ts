@@ -18,6 +18,11 @@ const DEBOUNCE_MS = 150;
 export interface ValidationState extends GroupedErrors {
   /** True iff there are zero errors after the most recent run. */
   valid: boolean;
+  /**
+   * Raw validator messages, verbatim (block-scoped ones are `blocks[N]`-
+   * rooted). Forwarded to the host through `onValidationChange`.
+   */
+  errors: readonly string[];
 }
 
 /**
@@ -36,6 +41,7 @@ function computeValidation(blocks: BuilderBlock[], surface: PreviewSurface): Val
   const grouped = groupValidatorErrors(result.errors, blocks);
   return {
     valid: result.valid,
+    errors: result.errors,
     byBlockId: grouped.byBlockId,
     general: grouped.general,
     total: grouped.total
