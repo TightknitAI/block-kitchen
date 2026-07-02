@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { GripVertical } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
 import { buildVariantById, defaultPalette, type PaletteSection } from '../lib/default-blocks';
@@ -99,8 +99,22 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const allowedSurfaces: readonly PreviewSurface[] =
     allowedSurfacesProp && allowedSurfacesProp.length > 0 ? allowedSurfacesProp : ['message'];
 
+  // A pre-loaded edit target (opt-in) carries its own blocks; they seed the
+  // draft and win over `initialBlocks`, which is the blank-canvas seed.
+  const seededBlocks = editing?.initialTarget?.blocks ?? initialBlocks;
+  // Mount-only: both props are read once at mount, so warn once.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only check
+  useEffect(() => {
+    if (editing?.initialTarget && initialBlocks) {
+      console.warn(
+        '[BlockKitchen] Both `initialBlocks` and `editing.initialTarget` were provided; ' +
+          'using the target’s blocks and ignoring `initialBlocks`.'
+      );
+    }
+  }, []);
+
   const { blocks, addBlock, addChild, updateBlock, removeBlock, duplicateBlock, reorderBlock, moveBlock, replaceAll } =
-    useBlockKitchenState({ initialBlocks, onChange });
+    useBlockKitchenState({ initialBlocks: seededBlocks, onChange });
 
   // Lookups for resolving a drop target: which ids are container children,
   // and which container each child belongs to. Recomputed when the tree
@@ -124,7 +138,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
   // the current blocks as a new message (`sendOpen`).
   const [updateOpen, setUpdateOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<EditTarget | null>(null);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(() => editing?.initialTarget ?? null);
   // Edit mode only counts as active while `editing` is configured. If the host
   // toggles `editing` off mid-session, fall back to send-only without losing
   // the loaded target (it reactivates if `editing` returns).
