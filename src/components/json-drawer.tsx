@@ -49,10 +49,12 @@ export function JsonDrawer({
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [accepted, setAccepted] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const gutterRef = useRef<HTMLDivElement | null>(null);
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const acceptResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Hold the latest blocks in a ref so the open-seed effect can read them
   // without listing them as a dependency. While the drawer is open the
@@ -64,18 +66,23 @@ export function JsonDrawer({
 
   useEffect(() => {
     if (open) {
-      setValue(JSON.stringify(blocksRef.current, null, 2));
+      const current = blocksRef.current;
+      setValue(current.length === 0 ? '' : JSON.stringify(current, null, 2));
       setParseError(null);
       setValidationErrors([]);
       setCopied(false);
+      setAccepted(false);
     }
   }, [open]);
 
-  // Clear the "copied" reset timer on unmount.
+  // Clear the "copied" and "accepted" reset timers on unmount.
   useEffect(
     () => () => {
       if (copyResetRef.current) {
         clearTimeout(copyResetRef.current);
+      }
+      if (acceptResetRef.current) {
+        clearTimeout(acceptResetRef.current);
       }
     },
     []
@@ -103,6 +110,20 @@ export function JsonDrawer({
       setValidationErrors([]);
       return;
     }
+    // A blank textarea (or one the user cleared entirely) is treated as an
+    // empty block list rather than a parse error, so clearing the box to
+    // paste something new doesn't flash red first.
+    if (next.trim() === '') {
+      setParseError(null);
+      setValidationErrors([]);
+      onApply([]);
+      setAccepted(true);
+      if (acceptResetRef.current) {
+        clearTimeout(acceptResetRef.current);
+      }
+      acceptResetRef.current = setTimeout(() => setAccepted(false), 900);
+      return;
+    }
     let parsed: unknown;
     try {
       parsed = JSON.parse(next);
@@ -123,6 +144,11 @@ export function JsonDrawer({
     }
     setParseError(null);
     onApply(blocks);
+    setAccepted(true);
+    if (acceptResetRef.current) {
+      clearTimeout(acceptResetRef.current);
+    }
+    acceptResetRef.current = setTimeout(() => setAccepted(false), 900);
     const result = validateBlockKit(blocks, {
       target: 'blocks',
       surface: 'message'
@@ -160,6 +186,16 @@ export function JsonDrawer({
             {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
           </button>
           <div
+            role="status"
+            aria-hidden={!accepted}
+            className={`pointer-events-none absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-md bg-background/80 p-1.5 shadow-sm backdrop-blur transition-opacity duration-300 ${
+              accepted ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            <Check className="h-3.5 w-3.5 text-emerald-600" />
+            <span className="sr-only">Input accepted</span>
+          </div>
+          <div
             ref={gutterRef}
             aria-hidden="true"
             className="select-none overflow-hidden border-r border-input bg-muted/40 py-3 pr-2 pl-3 text-right font-mono text-xs leading-relaxed text-muted-foreground"
@@ -195,6 +231,15 @@ export function JsonDrawer({
             )}
           </div>
         )}
+        <div className="flex shrink-0 justify-end">
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            Done
+          </button>
+        </div>
       </SheetContent>
     </Sheet>
   );
