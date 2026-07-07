@@ -2,6 +2,7 @@ import { validateBlockKit } from '@tightknitai/slack-block-kit-validator';
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BLOCKS_INPUT_SHAPE_ERROR, unwrapBlocksInput } from '../lib/parse-blocks-input';
+import { Button } from '../lib/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/sheet';
 import type { SupportedBlock } from '../types';
 
@@ -49,10 +50,12 @@ export function JsonDrawer({
   const [parseError, setParseError] = useState<string | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [accepted, setAccepted] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const gutterRef = useRef<HTMLDivElement | null>(null);
   const copyResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const acceptResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Hold the latest blocks in a ref so the open-seed effect can read them
   // without listing them as a dependency. While the drawer is open the
@@ -64,18 +67,23 @@ export function JsonDrawer({
 
   useEffect(() => {
     if (open) {
-      setValue(JSON.stringify(blocksRef.current, null, 2));
+      const current = blocksRef.current;
+      setValue(current.length === 0 ? '' : JSON.stringify(current, null, 2));
       setParseError(null);
       setValidationErrors([]);
       setCopied(false);
+      setAccepted(false);
     }
   }, [open]);
 
-  // Clear the "copied" reset timer on unmount.
+  // Clear the "copied" and "accepted" reset timers on unmount.
   useEffect(
     () => () => {
       if (copyResetRef.current) {
         clearTimeout(copyResetRef.current);
+      }
+      if (acceptResetRef.current) {
+        clearTimeout(acceptResetRef.current);
       }
     },
     []
@@ -103,6 +111,20 @@ export function JsonDrawer({
       setValidationErrors([]);
       return;
     }
+    // A blank textarea (or one the user cleared entirely) is treated as an
+    // empty block list rather than a parse error, so clearing the box to
+    // paste something new doesn't flash red first.
+    if (next.trim() === '') {
+      setParseError(null);
+      setValidationErrors([]);
+      onApply([]);
+      setAccepted(true);
+      if (acceptResetRef.current) {
+        clearTimeout(acceptResetRef.current);
+      }
+      acceptResetRef.current = setTimeout(() => setAccepted(false), 1800);
+      return;
+    }
     let parsed: unknown;
     try {
       parsed = JSON.parse(next);
@@ -123,6 +145,11 @@ export function JsonDrawer({
     }
     setParseError(null);
     onApply(blocks);
+    setAccepted(true);
+    if (acceptResetRef.current) {
+      clearTimeout(acceptResetRef.current);
+    }
+    acceptResetRef.current = setTimeout(() => setAccepted(false), 1800);
     const result = validateBlockKit(blocks, {
       target: 'blocks',
       surface: 'message'
@@ -151,14 +178,26 @@ export function JsonDrawer({
           <SheetDescription>Edits update the preview as you type. Parse errors show below.</SheetDescription>
         </div>
         <div className="relative flex flex-1 overflow-hidden rounded-md border border-input bg-muted/30 shadow-sm focus-within:ring-1 focus-within:ring-ring">
-          <button
-            type="button"
-            onClick={handleCopy}
-            aria-label={copied ? 'Copied to clipboard' : 'Copy JSON'}
-            className="absolute right-2 top-2 z-10 inline-flex items-center justify-center rounded-md border border-input bg-background/80 p-1.5 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-          </button>
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
+            <div
+              role="status"
+              aria-hidden={!accepted}
+              className={`pointer-events-none flex items-center justify-center rounded-md bg-background/80 p-1.5 shadow-sm backdrop-blur transition-opacity duration-300 ${
+                accepted ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <Check className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="sr-only">Input accepted</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              aria-label={copied ? 'Copied to clipboard' : 'Copy JSON'}
+              className="inline-flex items-center justify-center rounded-md border border-input bg-background/80 p-1.5 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
+          </div>
           <div
             ref={gutterRef}
             aria-hidden="true"
@@ -195,6 +234,11 @@ export function JsonDrawer({
             )}
           </div>
         )}
+        <div className="flex shrink-0 justify-end">
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </div>
       </SheetContent>
     </Sheet>
   );
