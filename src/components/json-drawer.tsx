@@ -2,6 +2,7 @@ import { validateBlockKit } from '@tightknitai/slack-block-kit-validator';
 import { Check, Copy } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { BLOCKS_INPUT_SHAPE_ERROR, unwrapBlocksInput } from '../lib/parse-blocks-input';
+import { Button } from '../lib/ui/button';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/sheet';
 import type { SupportedBlock } from '../types';
 
@@ -121,7 +122,7 @@ export function JsonDrawer({
       if (acceptResetRef.current) {
         clearTimeout(acceptResetRef.current);
       }
-      acceptResetRef.current = setTimeout(() => setAccepted(false), 900);
+      acceptResetRef.current = setTimeout(() => setAccepted(false), 1800);
       return;
     }
     let parsed: unknown;
@@ -148,7 +149,7 @@ export function JsonDrawer({
     if (acceptResetRef.current) {
       clearTimeout(acceptResetRef.current);
     }
-    acceptResetRef.current = setTimeout(() => setAccepted(false), 900);
+    acceptResetRef.current = setTimeout(() => setAccepted(false), 1800);
     const result = validateBlockKit(blocks, {
       target: 'blocks',
       surface: 'message'
@@ -177,23 +178,25 @@ export function JsonDrawer({
           <SheetDescription>Edits update the preview as you type. Parse errors show below.</SheetDescription>
         </div>
         <div className="relative flex flex-1 overflow-hidden rounded-md border border-input bg-muted/30 shadow-sm focus-within:ring-1 focus-within:ring-ring">
-          <button
-            type="button"
-            onClick={handleCopy}
-            aria-label={copied ? 'Copied to clipboard' : 'Copy JSON'}
-            className="absolute right-2 top-2 z-10 inline-flex items-center justify-center rounded-md border border-input bg-background/80 p-1.5 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
-            {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
-          </button>
-          <div
-            role="status"
-            aria-hidden={!accepted}
-            className={`pointer-events-none absolute bottom-2 right-2 z-10 flex items-center justify-center rounded-md bg-background/80 p-1.5 shadow-sm backdrop-blur transition-opacity duration-300 ${
-              accepted ? 'opacity-100' : 'opacity-0'
-            }`}
-          >
-            <Check className="h-3.5 w-3.5 text-emerald-600" />
-            <span className="sr-only">Input accepted</span>
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
+            <div
+              role="status"
+              aria-hidden={!accepted}
+              className={`pointer-events-none flex items-center justify-center rounded-md bg-background/80 p-1.5 shadow-sm backdrop-blur transition-opacity duration-300 ${
+                accepted ? 'opacity-100' : 'opacity-0'
+              }`}
+            >
+              <Check className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="sr-only">Input accepted</span>
+            </div>
+            <button
+              type="button"
+              onClick={handleCopy}
+              aria-label={copied ? 'Copied to clipboard' : 'Copy JSON'}
+              className="inline-flex items-center justify-center rounded-md border border-input bg-background/80 p-1.5 text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              {copied ? <Check className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+            </button>
           </div>
           <div
             ref={gutterRef}
@@ -232,13 +235,9 @@ export function JsonDrawer({
           </div>
         )}
         <div className="flex shrink-0 justify-end">
-          <button
-            type="button"
-            onClick={() => onOpenChange(false)}
-            className="inline-flex items-center justify-center rounded-md border border-input bg-background px-4 py-2 text-sm font-medium shadow-sm transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-          >
+          <Button type="button" onClick={() => onOpenChange(false)}>
             Done
-          </button>
+          </Button>
         </div>
       </SheetContent>
     </Sheet>
