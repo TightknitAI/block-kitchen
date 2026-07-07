@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.9](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.8...block-kitchen-v0.9.9) (2026-07-07)
+
+
+### Features
+
+* add accepted state indicator and Done button to JsonDrawer ([6b4b691](https://github.com/TightknitAI/block-kitchen/commit/6b4b6917fe0279d3cade9d3a9c260e5005092d4d))
+
 ## [0.9.8](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.7...block-kitchen-v0.9.8) (2026-07-02)
 
 
