@@ -108,7 +108,9 @@ export function MyBuilderPage() {
 | `onValidationChange` | `(summary: ValidationSummary) => void` | no | Fires when the draft's validation verdict changes (debounced alongside the builder's own validation pass — not on every keystroke). `summary` is `{ valid, errorCount, errors }`: the exact verdict the issues chip/sheet shows, always scoped to the `message` surface. Lets a host-owned CTA gate on validity in [compose-only mode](#compose-only-mode-bring-your-own-send-flow) without re-running the validator. |
 | `loadChannels` | `() => Promise<{ id: string; name: string }[]>` | grouped\* | Returns channels available to send to. The package never makes Slack API calls itself. |
 | `loadSendAsUserStatus` | `() => Promise<{ canSendAsUser: boolean; oauthUrl?: string }>` | grouped\* | Whether the current user has a Slack user-token and can post as themselves. If `canSendAsUser` is false, `oauthUrl` is shown as a "Sign in with Slack" link. |
-| `onSend` | `(payload) => Promise<{ ok: boolean; error?: string }>` | grouped\* | Called when the user submits the send dialog. Payload is `{ channelId, blocks, sendAsUser }`. |
+| `onSend` | `(payload) => Promise<{ ok: boolean; error?: string }>` | grouped\* | Called when the user submits the send dialog. Payload is `{ channelId, blocks, sendAsUser, extras? }` (`extras` only when `renderSendExtras` is wired). |
+| `renderSendExtras` | `(ctx: SendExtrasContext) => ReactNode` | no | Renders host-defined fields inside the built-in send dialog, below the channel and identity pickers. Collect values with `ctx.setExtras(patch)`; they arrive on `onSend` as `payload.extras`. Requires the send trio. See [Extending the send dialog](#extending-the-send-dialog-custom-fields). |
+| `primaryAction` | `{ label, onClick, disableWhenInvalid? }` | no | Compose-only mode only: a host-owned button in the toolbar slot where "Review & send" normally sits. `onClick` receives `{ blocks, validation }` — the current draft plus the same verdict `onValidationChange` reports. See [Keeping the CTA in the toolbar](#keeping-the-cta-in-the-toolbar-primaryaction). |
 | `editing` | `{ onLoadMessage, onUpdate, loadRecentMessages? }` | no | Opt-in edit mode. When present, the toolbar exposes "Edit message": the user pastes a Slack message link, `onLoadMessage({ link })` returns a host-computed [editability verdict](#editing-an-existing-message-opt-in), and a successful load flips the primary action to "Update message" wired to `onUpdate`. Pass `loadRecentMessages` to add a "recent messages from this app" picker beside the paste input; the user picks a channel first (reusing `loadChannels`) and the lookup is scoped to it. Omit `editing` to keep send-only behavior. |
 | `loadButtonLabel` | `string` | no | Label + accessible name for the toolbar button that opens the load-message dialog (the edit-mode entry point). Defaults to `'Load message'`. Only shown when `editing` is set and no message is loaded. |
 | `updateButtonLabel` | `string` | no | Label for the toolbar's primary button while a message is loaded for editing. It's a split button: clicking it updates the message in place; the menu beside it also offers "Send as a new message" (post the current blocks as new). Defaults to `'Review & update'`. |
@@ -132,7 +134,9 @@ export function MyBuilderPage() {
 all-or-nothing: provide all three for the built-in send flow, or omit all
 three for [compose-only mode](#compose-only-mode-bring-your-own-send-flow)
 (no send button; your app owns the send flow). Wiring only some of the three
-is a type error. `editing` requires the trio.
+is a type error. `editing` and `renderSendExtras` require the trio;
+`primaryAction` requires its absence (the built-in Send/Update flow owns the
+toolbar's primary slot otherwise).
 
 ## Compose-only mode (bring your own send flow)
 
@@ -185,6 +189,103 @@ Notes:
 - `editing` is unavailable in compose-only mode: updating an existing message
   is inherently bound to its channel + timestamp, so the update flow only
   exists alongside the send integration.
+
+### Keeping the CTA in the toolbar (`primaryAction`)
+
+The example above renders its CTA outside the builder. If you want the button
+to sit where "Review & send" normally sits — say a message drafter whose
+primary action is "Save template" — pass `primaryAction`:
+
+```tsx
+<BlockKitchen
+  primaryAction={{
+    label: "Save template",
+    onClick: ({ blocks, validation }) => openSaveModal(blocks, validation),
+    // Send-style gating is opt-in. Default is enabled-while-invalid: a
+    // drafter usually allows committing a work-in-progress draft and
+    // surfaces the verdict in its own flow instead.
+    disableWhenInvalid: false,
+  }}
+/>
+```
+
+`onClick` receives the current draft in the builder's native format (the same
+shape `onChange` reports — persist that to re-open the draft later; run it
+through `toSlackBlocks` for the Slack-ready payload) plus the validation
+verdict `onValidationChange` would report. The button is never disabled for
+an empty draft; gate on `blocks.length` in `onClick` if you need that.
+
+### Building a bespoke send flow from the exported primitives
+
+If your custom flow ends in something send-shaped, you don't have to rebuild
+the built-in dialog's machinery — the send-flow primitives are exported:
+
+- `SendDialog` — the built-in dialog as a standalone component
+  (`SendDialogProps`): channel loading/error states, bot-vs-user identity
+  picker, OAuth hand-off, in-flight and failure states. Mount it against your
+  own trigger.
+- `useSlackSignIn(loadStatus, { open, enabled })` — the OAuth sign-in state
+  machine behind the identity picker: fetches user-token status on open,
+  refreshes on window focus, and background-polls after the OAuth tab opens
+  until the token appears.
+- `SlackSignInButton` — the "Sign in with Slack" button with its polling
+  spinner, for wiring `useSlackSignIn` into your own dialog.
+
+## Extending the send dialog (custom fields)
+
+When the built-in send flow is *almost* right — you want the channel picker,
+identity picker, and sending states, plus a few controls of your own (a
+cross-post toggle, a custom sender name) — pass `renderSendExtras` instead of
+rebuilding the dialog. It renders below the built-in fields, and whatever you
+collect via `setExtras` arrives on `onSend` as `payload.extras`:
+
+```tsx
+<BlockKitchen
+  loadChannels={loadChannels}
+  loadSendAsUserStatus={loadSendAsUserStatus}
+  renderSendExtras={({ extras, setExtras }) => (
+    <>
+      <label>
+        <input
+          type="checkbox"
+          checked={Boolean(extras.alsoPostToIntranet)}
+          onChange={(e) => setExtras({ alsoPostToIntranet: e.target.checked })}
+        />
+        Also publish to the intranet
+      </label>
+      <label>
+        Custom sender name
+        <input
+          type="text"
+          value={String(extras.senderName ?? "")}
+          onChange={(e) => setExtras({ senderName: e.target.value })}
+        />
+      </label>
+    </>
+  )}
+  onSend={async ({ channelId, blocks, sendAsUser, extras }) => {
+    await api.send({ channelId, blocks, sendAsUser, ...extras }); // your code
+    return { ok: true };
+  }}
+/>
+```
+
+Notes:
+
+- The `extras` object is owned by the dialog: it resets every time the dialog
+  opens (alongside the channel and identity pickers), and `setExtras(patch)`
+  shallow-merges. Render controlled inputs from `extras`.
+- The context also carries the currently selected `channelId` (`null` until
+  channels load) and `sendAsUser`, so extras can react to them — e.g. only
+  offer cross-posting for certain channels.
+- `payload.extras` is present iff `renderSendExtras` is wired, so existing
+  `onSend` handlers never see a new key.
+- The dialog renders in a portal attached to `document.body`, so CSS that
+  relies on ancestor selectors from your app's DOM won't reach slot content —
+  style it directly (inline, CSS modules, utility classes).
+- For customizations that generalize something the dialog already models
+  (identities, channels), prefer proposing a first-class prop over routing
+  them through extras; the slot is for genuinely host-specific concerns.
 
 ## Editing an existing message (opt-in)
 
@@ -286,7 +387,7 @@ Variant `id`s must be unique across the array — the drag-drop lookup keys by i
 
 The package is deliberately decoupled from any Slack SDK or backend. It does not import HTTP clients, OAuth libraries, or workspace-state systems. Everything I/O-shaped is brokered through props — and the send flow itself is optional: see [compose-only mode](#compose-only-mode-bring-your-own-send-flow) when your app owns the moment of commitment.
 
-Helpers also exported:
+Helpers and send-flow primitives also exported:
 
 ```ts
 import {
@@ -294,6 +395,9 @@ import {
   encodeBlocksToString,    // base64url-encode a blocks array (for URL state)
   decodeBlocksFromString,
   defaultPalette,          // the built-in palette — spread to customize
+  SendDialog,              // the built-in send dialog, standalone (bespoke send flows)
+  useSlackSignIn,          // the OAuth sign-in state machine behind the identity picker
+  SlackSignInButton,       // the "Sign in with Slack" button + polling spinner
 } from "@tightknitai/block-kitchen";
 
 import type {
@@ -301,12 +405,16 @@ import type {
   SupportedBlockType,
   BlockKitchenProps,
   BlockKitchenBaseProps,        // shared props
-  BlockKitchenSendProps,        // the send trio + `editing`
-  BlockKitchenComposeOnlyProps, // the trio explicitly absent
+  BlockKitchenSendProps,        // the send trio + `editing` + `renderSendExtras`
+  BlockKitchenComposeOnlyProps, // the trio explicitly absent + `primaryAction`
   PaletteSection,
   PaletteVariant,
   SendPayload,
   SendResult,
+  SendDialogProps,
+  SendExtrasContext,
+  PrimaryActionConfig,
+  PrimaryActionContext,
   ChannelOption,
   SendAsUserStatus,
   ValidationSummary,

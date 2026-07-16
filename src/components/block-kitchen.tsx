@@ -26,10 +26,12 @@ import { useBlockKitValidation } from '../state/use-block-kit-validation';
 import { type MoveTarget, useBlockKitchenState } from '../state/use-block-kitchen-state';
 import type {
   BlockKitchenBaseProps,
+  BlockKitchenComposeOnlyProps,
   BlockKitchenProps,
   BlockKitchenSendProps,
   PreviewSurface,
-  PreviewTheme
+  PreviewTheme,
+  ValidationSummary
 } from '../types';
 import { BrandThemeScope } from './brand-theme-scope';
 import { IssuesSheet } from './issues-sheet';
@@ -60,7 +62,9 @@ export function BlockKitchen(props: BlockKitchenProps) {
     loadChannels,
     loadSendAsUserStatus,
     onSend,
+    renderSendExtras,
     editing,
+    primaryAction,
     loadButtonLabel,
     updateButtonLabel,
     confirmUpdateLabel,
@@ -77,11 +81,16 @@ export function BlockKitchen(props: BlockKitchenProps) {
     sendButtonLabel,
     confirmSendLabel,
     theme
-    // Widen the all-or-nothing union so the send trio destructures as
-    // independent optionals: untyped JS consumers can still pass partial
-    // wiring (handled by the runtime guards below), and the correlated-union
-    // narrowing would otherwise flag those guards as "always true".
-  } = props as BlockKitchenBaseProps & Partial<BlockKitchenSendProps>;
+    // Widen the all-or-nothing union so the branch-specific props
+    // destructure as independent optionals: untyped JS consumers can still
+    // pass partial wiring (handled by the runtime guards below), and the
+    // correlated-union narrowing would otherwise flag those guards as
+    // "always true". `primaryAction` is pulled from the compose-only branch
+    // (where it carries a real type) rather than the send branch's
+    // `undefined` pin, which would collapse the intersection to `undefined`.
+  } = props as BlockKitchenBaseProps &
+    Partial<Omit<BlockKitchenSendProps, 'primaryAction'>> &
+    Pick<BlockKitchenComposeOnlyProps, 'primaryAction'>;
 
   const paletteSections = useMemo(() => {
     const sections = palette ?? defaultPalette;
@@ -143,6 +152,19 @@ export function BlockKitchen(props: BlockKitchenProps) {
       console.warn(
         '[BlockKitchen] `editing` requires the send integration (`loadChannels`, ' +
           '`loadSendAsUserStatus`, `onSend`); ignoring `editing`.'
+      );
+    }
+    if (renderSendExtras && !sendEnabled) {
+      console.warn(
+        '[BlockKitchen] `renderSendExtras` extends the built-in send dialog, which requires the ' +
+          'send integration (`loadChannels`, `loadSendAsUserStatus`, `onSend`); ignoring `renderSendExtras`.'
+      );
+    }
+    if (primaryAction && sendEnabled) {
+      console.warn(
+        '[BlockKitchen] `primaryAction` is only available in compose-only mode — with the send ' +
+          'integration wired, the built-in Send/Update flow owns the toolbar’s primary action; ' +
+          'ignoring `primaryAction`.'
       );
     }
   }, []);
@@ -211,6 +233,13 @@ export function BlockKitchen(props: BlockKitchenProps) {
   // Send accept a payload Slack will reject.
   const validation = useBlockKitValidation(blocks, 'message');
 
+  // The host-facing snapshot of the verdict: what `onValidationChange`
+  // reports and what a compose-only `primaryAction` click receives.
+  const validationSummary = useMemo<ValidationSummary>(
+    () => ({ valid: validation.valid, errorCount: validation.total, errors: validation.errors }),
+    [validation]
+  );
+
   // Report the verdict to the host only when it actually changes: the hook
   // re-runs (with a fresh object identity) on every debounced pass, and the
   // callback prop is often an inline arrow, so both are deduped against the
@@ -220,13 +249,13 @@ export function BlockKitchen(props: BlockKitchenProps) {
     if (!onValidationChange) {
       return;
     }
-    const key = JSON.stringify([validation.valid, validation.total, ...validation.errors]);
+    const key = JSON.stringify([validationSummary.valid, validationSummary.errorCount, ...validationSummary.errors]);
     if (lastNotifiedValidationRef.current === key) {
       return;
     }
     lastNotifiedValidationRef.current = key;
-    onValidationChange({ valid: validation.valid, errorCount: validation.total, errors: validation.errors });
-  }, [validation, onValidationChange]);
+    onValidationChange(validationSummary);
+  }, [validationSummary, onValidationChange]);
 
   // Touch needs a 150ms press-and-hold to start a drag so scrolling the
   // surface doesn't accidentally pick up a block. Pointer keeps the small
@@ -362,6 +391,18 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 showThemeControl={isPreviewThemeControlled ? false : showThemeControl}
                 docsLink={docsLink}
                 showSend={sendEnabled}
+                // Compose-only mode only: with the send integration wired,
+                // the built-in Send/Update flow owns the primary slot (and a
+                // mount-time warning covers untyped consumers passing both).
+                primaryAction={
+                  !sendEnabled && primaryAction
+                    ? {
+                        label: primaryAction.label,
+                        onClick: () => primaryAction.onClick({ blocks: blockPayloads, validation: validationSummary }),
+                        disabled: primaryAction.disableWhenInvalid ? !validationSummary.valid : false
+                      }
+                    : null
+                }
                 sendButtonLabel={sendButtonLabel}
                 editingEnabled={!!editingConfig}
                 editBadge={
@@ -469,6 +510,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 loadChannels={loadChannels}
                 loadSendAsUserStatus={loadSendAsUserStatus}
                 onSend={onSend}
+                renderSendExtras={renderSendExtras}
                 confirmSendLabel={confirmSendLabel}
                 errorCount={validation.total}
                 onShowIssues={() => {

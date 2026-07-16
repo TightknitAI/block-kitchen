@@ -1,31 +1,54 @@
 import { AlertTriangle } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import type { ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toSlackBlocks } from '../lib/to-slack-blocks';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Label } from '../lib/ui/label';
 import { isSafeHref } from '../lib/url-safety';
-import type { ChannelOption, SendAsUserStatus, SendPayload, SupportedBlock } from '../types';
+import type { ChannelOption, SendAsUserStatus, SendExtrasContext, SendPayload, SupportedBlock } from '../types';
 import { SlackSignInButton, useSlackSignIn } from './slack-sign-in';
 
 type SendStatus = { kind: 'idle' } | { kind: 'sending' } | { kind: 'success' } | { kind: 'error'; error: string };
 
 /**
- * Modal dialog that collects the destination channel + send-as identity,
- * then calls the consumer's `onSend`.
+ * Props for {@link SendDialog}. Exported so hosts building a bespoke send
+ * flow (compose-only mode) can reuse the built-in dialog standalone instead
+ * of rebuilding channel loading, identity, and sending states from scratch.
+ */
+export interface SendDialogProps {
+  /** Whether the dialog is open. */
+  open: boolean;
+  /** Notified when the user closes the dialog. */
+  onOpenChange: (open: boolean) => void;
+  /** The draft blocks to send (builder-native format). */
+  blocks: SupportedBlock[];
+  /** Returns channels available to send to. Called when the dialog opens. */
+  loadChannels: () => Promise<ChannelOption[]>;
+  /** Returns user-token status + OAuth URL. */
+  loadSendAsUserStatus: () => Promise<SendAsUserStatus>;
+  /** Terminal action; should return `{ ok }` or `{ ok: false, error }`. */
+  onSend: (payload: SendPayload) => Promise<{ ok: boolean; error?: string }>;
+  /**
+   * Renders host-defined fields below the built-in pickers; collected
+   * values are delivered on {@link SendPayload.extras}.
+   */
+  renderSendExtras?: (context: SendExtrasContext) => ReactNode;
+  /** Label for the final confirm button. Defaults to `'Send'`. */
+  confirmSendLabel?: string;
+  /** Total validation errors against the current draft. */
+  errorCount: number;
+  /** Asks the parent to open the global issues panel. */
+  onShowIssues?: () => void;
+}
+
+/**
+ * Modal dialog that collects the destination channel + send-as identity
+ * (plus any host-defined extras), then calls the consumer's `onSend`.
  *
  * Channels and user-token status are loaded async via callback props on open.
  * The consumer brokers all I/O; the dialog never makes a network call.
- * @param props - dialog props
- * @param props.open - whether the dialog is open
- * @param props.onOpenChange - notified when the user closes the dialog
- * @param props.blocks - the draft blocks to send
- * @param props.loadChannels - returns channels available to send to
- * @param props.loadSendAsUserStatus - returns user-token status + OAuth URL
- * @param props.onSend - terminal action; should return `{ ok }` or `{ ok: false, error }`
- * @param props.confirmSendLabel - label for the final confirm button. Defaults to `'Send'`.
- * @param props.errorCount - total validation errors against the current draft
- * @param props.onShowIssues - called when the user opens the global issues panel
+ * @param props - {@link SendDialogProps}
  * @returns the rendered send dialog
  */
 export function SendDialog({
@@ -35,28 +58,23 @@ export function SendDialog({
   loadChannels,
   loadSendAsUserStatus,
   onSend,
+  renderSendExtras,
   confirmSendLabel = 'Send',
   errorCount,
   onShowIssues
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  blocks: SupportedBlock[];
-  loadChannels: () => Promise<ChannelOption[]>;
-  loadSendAsUserStatus: () => Promise<SendAsUserStatus>;
-  onSend: (payload: SendPayload) => Promise<{ ok: boolean; error?: string }>;
-  /** Label for the final confirm button. Defaults to `'Send'`. */
-  confirmSendLabel?: string;
-  /** Total validation errors against the current draft. */
-  errorCount: number;
-  /** Asks the parent to open the global issues panel. */
-  onShowIssues?: () => void;
-}) {
+}: SendDialogProps) {
   const [channels, setChannels] = useState<ChannelOption[] | null>(null);
   const [channelsError, setChannelsError] = useState<string | null>(null);
   const [channelId, setChannelId] = useState<string>('');
   const [sendAs, setSendAs] = useState<'bot' | 'user'>('bot');
   const [status, setStatus] = useState<SendStatus>({ kind: 'idle' });
+  // Host-defined extras (see `renderSendExtras`). Dialog-owned so the values
+  // reset on open alongside the channel/identity pickers, and so `onSend`
+  // receives them in the payload rather than relying on host closures.
+  const [extras, setExtrasState] = useState<Record<string, unknown>>({});
+  const setExtras = useCallback((patch: Record<string, unknown>) => {
+    setExtrasState((prev) => ({ ...prev, ...patch }));
+  }, []);
 
   const { userStatus, polling, startSignIn } = useSlackSignIn(loadSendAsUserStatus, { open, enabled: true });
 
@@ -77,6 +95,7 @@ export function SendDialog({
     setChannelsError(null);
     setChannelId('');
     setSendAs('bot');
+    setExtrasState({});
     let cancelled = false;
     loadChannelsRef
       .current()
@@ -108,7 +127,10 @@ export function SendDialog({
       const result = await onSend({
         channelId,
         blocks: toSlackBlocks(blocks),
-        sendAsUser: sendAs === 'user'
+        sendAsUser: sendAs === 'user',
+        // Only introduce the key when the extras slot is wired, so existing
+        // consumers never see a new payload field.
+        ...(renderSendExtras ? { extras } : {})
       });
       if (result.ok) {
         setStatus({ kind: 'idle' });
@@ -181,6 +203,17 @@ export function SendDialog({
               </select>
             )}
           </div>
+
+          {renderSendExtras ? (
+            <div className="flex flex-col gap-1.5">
+              {renderSendExtras({
+                channelId: channelId || null,
+                sendAsUser: sendAs === 'user',
+                extras,
+                setExtras
+              })}
+            </div>
+          ) : null}
 
           {errorCount > 0 ? (
             <button

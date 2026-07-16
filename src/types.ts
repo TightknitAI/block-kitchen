@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import type {
   ActionsBlock,
   ContextBlock,
@@ -486,6 +487,39 @@ export interface SendPayload {
   channelId: string;
   blocks: SupportedBlock[];
   sendAsUser: boolean;
+  /**
+   * Values collected from the host's
+   * {@link BlockKitchenSendProps.renderSendExtras} fields, exactly as
+   * accumulated through {@link SendExtrasContext.setExtras}. Present
+   * (possibly `{}`) iff `renderSendExtras` is wired; absent otherwise, so
+   * existing consumers never see a new key.
+   */
+  extras?: Record<string, unknown>;
+}
+
+/**
+ * Context passed to {@link BlockKitchenSendProps.renderSendExtras} on every
+ * render of the send dialog. The `extras` object is owned by the dialog —
+ * it resets each time the dialog opens (alongside the channel and identity
+ * pickers) and is delivered on {@link SendPayload.extras} when the user
+ * confirms.
+ */
+export interface SendExtrasContext {
+  /**
+   * Destination channel currently selected in the dialog, or `null` while
+   * channels are still loading / none is selected. Lets extras react to the
+   * destination (e.g. only offer cross-posting for some channels).
+   */
+  channelId: string | null;
+  /** Whether "post as the user" (vs. the app bot) is currently selected. */
+  sendAsUser: boolean;
+  /** The values collected so far. Render controlled inputs from these. */
+  extras: Record<string, unknown>;
+  /**
+   * Shallow-merges `patch` into {@link SendExtrasContext.extras}. Keys you
+   * never set simply don't appear in the payload.
+   */
+  setExtras: (patch: Record<string, unknown>) => void;
 }
 
 /**
@@ -515,6 +549,49 @@ export interface ValidationSummary {
    * rooted at `blocks[N]`, indexing into the payload `toSlackBlocks` emits.
    */
   errors: readonly string[];
+}
+
+/**
+ * Context handed to {@link PrimaryActionConfig.onClick}: everything a
+ * host-owned commitment step needs, captured at click time.
+ */
+export interface PrimaryActionContext {
+  /**
+   * The current draft in the builder's native format — the same shape
+   * `onChange` reports and `initialBlocks` accepts. Persist this to re-open
+   * the draft later; run it through `toSlackBlocks` when you need the
+   * Slack-ready payload.
+   */
+  blocks: SupportedBlock[];
+  /**
+   * The validation verdict at click time — the same summary
+   * {@link BlockKitchenBaseProps.onValidationChange} reports.
+   */
+  validation: ValidationSummary;
+}
+
+/**
+ * A host-owned primary action for compose-only mode, rendered in the
+ * toolbar slot where the built-in "Review & send" button normally sits.
+ * Use it when the builder's commitment step belongs to your app — e.g. a
+ * message drafter whose CTA is "Save template" — but you still want the
+ * button inside the builder chrome. For a CTA outside the builder, skip
+ * this and use {@link BlockKitchenBaseProps.onChange} +
+ * {@link BlockKitchenBaseProps.onValidationChange} instead.
+ */
+export interface PrimaryActionConfig {
+  /** Label + accessible name for the toolbar button. */
+  label: string;
+  /** Called on click with the current draft and validation verdict. */
+  onClick: (context: PrimaryActionContext) => void;
+  /**
+   * Disable the button while the draft has validation errors, mirroring the
+   * built-in Send gating. Defaults to `false`: a drafter typically allows
+   * committing a work-in-progress draft and surfaces the verdict in its own
+   * flow instead. The button is never disabled for an empty draft — gate on
+   * `context.blocks.length` in `onClick` if you need that.
+   */
+  disableWhenInvalid?: boolean;
 }
 
 /**
@@ -988,6 +1065,21 @@ export interface BlockKitchenSendProps {
    * behavior. The user-token path reuses {@link BlockKitchenSendProps.loadSendAsUserStatus}.
    */
   editing?: EditingConfig;
+  /**
+   * Renders host-defined fields inside the built-in send dialog, below the
+   * channel and identity pickers. Values collected via
+   * {@link SendExtrasContext.setExtras} are delivered on
+   * {@link SendPayload.extras} when the user confirms. Use this when the
+   * built-in flow is almost right and you need a few extra controls (a
+   * cross-post toggle, a custom sender name) without rebuilding the dialog.
+   */
+  renderSendExtras?: (context: SendExtrasContext) => ReactNode;
+  /**
+   * Unavailable with the send integration: the built-in Send/Update flow
+   * owns the toolbar's primary action. A host-owned
+   * {@link PrimaryActionConfig} exists only in compose-only mode.
+   */
+  primaryAction?: undefined;
 }
 
 /**
@@ -1008,6 +1100,16 @@ export interface BlockKitchenComposeOnlyProps {
   onSend?: undefined;
   /** Edit mode depends on the send integration, so it is unavailable too. */
   editing?: undefined;
+  /** Extends the built-in send dialog, which doesn't exist in this mode. */
+  renderSendExtras?: undefined;
+  /**
+   * Optional host-owned button rendered in the toolbar slot where the
+   * built-in "Review & send" normally sits — e.g. "Save template" for a
+   * message drafter. `onClick` receives the current draft and validation
+   * verdict ({@link PrimaryActionContext}). Omit it to render no primary
+   * action at all and place your CTA outside the builder.
+   */
+  primaryAction?: PrimaryActionConfig;
 }
 
 /**

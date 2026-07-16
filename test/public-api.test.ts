@@ -1,4 +1,5 @@
 import { validateBlockKit } from '@tightknitai/slack-block-kit-validator';
+import { BlockKitchen, SendDialog, SlackSignInButton, TemplatePicker, useSlackSignIn } from '../src/index';
 import { defaultPalette, extraAlertVariant, legacyInputVariants } from '../src/lib/default-blocks';
 import { toSlackBlocks } from '../src/lib/to-slack-blocks';
 import { decodeBlocksFromString, encodeBlocksToString } from '../src/lib/url-state';
@@ -167,5 +168,18 @@ describe('palette factories', () => {
         throw new Error(`Legacy variant "${variant.id}" produced an invalid block:\n${result.errors.join('\n')}`);
       }
     }
+  });
+});
+
+describe('package entry point', () => {
+  // The send-flow primitives are public API for hosts building a bespoke
+  // send UI on top of compose-only mode; a rename or dropped export is a
+  // breaking change that should fail here, not in a consumer's build.
+  it('exports the components and send-flow primitives', () => {
+    expect(typeof BlockKitchen).toBe('function');
+    expect(typeof TemplatePicker).toBe('function');
+    expect(typeof SendDialog).toBe('function');
+    expect(typeof useSlackSignIn).toBe('function');
+    expect(typeof SlackSignInButton).toBe('function');
   });
 });
