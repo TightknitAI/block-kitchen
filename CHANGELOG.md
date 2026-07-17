@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.10.0](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.10...block-kitchen-v0.10.0) (2026-07-17)
+
+
+### ⚠ BREAKING CHANGES
+
+* `editing={{ onUpdate }}` is now `onUpdate={...}` (the EditingConfig wrapper is removed; load fields already moved to `loading`):
+* `EditingConfig.onLoadMessage`, `loadRecentMessages`, and `initialTarget` are removed. Move them to the `loading` prop unchanged:
+
+### Features
+
+* apply deep-review fixes — notification correctness, flatten onUpdate, doc/cleanup ([20d8d18](https://github.com/TightknitAI/block-kitchen/commit/20d8d1840e8a8175197bd7d06366b9b680fc1fd2))
+* decouple message loading from update-in-place — loading works in compose-only mode ([e4ed168](https://github.com/TightknitAI/block-kitchen/commit/e4ed1685011808901688ab99fcea231d8612ff5e))
+* drop the legacy editing load fields — editing is onUpdate-only ([d49572e](https://github.com/TightknitAI/block-kitchen/commit/d49572ef2971a03751232950f1d8a27af1e33836))
+
+
+### Bug Fixes
+
+* preserve the draft on compose-only banner exit; scope docs ([239bb3a](https://github.com/TightknitAI/block-kitchen/commit/239bb3a0e49eae2f0e4c7ad3efa0d4fc7b539741))
+
 ## [0.9.10](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.9...block-kitchen-v0.9.10) (2026-07-17)
 
 
