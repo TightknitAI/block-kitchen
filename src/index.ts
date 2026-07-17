@@ -39,7 +39,6 @@ export type {
   CustomEmoji,
   DataVisualizationBlock,
   EditableVia,
-  EditingConfig,
   FeedbackButtonSubobject,
   FeedbackButtonsElement,
   HeaderLevel,

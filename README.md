@@ -110,9 +110,9 @@ export function MyBuilderPage() {
 | `loadSendAsUserStatus` | `() => Promise<{ canSendAsUser: boolean; oauthUrl?: string }>` | grouped\* | Whether the current user has a Slack user-token and can post as themselves. If `canSendAsUser` is false, `oauthUrl` is shown as a "Sign in with Slack" link. |
 | `onSend` | `(payload) => Promise<{ ok: boolean; error?: string }>` | grouped\* | Called when the user submits the send dialog. Payload is `{ channelId, blocks, sendAsUser, extras? }` (`extras` only when `renderSendExtras` is wired). |
 | `renderSendExtras` | `(ctx: SendExtrasContext) => ReactNode` | no | Renders host-defined fields inside the built-in send dialog, below the channel and identity pickers. Collect values with `ctx.setExtras(patch)`; they arrive on `onSend` as `payload.extras`. Requires the send trio. See [Extending the send dialog](#extending-the-send-dialog-custom-fields). |
-| `primaryAction` | `{ label, onClick, disableWhenInvalid? }` | no | Compose-only mode only: a host-owned button in the toolbar slot where "Review & send" normally sits. `onClick` receives `{ blocks, validation }` — the current draft plus the same verdict `onValidationChange` reports. See [Keeping the CTA in the toolbar](#keeping-the-cta-in-the-toolbar-primaryaction). |
+| `primaryAction` | `{ label, onClick, disableWhenInvalid? }` | no | Compose-only mode only: a host-owned button in the toolbar slot where "Review & send" normally sits. `onClick` receives `{ blocks, validation, loadedMessage }` — the current draft, the same verdict `onValidationChange` reports, and the currently [loaded message](#loading-an-existing-message-opt-in) (`null` unless `loading` is configured and one is loaded). See [Keeping the CTA in the toolbar](#keeping-the-cta-in-the-toolbar-primaryaction). |
 | `loading` | `{ onLoadMessage, loadRecentMessages?, loadChannels?, initialTarget?, onLoadedMessageChange? }` | no | Opt-in: [load an existing message](#loading-an-existing-message-opt-in) into the editor. Adds a "Find message" toolbar entry — the user pastes a Slack permalink (or picks a recent message) and the draft is hydrated with its blocks. Loading is a *composition* concern, so it works in **both** send mode and compose-only mode. `onLoadedMessageChange` reports the loaded target (`null` on exit) so a host-owned commitment step can stay in sync. |
-| `editing` | `{ onUpdate }` | no | Opt-in update-in-place mode (send mode only). With `loading` configured, a loaded message flips the primary action to a "Review & update" split button wired to `onUpdate` (`chat.update`). |
+| `onUpdate` | `(payload) => Promise<{ ok: boolean; error?: string }>` | no | Opt-in update-in-place mode (send mode only); sibling to `onSend`, but the payload carries the source `channel + ts`. With `loading` configured, a loaded message flips the primary action to a "Review & update" split button wired to it (`chat.update`). |
 | `loadButtonLabel` | `string` | no | Label + accessible name for the toolbar button that opens the load-message dialog. Defaults to `'Find message'`. Only shown when `loading` is configured. |
 | `updateButtonLabel` | `string` | no | Label for the toolbar's primary button while a message is loaded for editing. It's a split button: clicking it updates the message in place; the menu beside it also offers "Send as a new message" (post the current blocks as new). Defaults to `'Review & update'`. |
 | `confirmUpdateLabel` | `string` | no | Label for the update dialog's final confirm button. Defaults to `'Update message'` (shows `'Updating…'` while in flight). |
@@ -135,7 +135,7 @@ export function MyBuilderPage() {
 all-or-nothing: provide all three for the built-in send flow, or omit all
 three for [compose-only mode](#compose-only-mode-bring-your-own-send-flow)
 (no send button; your app owns the send flow). Wiring only some of the three
-is a type error. `editing` and `renderSendExtras` require the trio;
+is a type error. `onUpdate` and `renderSendExtras` require the trio;
 `primaryAction` requires its absence (the built-in Send/Update flow owns the
 toolbar's primary slot otherwise). `loading` is mode-agnostic — it works
 with or without the trio.
@@ -194,7 +194,7 @@ Notes:
   `primaryAction`'s `loadedMessage` context and
   `loading.onLoadedMessageChange`, so your own commitment step can offer
   "update in place" alongside "post as new".
-- The built-in *update* flow (`editing`) is unavailable in compose-only
+- The built-in *update* flow (`onUpdate`) is unavailable in compose-only
   mode: dispatching a `chat.update` is inherently bound to a channel +
   timestamp + token, so it only exists alongside the send integration.
 
@@ -361,7 +361,7 @@ nothing about who can edit; the host does both.
 
 ### Updating it in place (send mode)
 
-In send mode, pair `loading` with `editing` to dispatch a `chat.update` for
+In send mode, pair `loading` with `onUpdate` to dispatch a `chat.update` for
 the loaded message. The primary action flips to a "Review & update" split
 button (the menu also offers "Send as a new message"), the destination is
 locked to the source channel, and the post-as identity is fixed to the
@@ -372,32 +372,29 @@ the "Sign in with Slack" gate).
 <BlockKitchen
   /* …send trio… */
   loading={{ onLoadMessage }}
-  editing={{
-    // Sibling to onSend; carries the source channel + ts. `asUser` follows
-    // the verdict's `editableVia`.
-    onUpdate: async ({ channelId, ts, blocks, asUser }) => {
-      await chatUpdate({ channel: channelId, ts, blocks, asUser }); // your code
-      return { ok: true };
-    }
+  // Sibling to onSend; carries the source channel + ts. `asUser` follows
+  // the verdict's `editableVia`.
+  onUpdate={async ({ channelId, ts, blocks, asUser }) => {
+    await chatUpdate({ channel: channelId, ts, blocks, asUser }); // your code
+    return { ok: true };
   }}
 />
 ```
 
-With `loading` alone (no `editing`), a loaded message can still be posted as
-a brand-new message via the regular Send flow — there's just no in-place
-update. In compose-only mode `editing` doesn't exist; implement your own
+With `loading` alone (no `onUpdate`), a loaded message can still be posted
+as a brand-new message via the regular Send flow — there's just no in-place
+update. In compose-only mode `onUpdate` doesn't exist; implement your own
 update against the target from `loadedMessage` / `onLoadedMessageChange`.
 
-> **Migrating from the pre-split `editing` bundle (≤ 0.9.x):**
-> `onLoadMessage`, `loadRecentMessages`, and `initialTarget` used to live on
-> `editing`. Move them to `loading` unchanged; `editing` keeps only
-> `onUpdate`.
+> **Migrating from the pre-split `editing` bundle (≤ 0.9.x):** the load
+> fields move to `loading` unchanged, and `onUpdate` becomes a top-level
+> prop (the `editing` wrapper is gone).
 >
 > ```tsx
 > // Before
 > <BlockKitchen editing={{ onLoadMessage, onUpdate, loadRecentMessages }} />
 > // After
-> <BlockKitchen loading={{ onLoadMessage, loadRecentMessages }} editing={{ onUpdate }} />
+> <BlockKitchen loading={{ onLoadMessage, loadRecentMessages }} onUpdate={onUpdate} />
 > ```
 
 ## Customizing the palette
@@ -456,7 +453,7 @@ import type {
   SupportedBlockType,
   BlockKitchenProps,
   BlockKitchenBaseProps,        // shared props
-  BlockKitchenSendProps,        // the send trio + `editing` + `renderSendExtras`
+  BlockKitchenSendProps,        // the send trio + `onUpdate` + `renderSendExtras`
   LoadingConfig,                // load an existing message (works in both modes)
   LoadedMessage,                // the loaded target: channel + ts + verdict
   BlockKitchenComposeOnlyProps, // the trio explicitly absent + `primaryAction`

@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { BlockKitchen } from '../src/components/block-kitchen';
+import { LoadMessageDialog } from '../src/components/load-message-dialog';
+import { TooltipProvider } from '../src/lib/ui/tooltip';
 import type {
   BlockKitchenProps,
   LoadedMessage,
@@ -110,12 +112,82 @@ it('hides the recent-messages picker and warns without a channel source in compo
   expect(screen.queryByText(/or pick a recent message/i)).toBeNull();
 });
 
+it('re-notifies when the same message is re-loaded with a changed verdict', async () => {
+  const onLoadedMessageChange = vi.fn<(message: LoadedMessage | null) => void>();
+  // The host's verdict changes between loads (e.g. the user signed in and
+  // their own message became editable via the user token).
+  let verdict: 'bot' | 'user' = 'bot';
+  const dynamicLoading: LoadingConfig = {
+    onLoadMessage: async () => ({ ...okResult, editableVia: verdict }),
+    onLoadedMessageChange
+  };
+  render(<BlockKitchen loading={dynamicLoading} />);
+
+  const loadVia = async (link: string) => {
+    fireEvent.click(screen.getByRole('button', { name: /find message/i }));
+    fireEvent.change(screen.getByLabelText('Message link'), { target: { value: link } });
+    fireEvent.click(screen.getByRole('button', { name: 'Load message' }));
+    await act(async () => {});
+  };
+
+  await loadVia('https://ws.slack.com/archives/C1/p1699999999000100');
+  expect(onLoadedMessageChange).toHaveBeenCalledTimes(1);
+  expect(onLoadedMessageChange.mock.calls[0][0]?.editableVia).toBe('bot');
+
+  verdict = 'user';
+  await loadVia('https://ws.slack.com/archives/C1/p1699999999000100');
+  // Same channelId + ts, different verdict — dedupe is by value, so the
+  // host is told about the fresh editability.
+  expect(onLoadedMessageChange).toHaveBeenCalledTimes(2);
+  expect(onLoadedMessageChange.mock.calls[1][0]?.editableVia).toBe('user');
+});
+
+it('delivers the current target to an onLoadedMessageChange attached after mount', async () => {
+  const onLoadedMessageChange = vi.fn<(message: LoadedMessage | null) => void>();
+  const { rerender } = render(<BlockKitchen loading={{ ...loading, initialTarget: okResult }} />);
+  expect(onLoadedMessageChange).not.toHaveBeenCalled();
+  // The host subscribes on a later render (e.g. after async init) — it
+  // still receives the already-loaded target.
+  rerender(<BlockKitchen loading={{ ...loading, initialTarget: okResult, onLoadedMessageChange }} />);
+  await act(async () => {});
+  expect(onLoadedMessageChange).toHaveBeenCalledTimes(1);
+  expect(onLoadedMessageChange).toHaveBeenLastCalledWith(LOADED_MESSAGE);
+});
+
+it('populates the recent-messages picker when a channel source arrives while the dialog is open', async () => {
+  const dialogProps = {
+    open: true,
+    onOpenChange: () => {},
+    onLoadMessage: loading.onLoadMessage,
+    loadRecentMessages: async () => [],
+    onLoaded: () => {},
+    onOpenAsNew: () => {}
+  };
+  const { rerender } = render(
+    <TooltipProvider>
+      <LoadMessageDialog {...dialogProps} />
+    </TooltipProvider>
+  );
+  // No channel source yet: paste-link only, no channel picker.
+  expect(screen.queryByLabelText('Channel')).toBeNull();
+
+  rerender(
+    <TooltipProvider>
+      <LoadMessageDialog {...dialogProps} loadChannels={async () => [{ id: 'C1', name: 'general' }]} />
+    </TooltipProvider>
+  );
+  await act(async () => {});
+  // The picker appears and the channel list is fetched without reopening.
+  expect(screen.getByLabelText('Channel')).toBeTruthy();
+  expect(screen.getByRole('option', { name: '#general' })).toBeTruthy();
+});
+
 // ---------------------------------------------------------------------------
 // Send mode: `loading` composes with the send flow; update-in-place still
-// requires `editing.onUpdate`.
+// requires `onUpdate`.
 // ---------------------------------------------------------------------------
 
-it('keeps the plain send button (no update split) when `loading` is wired without `editing`', () => {
+it('keeps the plain send button (no update split) when `loading` is wired without `onUpdate`', () => {
   render(<BlockKitchen {...sendProps} loading={{ ...loading, initialTarget: okResult }} />);
   // Loaded banner shows, but with no onUpdate the primary action stays Send.
   expect(screen.getByText(/References an existing message in/i)).toBeTruthy();
@@ -123,21 +195,21 @@ it('keeps the plain send button (no update split) when `loading` is wired withou
   expect(screen.queryByRole('button', { name: /review & update/i })).toBeNull();
 });
 
-it('shows the update split button when `loading` pairs with `editing.onUpdate`', () => {
+it('shows the update split button when `loading` pairs with `onUpdate`', () => {
   render(
     <BlockKitchen
       {...sendProps}
       loading={{ ...loading, initialTarget: okResult }}
-      editing={{ onUpdate: async () => ({ ok: true }) }}
+      onUpdate={async () => ({ ok: true })}
     />
   );
   expect(screen.getByRole('button', { name: /review & update/i })).toBeTruthy();
 });
 
-it('warns when `editing.onUpdate` has no load source at all', () => {
+it('warns when `onUpdate` has no load source at all', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  render(<BlockKitchen {...sendProps} editing={{ onUpdate: async () => ({ ok: true }) }} />);
-  expect(warn).toHaveBeenCalledWith(expect.stringMatching(/`editing.onUpdate` needs a loaded message/));
+  render(<BlockKitchen {...sendProps} onUpdate={async () => ({ ok: true })} />);
+  expect(warn).toHaveBeenCalledWith(expect.stringMatching(/`onUpdate` needs a loaded message/));
   expect(screen.queryByRole('button', { name: /find message/i })).toBeNull();
 });
 

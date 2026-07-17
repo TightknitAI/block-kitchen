@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { GripVertical } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
 import { buildVariantById, defaultPalette, type PaletteSection } from '../lib/default-blocks';
@@ -24,12 +24,15 @@ import { useIsMobile } from '../lib/use-is-mobile';
 import { CustomEmojiProvider } from '../state/custom-emoji-context';
 import { useBlockKitValidation } from '../state/use-block-kit-validation';
 import { type MoveTarget, useBlockKitchenState } from '../state/use-block-kitchen-state';
+import { useDevWarning } from '../state/use-dev-warning';
+import { useNotifyOnChange } from '../state/use-notify-on-change';
 import type {
   BlockKitchenBaseProps,
   BlockKitchenComposeOnlyProps,
   BlockKitchenProps,
   BlockKitchenSendProps,
   LoadedMessage,
+  LoadResult,
   PreviewSurface,
   PreviewTheme,
   ValidationSummary
@@ -46,20 +49,28 @@ import { UpdateDialog } from './update-dialog';
 
 /**
  * Normalize a load verdict / pre-loaded target down to the public
- * {@link LoadedMessage} shape, dropping load-result extras (`ok`, `blocks`)
- * so host-facing surfaces (`onLoadedMessageChange`, `primaryAction` context)
- * carry a clean contract.
+ * {@link LoadedMessage} shape, dropping the load-result extras (`ok`,
+ * `blocks`) so host-facing surfaces (`onLoadedMessageChange`,
+ * `primaryAction` context) carry a clean contract. The ok-branch is defined
+ * as `LoadedMessage & { ok; blocks }`, so the rest after removing those two
+ * IS the loaded message — new fields flow through without touching this.
  */
-function toLoadedMessage(target: LoadedMessage & { ok?: boolean; blocks?: unknown }): LoadedMessage {
-  return {
-    channelId: target.channelId,
-    channelName: target.channelName,
-    ts: target.ts,
-    editableVia: target.editableVia,
-    workspaceName: target.workspaceName,
-    username: target.username,
-    iconUrl: target.iconUrl
-  };
+function toLoadedMessage({
+  ok: _ok,
+  blocks: _blocks,
+  ...loadedMessage
+}: Extract<LoadResult, { ok: true }>): LoadedMessage {
+  return loadedMessage;
+}
+
+/** Serializes a loaded message for change-notification dedupe (by value, so any field change re-notifies). */
+function loadedMessageKey(message: LoadedMessage | null): string | null {
+  return message ? JSON.stringify(message) : null;
+}
+
+/** Serializes a validation summary for change-notification dedupe. */
+function validationSummaryKey(summary: ValidationSummary): string {
+  return JSON.stringify([summary.valid, summary.errorCount, ...summary.errors]);
 }
 
 /**
@@ -83,7 +94,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
     onSend,
     renderSendExtras,
     loading,
-    editing,
+    onUpdate: onUpdateProp,
     primaryAction,
     loadButtonLabel,
     updateButtonLabel,
@@ -157,61 +168,54 @@ export function BlockKitchen(props: BlockKitchenProps) {
   // Updating in place is a *distribution* concern (`chat.update` is bound to
   // a channel + timestamp + token), so it only exists with the send
   // integration wired.
-  const onUpdate = sendEnabled ? editing?.onUpdate : undefined;
+  const onUpdate = sendEnabled ? onUpdateProp : undefined;
 
   // A pre-loaded target (opt-in) carries its own blocks; they seed the
   // draft and win over `initialBlocks`, which is the blank-canvas seed.
   const seededBlocks = loading?.initialTarget?.blocks ?? initialBlocks;
-  // Mount-only: these props are read once at mount, so warn once.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only check
-  useEffect(() => {
-    if (loading?.initialTarget && initialBlocks) {
-      console.warn(
-        '[BlockKitchen] Both `initialBlocks` and an `initialTarget` were provided; ' +
-          'using the target’s blocks and ignoring `initialBlocks`.'
-      );
-    }
-    const sendPropsProvided = [loadChannels, loadSendAsUserStatus, onSend].filter(Boolean).length;
-    if (sendPropsProvided > 0 && sendPropsProvided < 3) {
-      console.warn(
-        '[BlockKitchen] Partial send wiring: `loadChannels`, `loadSendAsUserStatus`, and `onSend` ' +
-          'are all-or-nothing. The send button is hidden until all three are provided.'
-      );
-    }
-    if (editing && !sendEnabled) {
-      console.warn(
-        '[BlockKitchen] `editing` requires the send integration (`loadChannels`, ' +
-          '`loadSendAsUserStatus`, `onSend`); ignoring `editing`. To load an existing message ' +
-          'without the send integration, use the `loading` prop instead.'
-      );
-    }
-    if (sendEnabled && editing && !loading) {
-      console.warn(
-        '[BlockKitchen] `editing.onUpdate` needs a loaded message, but no load source is ' +
-          'configured — provide the `loading` prop. The update flow is unreachable.'
-      );
-    }
-    if (loading?.loadRecentMessages && !recentChannelSource) {
-      console.warn(
-        '[BlockKitchen] `loading.loadRecentMessages` needs a channel list to scope its lookup — ' +
-          'provide `loading.loadChannels` (compose-only mode has no send integration to reuse). ' +
-          'Hiding the recent-messages picker.'
-      );
-    }
-    if (renderSendExtras && !sendEnabled) {
-      console.warn(
-        '[BlockKitchen] `renderSendExtras` extends the built-in send dialog, which requires the ' +
-          'send integration (`loadChannels`, `loadSendAsUserStatus`, `onSend`); ignoring `renderSendExtras`.'
-      );
-    }
-    if (primaryAction && sendEnabled) {
-      console.warn(
-        '[BlockKitchen] `primaryAction` is only available in compose-only mode — with the send ' +
-          'integration wired, the built-in Send/Update flow owns the toolbar’s primary action; ' +
-          'ignoring `primaryAction`.'
-      );
-    }
-  }, []);
+
+  // Dev-time wiring warnings. Evaluated on every render (props can change
+  // mid-session — the demo toggles `loading`/`onUpdate` live), each fires at
+  // most once per mounted instance.
+  const sendPropsProvided = [loadChannels, loadSendAsUserStatus, onSend].filter(Boolean).length;
+  useDevWarning(
+    Boolean(loading?.initialTarget && initialBlocks),
+    '[BlockKitchen] Both `initialBlocks` and an `initialTarget` were provided; ' +
+      'using the target’s blocks and ignoring `initialBlocks`.'
+  );
+  useDevWarning(
+    sendPropsProvided > 0 && sendPropsProvided < 3,
+    '[BlockKitchen] Partial send wiring: `loadChannels`, `loadSendAsUserStatus`, and `onSend` ' +
+      'are all-or-nothing. The send button is hidden until all three are provided.'
+  );
+  useDevWarning(
+    Boolean(onUpdateProp && !sendEnabled),
+    '[BlockKitchen] `onUpdate` requires the send integration (`loadChannels`, ' +
+      '`loadSendAsUserStatus`, `onSend`); ignoring `onUpdate`. To load an existing message ' +
+      'without the send integration, use the `loading` prop instead.'
+  );
+  useDevWarning(
+    Boolean(sendEnabled && onUpdateProp && !loading),
+    '[BlockKitchen] `onUpdate` needs a loaded message, but no load source is ' +
+      'configured — provide the `loading` prop. The update flow is unreachable.'
+  );
+  useDevWarning(
+    Boolean(loading?.loadRecentMessages && !recentChannelSource),
+    '[BlockKitchen] `loading.loadRecentMessages` needs a channel list to scope its lookup — ' +
+      'provide `loading.loadChannels` (compose-only mode has no send integration to reuse). ' +
+      'Hiding the recent-messages picker.'
+  );
+  useDevWarning(
+    Boolean(renderSendExtras && !sendEnabled),
+    '[BlockKitchen] `renderSendExtras` extends the built-in send dialog, which requires the ' +
+      'send integration (`loadChannels`, `loadSendAsUserStatus`, `onSend`); ignoring `renderSendExtras`.'
+  );
+  useDevWarning(
+    Boolean(primaryAction && sendEnabled),
+    '[BlockKitchen] `primaryAction` is only available in compose-only mode — with the send ' +
+      'integration wired, the built-in Send/Update flow owns the toolbar’s primary action; ' +
+      'ignoring `primaryAction`.'
+  );
 
   const { blocks, addBlock, addChild, updateBlock, removeBlock, duplicateBlock, reorderBlock, moveBlock, replaceAll } =
     useBlockKitchenState({ initialBlocks: seededBlocks, onChange });
@@ -249,22 +253,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const activeEditTarget = loadEnabled ? editTarget : null;
 
   // Report loaded-message changes to the host — compose-only hosts keep
-  // their own commitment step in sync this way. Deduped by channel + ts so
-  // re-renders don't re-fire; the callback lives in a ref since consumers
-  // often pass a fresh object/arrow each render.
-  const onLoadedMessageChangeRef = useRef(loading?.onLoadedMessageChange);
-  useEffect(() => {
-    onLoadedMessageChangeRef.current = loading?.onLoadedMessageChange;
-  });
-  const lastNotifiedTargetRef = useRef<string | null>(null);
-  useEffect(() => {
-    const key = activeEditTarget ? `${activeEditTarget.channelId}:${activeEditTarget.ts}` : null;
-    if (lastNotifiedTargetRef.current === key) {
-      return;
-    }
-    lastNotifiedTargetRef.current = key;
-    onLoadedMessageChangeRef.current?.(activeEditTarget);
-  }, [activeEditTarget]);
+  // their own commitment step in sync this way. Value-keyed, so re-loading
+  // the same message with a changed verdict (e.g. `editableVia` flipping
+  // after sign-in) re-notifies; notifications only flow while `loading` is
+  // configured.
+  useNotifyOnChange(activeEditTarget, loadedMessageKey, loading?.onLoadedMessageChange);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
@@ -306,22 +299,12 @@ export function BlockKitchen(props: BlockKitchenProps) {
     [validation]
   );
 
-  // Report the verdict to the host only when it actually changes: the hook
-  // re-runs (with a fresh object identity) on every debounced pass, and the
-  // callback prop is often an inline arrow, so both are deduped against the
-  // last-notified key rather than used as change signals themselves.
-  const lastNotifiedValidationRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!onValidationChange) {
-      return;
-    }
-    const key = JSON.stringify([validationSummary.valid, validationSummary.errorCount, ...validationSummary.errors]);
-    if (lastNotifiedValidationRef.current === key) {
-      return;
-    }
-    lastNotifiedValidationRef.current = key;
-    onValidationChange(validationSummary);
-  }, [validationSummary, onValidationChange]);
+  // Report the verdict to the host only when it actually changes: the
+  // validation hook re-runs (with a fresh object identity) on every
+  // debounced pass, and the callback prop is often an inline arrow, so both
+  // are deduped against the last-notified key rather than used as change
+  // signals themselves.
+  useNotifyOnChange(validationSummary, validationSummaryKey, onValidationChange);
 
   // Touch needs a 150ms press-and-hold to start a drag so scrolling the
   // surface doesn't accidentally pick up a block. Pointer keeps the small
@@ -614,10 +597,10 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 open={loadOpen}
                 onOpenChange={setLoadOpen}
                 onLoadMessage={loading.onLoadMessage}
-                // The recent-messages picker needs a channel source to scope
-                // its lookup; withhold the loader without one so only the
-                // paste-link entry renders (warned at mount).
-                loadRecentMessages={recentChannelSource ? loading.loadRecentMessages : undefined}
+                // The dialog owns the picker-visibility rule (it renders the
+                // recent picker only when both loaders are present); this
+                // component's job is just resolving the channel source.
+                loadRecentMessages={loading.loadRecentMessages}
                 loadChannels={recentChannelSource}
                 onLoaded={(result) => {
                   replaceAll(result.blocks);

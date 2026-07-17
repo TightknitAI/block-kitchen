@@ -119,8 +119,9 @@ export function LoadMessageDialog({
   // renders (compose-only hosts may have no channel list at all).
   const hasRecent = !!loadRecentMessages && !!loadChannels;
 
-  // Reset to a clean slate each time the dialog opens, and load the channel
-  // list so the user can scope the recent-messages picker.
+  // Reset to a clean slate each time the dialog opens. Kept separate from
+  // the channel fetch below so a mid-open re-fetch can't wipe the user's
+  // typed link or picked selection.
   useEffect(() => {
     if (!open) {
       return;
@@ -131,7 +132,15 @@ export function LoadMessageDialog({
     setRecent(null);
     setRecentError(null);
     setSelectedRecent(null);
-    if (!loadRecentMessagesRef.current || !loadChannelsRef.current) {
+  }, [open]);
+
+  // Load the channel list that scopes the recent-messages picker. Depends on
+  // `hasRecent` (live props), not just `open`, so a channel source that
+  // arrives while the dialog is already open (e.g. a host wiring the send
+  // trio after async bootstrap) still populates the picker.
+  useEffect(() => {
+    const load = loadChannelsRef.current;
+    if (!open || !hasRecent || !load) {
       setChannels([]);
       setChannelsError(null);
       return;
@@ -139,8 +148,7 @@ export function LoadMessageDialog({
     setChannels(null);
     setChannelsError(null);
     let cancelled = false;
-    loadChannelsRef
-      .current()
+    load()
       .then((list) => {
         if (!cancelled) {
           setChannels(list);
@@ -154,7 +162,7 @@ export function LoadMessageDialog({
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, hasRecent]);
 
   // (Re)load the recent list whenever the selected channel changes, scoping the
   // lookup to that one channel.

@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
 import { BlockKitchen } from '../src/components/block-kitchen';
-import type { EditingConfig, LoadingConfig, LoadResult, SupportedBlock } from '../src/types';
+import type { LoadingConfig, LoadResult, SupportedBlock } from '../src/types';
 
 const baseProps = {
   loadChannels: async () => [{ id: 'C1', name: 'general' }],
@@ -23,14 +23,12 @@ const loading: LoadingConfig = {
   initialTarget: target
 };
 
-const editing: EditingConfig = {
-  onUpdate: async () => ({ ok: true })
-};
+const onUpdate = async () => ({ ok: true });
 
 afterEach(() => vi.restoreAllMocks());
 
 it('boots straight into edit mode when loading.initialTarget is provided', () => {
-  render(<BlockKitchen {...baseProps} loading={loading} editing={editing} />);
+  render(<BlockKitchen {...baseProps} loading={loading} onUpdate={onUpdate} />);
   // The loaded banner only renders while a message is loaded.
   expect(screen.getByText(/References an existing message in/i)).toBeTruthy();
   expect(screen.getByText('#general')).toBeTruthy();
@@ -42,7 +40,7 @@ it('warns and prefers the target’s blocks when initialBlocks is also given', (
     <BlockKitchen
       {...baseProps}
       loading={loading}
-      editing={editing}
+      onUpdate={onUpdate}
       initialBlocks={[{ type: 'divider' }] as SupportedBlock[]}
     />
   );

@@ -1,9 +1,9 @@
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { type EditTarget, UpdateDialog } from '../src/components/update-dialog';
-import type { SendAsUserStatus, UpdateResult } from '../src/types';
+import { UpdateDialog } from '../src/components/update-dialog';
+import type { LoadedMessage, SendAsUserStatus, UpdateResult } from '../src/types';
 
-const TARGET: EditTarget = { channelId: 'C1', channelName: 'general', ts: '111.1', editableVia: 'user' };
+const TARGET: LoadedMessage = { channelId: 'C1', channelName: 'general', ts: '111.1', editableVia: 'user' };
 const noopUpdate = async (): Promise<UpdateResult> => ({ ok: true });
 
 function renderDialog(loadSendAsUserStatus: () => Promise<SendAsUserStatus>) {
