@@ -82,11 +82,9 @@ it('passes the loaded message to primaryAction clicks and clears it on exit', as
   fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
   expect(onClick.mock.calls[0][0].loadedMessage).toEqual(LOADED_MESSAGE);
 
-  // "Switch to a new message" clears the target (and reopens the loader,
-  // which we dismiss to get back to the toolbar).
+  // "Switch to a new message" detaches the target (compose-only exit keeps
+  // the draft and opens no dialog).
   fireEvent.click(screen.getByRole('button', { name: /switch to a new message/i }));
-  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
-  await act(async () => {});
   fireEvent.click(screen.getByRole('button', { name: 'Save template' }));
   expect(onClick.mock.calls[1][0].loadedMessage).toBeNull();
 });
@@ -110,6 +108,28 @@ it('hides the recent-messages picker and warns without a channel source in compo
   expect(warn).toHaveBeenCalledWith(expect.stringMatching(/`loading.loadRecentMessages` needs a channel list/));
   fireEvent.click(screen.getByRole('button', { name: /find message/i }));
   expect(screen.queryByText(/or pick a recent message/i)).toBeNull();
+});
+
+it('keeps the draft and opens no dialog when exiting a loaded message in compose-only mode', () => {
+  render(<BlockKitchen loading={{ ...loading, initialTarget: okResult }} />);
+  expect(screen.getByText('loaded blocks')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: /switch to a new message/i }));
+  // The reference is detached (banner gone) but the composition survives —
+  // a misclick must not destroy the draft — and the load dialog stays shut.
+  expect(screen.queryByText(/References an existing message in/i)).toBeNull();
+  expect(screen.getByText('loaded blocks')).toBeTruthy();
+  expect(screen.queryByText('Find an existing message')).toBeNull();
+});
+
+it('clears the draft and reopens the loader when exiting a loaded message in send mode', () => {
+  render(<BlockKitchen {...sendProps} loading={{ ...loading, initialTarget: okResult }} />);
+  expect(screen.getByText('loaded blocks')).toBeTruthy();
+
+  fireEvent.click(screen.getByRole('button', { name: /switch to a new message/i }));
+  // Edit-centric exit: start fresh and pick another message.
+  expect(screen.queryByText('loaded blocks')).toBeNull();
+  expect(screen.getByText('Find an existing message')).toBeTruthy();
 });
 
 // Two full load-dialog round trips over the whole builder tree — well over

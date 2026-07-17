@@ -656,9 +656,11 @@ export interface LoadedMessage {
  * Result of loading an existing message, computed by the host.
  *
  * On `ok` — the {@link LoadedMessage} shape plus `blocks` — the package
- * hydrates the editor with `blocks` and shows the loaded banner; in send
- * mode the destination is locked to `channelId` and the post-as identity is
- * constrained to `editableVia`.
+ * hydrates the editor with `blocks` and shows the loaded banner. Only the
+ * *update* flow ({@link BlockKitchenSendProps.onUpdate}) locks the
+ * destination to `channelId` and constrains the post-as identity to
+ * `editableVia`; the plain send dialog always posts a brand-new message
+ * with free channel/identity choice, loaded draft or not.
  *
  * On `!ok`, the package renders the host's `reason` inline and offers
  * "Open as a new message instead". If the message round-trips through the
@@ -784,6 +786,12 @@ export interface LoadingConfig {
    * sync — e.g. so a host-owned commitment step knows whether to offer
    * "update in place" without waiting for a
    * {@link PrimaryActionConfig.onClick}.
+   *
+   * Dedupe is by value, so this can re-fire for the same `channelId` + `ts`
+   * when the host's verdict or display metadata changed (e.g. `editableVia`
+   * flipping after a Slack sign-in) — key host state on the full target,
+   * not `ts` alone. Notifications flow only while `loading` is configured;
+   * removing the config mid-session is treated as unsubscribing.
    */
   onLoadedMessageChange?: (message: LoadedMessage | null) => void;
 }

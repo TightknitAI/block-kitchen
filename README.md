@@ -357,7 +357,15 @@ nothing about who can edit; the host does both.
   result to hydrate the draft for that fallback.
 - `loading.onLoadedMessageChange` reports the loaded target — and `null`
   when the user exits it — so host state stays in sync (most useful in
-  compose-only mode, where your app owns what happens next).
+  compose-only mode, where your app owns what happens next). It can
+  **re-fire for the same `channelId` + `ts`** when the host's verdict or
+  metadata changed (e.g. `editableVia` flipping after a Slack sign-in), so
+  key host state on the full target, not `ts` alone.
+- The banner's **"Switch to a new message"** exit is mode-aware: in send
+  mode it clears the canvas and reopens the load dialog (the edit-centric
+  "pick a different message" flow); in compose-only mode it only detaches
+  the reference and **keeps the draft** — loading seeded a composition, and
+  a misclick must not destroy it.
 
 ### Updating it in place (send mode)
 

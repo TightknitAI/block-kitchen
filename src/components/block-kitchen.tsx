@@ -473,11 +473,21 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 onOpenLoad={() => setLoadOpen(true)}
                 onOpenUpdate={() => setUpdateOpen(true)}
                 onExitEdit={() => {
-                  // Banner exit: discard the loaded message's draft and reopen
-                  // the loader so the user starts fresh or picks another message.
+                  if (sendEnabled) {
+                    // Edit-centric exit (send mode): discard the loaded
+                    // message's draft and reopen the loader so the user
+                    // starts fresh or picks another message.
+                    setEditTarget(null);
+                    replaceAll([]);
+                    setLoadOpen(true);
+                    return;
+                  }
+                  // Compose-only exit: loading seeded a composition the user
+                  // may have kept editing, so detach the reference but keep
+                  // the draft — a misclick must not destroy ten minutes of
+                  // work, and there's no built-in flow to hand off to. The
+                  // host hears about the detach via onLoadedMessageChange.
                   setEditTarget(null);
-                  replaceAll([]);
-                  setLoadOpen(true);
                 }}
                 loadButtonLabel={loadButtonLabel}
                 updateButtonLabel={updateButtonLabel}
