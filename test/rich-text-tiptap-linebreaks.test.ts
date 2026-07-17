@@ -65,17 +65,14 @@ describe('rich-text-tiptap hard breaks (Shift+Enter soft line breaks)', () => {
     ]);
   });
 
-  it.each([
-    'a\nb',
-    'a\n\nb',
-    'line1\nline2\nline3',
-    '\nleading',
-    'trailing\n'
-  ])('round-trips a Slack text run with newlines: %p', (text) => {
-    const block = sectionBlock({ type: 'text', text });
-    const out = proseMirrorToRichText(richTextToProseMirror(block));
-    expect(firstSectionElements(out)).toEqual([{ type: 'text', text }]);
-  });
+  it.each(['a\nb', 'a\n\nb', 'line1\nline2\nline3', '\nleading', 'trailing\n'])(
+    'round-trips a Slack text run with newlines: %p',
+    (text) => {
+      const block = sectionBlock({ type: 'text', text });
+      const out = proseMirrorToRichText(richTextToProseMirror(block));
+      expect(firstSectionElements(out)).toEqual([{ type: 'text', text }]);
+    }
+  );
 
   it('round-trips a hardBreak inside a list item', () => {
     const block = {

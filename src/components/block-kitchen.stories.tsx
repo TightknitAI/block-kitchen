@@ -2,8 +2,13 @@ import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AlignLeft } from 'lucide-react';
 import { expect, fireEvent, fn, userEvent, waitFor, within } from 'storybook/test';
 import { defaultPalette, type PaletteSection } from '../lib/default-blocks';
-import type { SupportedBlock } from '../types';
+import type { BlockKitchenBaseProps, BlockKitchenSendProps, SupportedBlock } from '../types';
 import { BlockKitchen } from './block-kitchen';
+
+// Stories exercise the send-enabled configuration; pin that branch of the
+// all-or-nothing props union so Storybook's arg inference doesn't collapse
+// the union to `never`.
+type SendModeProps = BlockKitchenBaseProps & BlockKitchenSendProps;
 
 const STARTER_BLOCKS: SupportedBlock[] = [
   {
@@ -45,7 +50,7 @@ const meta = {
       </div>
     )
   ]
-} satisfies Meta<typeof BlockKitchen>;
+} satisfies Meta<SendModeProps>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;

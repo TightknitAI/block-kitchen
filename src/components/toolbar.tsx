@@ -84,6 +84,10 @@ const SEND_MENU_ITEM =
  *   an object overrides `href` and/or `label`. Defaults to the Slack Block
  *   Kit reference docs.
  * @param props.errorCount - number of validation errors
+ * @param props.showSend - whether the send action renders at all (default
+ *   true; false in compose-only mode)
+ * @param props.primaryAction - host-owned button rendered in the primary
+ *   slot when the built-in send action is hidden (compose-only mode)
  * @param props.sendButtonLabel - label + accessible name for the Send
  *   button that opens the send dialog. Defaults to `'Send'`.
  * @returns the rendered toolbar
@@ -104,6 +108,8 @@ export function Toolbar({
   showThemeControl = true,
   docsLink,
   errorCount,
+  showSend = true,
+  primaryAction,
   sendButtonLabel = 'Review & send',
   editingEnabled = false,
   editBadge,
@@ -128,6 +134,18 @@ export function Toolbar({
   showThemeControl?: boolean;
   docsLink?: false | { href?: string; label?: string };
   errorCount: number;
+  /**
+   * Whether the send action (single button, or split button in edit mode)
+   * renders at all. `false` in compose-only mode, where the host owns the
+   * send flow. Defaults to `true`.
+   */
+  showSend?: boolean;
+  /**
+   * Host-owned button rendered in the primary slot when `showSend` is
+   * false. Resolved by the parent: a plain click handler and a precomputed
+   * disabled flag. `null`/omitted renders nothing in the slot.
+   */
+  primaryAction?: { label: string; onClick: () => void; disabled?: boolean } | null;
   sendButtonLabel?: string;
   /** Whether edit mode is configured (shows the "Edit existing message" entry). */
   editingEnabled?: boolean;
@@ -277,7 +295,24 @@ export function Toolbar({
             <Code2 className="h-3.5 w-3.5" />
             <span className="hidden md:inline">View JSON</span>
           </Button>
-          {editBadge ? (
+          {!showSend ? (
+            primaryAction ? (
+              // Compose-only mode with a host-owned primary action: same
+              // placement and styling as the built-in send button. No icon —
+              // the action's meaning is the host's, so the label always shows
+              // (the send button can collapse to its icon on small screens;
+              // an icon-less button can't).
+              <Button
+                type="button"
+                size="sm"
+                onClick={primaryAction.onClick}
+                disabled={primaryAction.disabled}
+                aria-label={primaryAction.label}
+              >
+                <span>{primaryAction.label}</span>
+              </Button>
+            ) : null
+          ) : editBadge ? (
             // A message is loaded: split button. Main action updates it in
             // place; the menu also offers posting the blocks as a new message.
             <div className="flex items-stretch">

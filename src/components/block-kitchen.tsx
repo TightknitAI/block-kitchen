@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { GripVertical } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
 import { buildVariantById, defaultPalette, type PaletteSection } from '../lib/default-blocks';
@@ -24,7 +24,15 @@ import { useIsMobile } from '../lib/use-is-mobile';
 import { CustomEmojiProvider } from '../state/custom-emoji-context';
 import { useBlockKitValidation } from '../state/use-block-kit-validation';
 import { type MoveTarget, useBlockKitchenState } from '../state/use-block-kitchen-state';
-import type { BlockKitchenProps, PreviewSurface, PreviewTheme } from '../types';
+import type {
+  BlockKitchenBaseProps,
+  BlockKitchenComposeOnlyProps,
+  BlockKitchenProps,
+  BlockKitchenSendProps,
+  PreviewSurface,
+  PreviewTheme,
+  ValidationSummary
+} from '../types';
 import { BrandThemeScope } from './brand-theme-scope';
 import { IssuesSheet } from './issues-sheet';
 import { JsonDrawer } from './json-drawer';
@@ -48,12 +56,15 @@ export function BlockKitchen(props: BlockKitchenProps) {
     workspaceName,
     initialBlocks,
     onChange,
+    onValidationChange,
     previewHooks,
     customEmojis,
     loadChannels,
     loadSendAsUserStatus,
     onSend,
+    renderSendExtras,
     editing,
+    primaryAction,
     loadButtonLabel,
     updateButtonLabel,
     confirmUpdateLabel,
@@ -70,7 +81,16 @@ export function BlockKitchen(props: BlockKitchenProps) {
     sendButtonLabel,
     confirmSendLabel,
     theme
-  } = props;
+    // Widen the all-or-nothing union so the branch-specific props
+    // destructure as independent optionals: untyped JS consumers can still
+    // pass partial wiring (handled by the runtime guards below), and the
+    // correlated-union narrowing would otherwise flag those guards as
+    // "always true". `primaryAction` is pulled from the compose-only branch
+    // (where it carries a real type) rather than the send branch's
+    // `undefined` pin, which would collapse the intersection to `undefined`.
+  } = props as BlockKitchenBaseProps &
+    Partial<Omit<BlockKitchenSendProps, 'primaryAction'>> &
+    Pick<BlockKitchenComposeOnlyProps, 'primaryAction'>;
 
   const paletteSections = useMemo(() => {
     const sections = palette ?? defaultPalette;
@@ -99,16 +119,52 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const allowedSurfaces: readonly PreviewSurface[] =
     allowedSurfacesProp && allowedSurfacesProp.length > 0 ? allowedSurfacesProp : ['message'];
 
+  // Compose-only mode: the send trio is all-or-nothing (enforced at the type
+  // level by `BlockKitchenProps`). When absent, the toolbar renders no send
+  // button and the send/edit dialogs never mount — the builder is a pure
+  // editor and the host owns the send flow via `onChange` +
+  // `onValidationChange`.
+  const sendEnabled = Boolean(loadChannels && loadSendAsUserStatus && onSend);
+  // Edit mode depends on the send integration (channel list, user-token
+  // status, the update dialog), so it only counts when the trio is wired.
+  const editingConfig = sendEnabled ? editing : undefined;
+
   // A pre-loaded edit target (opt-in) carries its own blocks; they seed the
   // draft and win over `initialBlocks`, which is the blank-canvas seed.
-  const seededBlocks = editing?.initialTarget?.blocks ?? initialBlocks;
-  // Mount-only: both props are read once at mount, so warn once.
+  const seededBlocks = editingConfig?.initialTarget?.blocks ?? initialBlocks;
+  // Mount-only: these props are read once at mount, so warn once.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only check
   useEffect(() => {
-    if (editing?.initialTarget && initialBlocks) {
+    if (editingConfig?.initialTarget && initialBlocks) {
       console.warn(
         '[BlockKitchen] Both `initialBlocks` and `editing.initialTarget` were provided; ' +
           'using the target’s blocks and ignoring `initialBlocks`.'
+      );
+    }
+    const sendPropsProvided = [loadChannels, loadSendAsUserStatus, onSend].filter(Boolean).length;
+    if (sendPropsProvided > 0 && sendPropsProvided < 3) {
+      console.warn(
+        '[BlockKitchen] Partial send wiring: `loadChannels`, `loadSendAsUserStatus`, and `onSend` ' +
+          'are all-or-nothing. The send button is hidden until all three are provided.'
+      );
+    }
+    if (editing && !sendEnabled) {
+      console.warn(
+        '[BlockKitchen] `editing` requires the send integration (`loadChannels`, ' +
+          '`loadSendAsUserStatus`, `onSend`); ignoring `editing`.'
+      );
+    }
+    if (renderSendExtras && !sendEnabled) {
+      console.warn(
+        '[BlockKitchen] `renderSendExtras` extends the built-in send dialog, which requires the ' +
+          'send integration (`loadChannels`, `loadSendAsUserStatus`, `onSend`); ignoring `renderSendExtras`.'
+      );
+    }
+    if (primaryAction && sendEnabled) {
+      console.warn(
+        '[BlockKitchen] `primaryAction` is only available in compose-only mode — with the send ' +
+          'integration wired, the built-in Send/Update flow owns the toolbar’s primary action; ' +
+          'ignoring `primaryAction`.'
       );
     }
   }, []);
@@ -138,11 +194,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
   // the current blocks as a new message (`sendOpen`).
   const [updateOpen, setUpdateOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
-  const [editTarget, setEditTarget] = useState<EditTarget | null>(() => editing?.initialTarget ?? null);
+  const [editTarget, setEditTarget] = useState<EditTarget | null>(() => editingConfig?.initialTarget ?? null);
   // Edit mode only counts as active while `editing` is configured. If the host
   // toggles `editing` off mid-session, fall back to send-only without losing
   // the loaded target (it reactivates if `editing` returns).
-  const activeEditTarget = editing ? editTarget : null;
+  const activeEditTarget = editingConfig ? editTarget : null;
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
@@ -176,6 +232,30 @@ export function BlockKitchen(props: BlockKitchenProps) {
   // to `modal`, drop in modal-only blocks, see `errorCount === 0`, and have
   // Send accept a payload Slack will reject.
   const validation = useBlockKitValidation(blocks, 'message');
+
+  // The host-facing snapshot of the verdict: what `onValidationChange`
+  // reports and what a compose-only `primaryAction` click receives.
+  const validationSummary = useMemo<ValidationSummary>(
+    () => ({ valid: validation.valid, errorCount: validation.total, errors: validation.errors }),
+    [validation]
+  );
+
+  // Report the verdict to the host only when it actually changes: the hook
+  // re-runs (with a fresh object identity) on every debounced pass, and the
+  // callback prop is often an inline arrow, so both are deduped against the
+  // last-notified key rather than used as change signals themselves.
+  const lastNotifiedValidationRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!onValidationChange) {
+      return;
+    }
+    const key = JSON.stringify([validationSummary.valid, validationSummary.errorCount, ...validationSummary.errors]);
+    if (lastNotifiedValidationRef.current === key) {
+      return;
+    }
+    lastNotifiedValidationRef.current = key;
+    onValidationChange(validationSummary);
+  }, [validationSummary, onValidationChange]);
 
   // Touch needs a 150ms press-and-hold to start a drag so scrolling the
   // surface doesn't accidentally pick up a block. Pointer keeps the small
@@ -310,8 +390,21 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 // host app fully owns the theme; otherwise honor the prop.
                 showThemeControl={isPreviewThemeControlled ? false : showThemeControl}
                 docsLink={docsLink}
+                showSend={sendEnabled}
+                // Compose-only mode only: with the send integration wired,
+                // the built-in Send/Update flow owns the primary slot (and a
+                // mount-time warning covers untyped consumers passing both).
+                primaryAction={
+                  !sendEnabled && primaryAction
+                    ? {
+                        label: primaryAction.label,
+                        onClick: () => primaryAction.onClick({ blocks: blockPayloads, validation: validationSummary }),
+                        disabled: primaryAction.disableWhenInvalid ? !validationSummary.valid : false
+                      }
+                    : null
+                }
                 sendButtonLabel={sendButtonLabel}
-                editingEnabled={!!editing}
+                editingEnabled={!!editingConfig}
                 editBadge={
                   activeEditTarget
                     ? {
@@ -407,29 +500,33 @@ export function BlockKitchen(props: BlockKitchenProps) {
             <JsonDrawer open={jsonOpen} onOpenChange={setJsonOpen} blocks={blockPayloads} onApply={replaceAll} />
             {/* The Send dialog always posts a brand-new message (used by both
               plain Send and the edit-mode "Send as a new message"). The Update
-              dialog (channel locked) only exists while a message is loaded. */}
-            <SendDialog
-              open={sendOpen}
-              onOpenChange={setSendOpen}
-              blocks={blockPayloads}
-              loadChannels={loadChannels}
-              loadSendAsUserStatus={loadSendAsUserStatus}
-              onSend={onSend}
-              confirmSendLabel={confirmSendLabel}
-              errorCount={validation.total}
-              onShowIssues={() => {
-                setSendOpen(false);
-                setIssuesOpen(true);
-              }}
-            />
-            {activeEditTarget && editing ? (
+              dialog (channel locked) only exists while a message is loaded.
+              None of the three mount in compose-only mode. */}
+            {loadChannels && loadSendAsUserStatus && onSend ? (
+              <SendDialog
+                open={sendOpen}
+                onOpenChange={setSendOpen}
+                blocks={blockPayloads}
+                loadChannels={loadChannels}
+                loadSendAsUserStatus={loadSendAsUserStatus}
+                onSend={onSend}
+                renderSendExtras={renderSendExtras}
+                confirmSendLabel={confirmSendLabel}
+                errorCount={validation.total}
+                onShowIssues={() => {
+                  setSendOpen(false);
+                  setIssuesOpen(true);
+                }}
+              />
+            ) : null}
+            {activeEditTarget && editingConfig && loadSendAsUserStatus ? (
               <UpdateDialog
                 open={updateOpen}
                 onOpenChange={setUpdateOpen}
                 target={activeEditTarget}
                 blocks={blockPayloads}
                 loadSendAsUserStatus={loadSendAsUserStatus}
-                onUpdate={editing.onUpdate}
+                onUpdate={editingConfig.onUpdate}
                 confirmUpdateLabel={confirmUpdateLabel}
                 errorCount={validation.total}
                 onShowIssues={() => {
@@ -438,12 +535,12 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 }}
               />
             ) : null}
-            {editing ? (
+            {editingConfig && loadChannels ? (
               <LoadMessageDialog
                 open={loadOpen}
                 onOpenChange={setLoadOpen}
-                onLoadMessage={editing.onLoadMessage}
-                loadRecentMessages={editing.loadRecentMessages}
+                onLoadMessage={editingConfig.onLoadMessage}
+                loadRecentMessages={editingConfig.loadRecentMessages}
                 loadChannels={loadChannels}
                 onLoaded={(result) => {
                   replaceAll(result.blocks);

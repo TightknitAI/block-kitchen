@@ -1,4 +1,7 @@
 export { BlockKitchen } from './components/block-kitchen';
+export type { SendDialogProps } from './components/send-dialog';
+export { SendDialog } from './components/send-dialog';
+export { SlackSignInButton, useSlackSignIn } from './components/slack-sign-in';
 export { TemplatePicker } from './components/template-picker';
 export type {
   BrandPreset,
@@ -15,7 +18,10 @@ export {
 export type {
   AlertBlock,
   AlertLevel,
+  BlockKitchenBaseProps,
+  BlockKitchenComposeOnlyProps,
   BlockKitchenProps,
+  BlockKitchenSendProps,
   BuilderBlock,
   CardBlock,
   CarouselBlock,
@@ -49,8 +55,11 @@ export type {
   PreviewHooks,
   PreviewSurface,
   PreviewTheme,
+  PrimaryActionConfig,
+  PrimaryActionContext,
   RecentMessage,
   SendAsUserStatus,
+  SendExtrasContext,
   SendPayload,
   SendResult,
   SupportedBlock,
@@ -65,5 +74,6 @@ export type {
   UpdatePayload,
   UpdateResult,
   UrlSourceElement,
+  ValidationSummary,
   VideoBlock
 } from './types';
