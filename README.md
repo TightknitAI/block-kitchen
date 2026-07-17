@@ -112,8 +112,8 @@ export function MyBuilderPage() {
 | `renderSendExtras` | `(ctx: SendExtrasContext) => ReactNode` | no | Renders host-defined fields inside the built-in send dialog, below the channel and identity pickers. Collect values with `ctx.setExtras(patch)`; they arrive on `onSend` as `payload.extras`. Requires the send trio. See [Extending the send dialog](#extending-the-send-dialog-custom-fields). |
 | `primaryAction` | `{ label, onClick, disableWhenInvalid? }` | no | Compose-only mode only: a host-owned button in the toolbar slot where "Review & send" normally sits. `onClick` receives `{ blocks, validation }` — the current draft plus the same verdict `onValidationChange` reports. See [Keeping the CTA in the toolbar](#keeping-the-cta-in-the-toolbar-primaryaction). |
 | `loading` | `{ onLoadMessage, loadRecentMessages?, loadChannels?, initialTarget?, onLoadedMessageChange? }` | no | Opt-in: [load an existing message](#loading-an-existing-message-opt-in) into the editor. Adds a "Find message" toolbar entry — the user pastes a Slack permalink (or picks a recent message) and the draft is hydrated with its blocks. Loading is a *composition* concern, so it works in **both** send mode and compose-only mode. `onLoadedMessageChange` reports the loaded target (`null` on exit) so a host-owned commitment step can stay in sync. |
-| `editing` | `{ onUpdate }` | no | Opt-in update-in-place mode (send mode only). With a load source configured (`loading`), a loaded message flips the primary action to a "Review & update" split button wired to `onUpdate` (`chat.update`). The legacy bundle shape (`onLoadMessage` etc. on `editing`) still works but is deprecated — move load fields to `loading`. |
-| `loadButtonLabel` | `string` | no | Label + accessible name for the toolbar button that opens the load-message dialog. Defaults to `'Find message'`. Only shown when `loading` (or legacy `editing` load fields) is configured. |
+| `editing` | `{ onUpdate }` | no | Opt-in update-in-place mode (send mode only). With `loading` configured, a loaded message flips the primary action to a "Review & update" split button wired to `onUpdate` (`chat.update`). |
+| `loadButtonLabel` | `string` | no | Label + accessible name for the toolbar button that opens the load-message dialog. Defaults to `'Find message'`. Only shown when `loading` is configured. |
 | `updateButtonLabel` | `string` | no | Label for the toolbar's primary button while a message is loaded for editing. It's a split button: clicking it updates the message in place; the menu beside it also offers "Send as a new message" (post the current blocks as new). Defaults to `'Review & update'`. |
 | `confirmUpdateLabel` | `string` | no | Label for the update dialog's final confirm button. Defaults to `'Update message'` (shows `'Updating…'` while in flight). |
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
@@ -388,10 +388,17 @@ a brand-new message via the regular Send flow — there's just no in-place
 update. In compose-only mode `editing` doesn't exist; implement your own
 update against the target from `loadedMessage` / `onLoadedMessageChange`.
 
-> **Migrating from the pre-split `editing` bundle:** `onLoadMessage`,
-> `loadRecentMessages`, and `initialTarget` used to live on `editing` and
-> still work there (deprecated, send mode only). Move them to `loading`
-> unchanged; `editing` keeps only `onUpdate`.
+> **Migrating from the pre-split `editing` bundle (≤ 0.9.x):**
+> `onLoadMessage`, `loadRecentMessages`, and `initialTarget` used to live on
+> `editing`. Move them to `loading` unchanged; `editing` keeps only
+> `onUpdate`.
+>
+> ```tsx
+> // Before
+> <BlockKitchen editing={{ onLoadMessage, onUpdate, loadRecentMessages }} />
+> // After
+> <BlockKitchen loading={{ onLoadMessage, loadRecentMessages }} editing={{ onUpdate }} />
+> ```
 
 ## Customizing the palette
 

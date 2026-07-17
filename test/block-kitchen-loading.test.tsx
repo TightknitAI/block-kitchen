@@ -134,26 +134,6 @@ it('shows the update split button when `loading` pairs with `editing.onUpdate`',
   expect(screen.getByRole('button', { name: /review & update/i })).toBeTruthy();
 });
 
-it('prefers `loading` and warns when legacy `editing` load fields are also given', () => {
-  const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  const legacyTarget = { ...okResult, channelName: 'legacy-channel' };
-  render(
-    <BlockKitchen
-      {...sendProps}
-      loading={{ ...loading, initialTarget: okResult }}
-      editing={{
-        onLoadMessage: async () => okResult,
-        onUpdate: async () => ({ ok: true }),
-        initialTarget: legacyTarget
-      }}
-    />
-  );
-  expect(warn).toHaveBeenCalledWith(expect.stringMatching(/Both `loading` and `editing`/));
-  // `loading.initialTarget` won: the banner shows its channel, not legacy's.
-  expect(screen.getByText('#general')).toBeTruthy();
-  expect(screen.queryByText('#legacy-channel')).toBeNull();
-});
-
 it('warns when `editing.onUpdate` has no load source at all', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   render(<BlockKitchen {...sendProps} editing={{ onUpdate: async () => ({ ok: true }) }} />);

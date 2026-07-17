@@ -796,34 +796,16 @@ export interface LoadingConfig {
  * Opt-in update-in-place configuration (send mode only). Presence of
  * {@link BlockKitchenProps.editing} enables dispatching a `chat.update` for
  * a loaded message; a message gets loaded via
- * {@link BlockKitchenBaseProps.loading} (or this config's deprecated load
- * fields). The package stays integration-agnostic — it makes no network
- * calls and has no Slack-token knowledge; the host brokers I/O and computes
- * the editability verdict.
+ * {@link BlockKitchenBaseProps.loading}. The package stays
+ * integration-agnostic — it makes no network calls and has no Slack-token
+ * knowledge; the host brokers I/O and computes the editability verdict.
  */
 export interface EditingConfig {
-  /**
-   * @deprecated Moved to {@link LoadingConfig.onLoadMessage} — loading is a
-   * composition concern and now works without the send integration (e.g. in
-   * compose-only mode). Still honored here when
-   * {@link BlockKitchenBaseProps.loading} is absent.
-   */
-  onLoadMessage?: (input: LoadMessageInput) => Promise<LoadResult>;
   /**
    * Dispatches the update for the loaded message. Sibling to
    * {@link BlockKitchenProps.onSend}; carries `channel + ts`.
    */
   onUpdate: (payload: UpdatePayload) => Promise<UpdateResult>;
-  /**
-   * @deprecated Moved to {@link LoadingConfig.loadRecentMessages}. Still
-   * honored here when {@link BlockKitchenBaseProps.loading} is absent.
-   */
-  loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
-  /**
-   * @deprecated Moved to {@link LoadingConfig.initialTarget}. Still honored
-   * here when {@link BlockKitchenBaseProps.loading} is absent.
-   */
-  initialTarget?: Extract<LoadResult, { ok: true }>;
 }
 
 /**
@@ -962,15 +944,13 @@ export interface BlockKitchenBaseProps {
    * the built-in update-in-place flow, or consume
    * {@link PrimaryActionContext.loadedMessage} /
    * {@link LoadingConfig.onLoadedMessageChange} (compose-only) to run your
-   * own. Takes precedence over the deprecated load fields on
-   * {@link EditingConfig}.
+   * own.
    */
   loading?: LoadingConfig;
   /**
    * Label + accessible name for the toolbar button that opens the
    * load-message dialog. Defaults to `'Find message'`. Only shown when
-   * loading is configured ({@link BlockKitchenBaseProps.loading} or legacy
-   * {@link BlockKitchenProps.editing} load fields).
+   * {@link BlockKitchenBaseProps.loading} is configured.
    */
   loadButtonLabel?: string;
   /**
@@ -1154,12 +1134,12 @@ export interface BlockKitchenSendProps {
    */
   onSend: (payload: SendPayload) => Promise<SendResult>;
   /**
-   * Opt-in update-in-place mode. When provided alongside a load source
-   * ({@link BlockKitchenBaseProps.loading}, or this config's deprecated load
-   * fields), a loaded message flips the primary action from Send to "Update
-   * message" ({@link EditingConfig.onUpdate}). Omit to keep send-only
-   * behavior: with `loading` alone, a loaded message can still be posted as
-   * a brand-new message. The user-token path reuses
+   * Opt-in update-in-place mode. When provided alongside
+   * {@link BlockKitchenBaseProps.loading}, a loaded message flips the
+   * primary action from Send to "Update message"
+   * ({@link EditingConfig.onUpdate}). Omit to keep send-only behavior: with
+   * `loading` alone, a loaded message can still be posted as a brand-new
+   * message. The user-token path reuses
    * {@link BlockKitchenSendProps.loadSendAsUserStatus}.
    */
   editing?: EditingConfig;

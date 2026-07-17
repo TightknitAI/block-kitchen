@@ -120,10 +120,7 @@ it('warns and ignores `renderSendExtras` when the send trio is absent', () => {
 it('warns and ignores `editing` when the send trio is absent', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
   const editingOnly = {
-    editing: {
-      onLoadMessage: async () => ({ ok: false as const, reason: 'n/a' }),
-      onUpdate: async () => ({ ok: true })
-    }
+    editing: { onUpdate: async () => ({ ok: true }) }
   } as unknown as BlockKitchenProps;
   render(<BlockKitchen {...editingOnly} />);
   expect(warn).toHaveBeenCalledWith(expect.stringMatching(/`editing` requires the send integration/));
@@ -137,10 +134,7 @@ it('warns and ignores `editing` when the send trio is absent', () => {
 const partialWiring: BlockKitchenProps = { loadChannels: sendProps.loadChannels };
 // @ts-expect-error `editing` is unavailable without the send trio
 const editingWithoutSend: BlockKitchenProps = {
-  editing: {
-    onLoadMessage: async () => ({ ok: false, reason: 'n/a' }),
-    onUpdate: async () => ({ ok: true })
-  }
+  editing: { onUpdate: async () => ({ ok: true }) }
 };
 // @ts-expect-error `renderSendExtras` extends the send dialog, so it requires the send trio
 const extrasWithoutSend: BlockKitchenProps = { renderSendExtras: () => null };

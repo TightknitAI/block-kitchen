@@ -147,26 +147,12 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const sendEnabled = Boolean(loadChannels && loadSendAsUserStatus && onSend);
 
   // Loading an existing message is a *composition* concern, so it works in
-  // both modes. `loading` is the first-class config; the legacy `editing`
-  // bundle (send mode only) still carries load fields for back-compat and is
-  // normalized into the same shape here. `loading` wins when both are given.
-  const legacyEditingLoad =
-    sendEnabled && editing?.onLoadMessage
-      ? {
-          onLoadMessage: editing.onLoadMessage,
-          loadRecentMessages: editing.loadRecentMessages,
-          // Legacy bundles never carried their own channel source; the send
-          // trio's `loadChannels` scopes the recent picker (as it always did).
-          loadChannels: undefined,
-          initialTarget: editing.initialTarget
-        }
-      : undefined;
-  const loadingConfig = loading ?? legacyEditingLoad;
-  const loadEnabled = Boolean(loadingConfig);
+  // both modes — `loading` lives on the base props, independent of the trio.
+  const loadEnabled = Boolean(loading);
   // The recent-messages picker needs a channel list to scope its lookup:
   // `loading.loadChannels` when given, else the send integration's. With
   // neither, the picker is withheld and only the paste-link entry renders.
-  const recentChannelSource = loadingConfig?.loadChannels ?? (sendEnabled ? loadChannels : undefined);
+  const recentChannelSource = loading?.loadChannels ?? (sendEnabled ? loadChannels : undefined);
 
   // Updating in place is a *distribution* concern (`chat.update` is bound to
   // a channel + timestamp + token), so it only exists with the send
@@ -175,11 +161,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
 
   // A pre-loaded target (opt-in) carries its own blocks; they seed the
   // draft and win over `initialBlocks`, which is the blank-canvas seed.
-  const seededBlocks = loadingConfig?.initialTarget?.blocks ?? initialBlocks;
+  const seededBlocks = loading?.initialTarget?.blocks ?? initialBlocks;
   // Mount-only: these props are read once at mount, so warn once.
   // biome-ignore lint/correctness/useExhaustiveDependencies: intentional mount-only check
   useEffect(() => {
-    if (loadingConfig?.initialTarget && initialBlocks) {
+    if (loading?.initialTarget && initialBlocks) {
       console.warn(
         '[BlockKitchen] Both `initialBlocks` and an `initialTarget` were provided; ' +
           'using the target’s blocks and ignoring `initialBlocks`.'
@@ -199,19 +185,13 @@ export function BlockKitchen(props: BlockKitchenProps) {
           'without the send integration, use the `loading` prop instead.'
       );
     }
-    if (loading && sendEnabled && editing?.onLoadMessage) {
-      console.warn(
-        '[BlockKitchen] Both `loading` and `editing`’s deprecated load fields were provided; ' +
-          'using `loading` and ignoring `editing.onLoadMessage` / `loadRecentMessages` / `initialTarget`.'
-      );
-    }
-    if (sendEnabled && editing && !loadingConfig) {
+    if (sendEnabled && editing && !loading) {
       console.warn(
         '[BlockKitchen] `editing.onUpdate` needs a loaded message, but no load source is ' +
           'configured — provide the `loading` prop. The update flow is unreachable.'
       );
     }
-    if (loadingConfig?.loadRecentMessages && !recentChannelSource) {
+    if (loading?.loadRecentMessages && !recentChannelSource) {
       console.warn(
         '[BlockKitchen] `loading.loadRecentMessages` needs a channel list to scope its lookup — ' +
           'provide `loading.loadChannels` (compose-only mode has no send integration to reuse). ' +
@@ -253,15 +233,15 @@ export function BlockKitchen(props: BlockKitchenProps) {
 
   const [jsonOpen, setJsonOpen] = useState(false);
   const [sendOpen, setSendOpen] = useState(false);
-  // Loading (opt-in via `loading` / legacy `editing`). `editTarget` is the
-  // loaded message; when set, send mode's split button can update it in
-  // place (`updateOpen`) or post the current blocks as new (`sendOpen`),
-  // and compose-only hosts receive it via `primaryAction` context /
+  // Loading (opt-in via `loading`). `editTarget` is the loaded message;
+  // when set, send mode's split button can update it in place
+  // (`updateOpen`) or post the current blocks as new (`sendOpen`), and
+  // compose-only hosts receive it via `primaryAction` context /
   // `onLoadedMessageChange`.
   const [updateOpen, setUpdateOpen] = useState(false);
   const [loadOpen, setLoadOpen] = useState(false);
   const [editTarget, setEditTarget] = useState<LoadedMessage | null>(() =>
-    loadingConfig?.initialTarget ? toLoadedMessage(loadingConfig.initialTarget) : null
+    loading?.initialTarget ? toLoadedMessage(loading.initialTarget) : null
   );
   // A loaded message only counts as active while loading is configured. If
   // the host toggles the config off mid-session, fall back to plain
@@ -629,15 +609,15 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 }}
               />
             ) : null}
-            {loadingConfig ? (
+            {loading ? (
               <LoadMessageDialog
                 open={loadOpen}
                 onOpenChange={setLoadOpen}
-                onLoadMessage={loadingConfig.onLoadMessage}
+                onLoadMessage={loading.onLoadMessage}
                 // The recent-messages picker needs a channel source to scope
                 // its lookup; withhold the loader without one so only the
                 // paste-link entry renders (warned at mount).
-                loadRecentMessages={recentChannelSource ? loadingConfig.loadRecentMessages : undefined}
+                loadRecentMessages={recentChannelSource ? loading.loadRecentMessages : undefined}
                 loadChannels={recentChannelSource}
                 onLoaded={(result) => {
                   replaceAll(result.blocks);
