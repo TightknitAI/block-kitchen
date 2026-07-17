@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.9.9](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.8...block-kitchen-v0.9.9) (2026-07-07)
+
+
+### Features
+
+* add accepted state indicator and Done button to JsonDrawer ([6b4b691](https://github.com/TightknitAI/block-kitchen/commit/6b4b6917fe0279d3cade9d3a9c260e5005092d4d))
+
+## [0.9.8](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.7...block-kitchen-v0.9.8) (2026-07-02)
+
+
+### Bug Fixes
+
+* drop preview_images from data_visualization blocks on retrieval ([8706a80](https://github.com/TightknitAI/block-kitchen/commit/8706a800b22e25ab18fdcd3294b68bdea52db9c1))
+* **sanitize:** drop retrieval-only preview_images from data_visualization ([5ed158c](https://github.com/TightknitAI/block-kitchen/commit/5ed158cf0a0c5d2e27069f4018267b1006922e75))
+
+## [0.9.7](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.6...block-kitchen-v0.9.7) (2026-07-02)
+
+
+### Bug Fixes
+
+* **styles:** scope bk-utilities layer to .bk-root / .bk-portal-content ([c12ee96](https://github.com/TightknitAI/block-kitchen/commit/c12ee96869bdc5943b8062dba6f2043bf3758c1c))
+* **styles:** scope bk-utilities layer to .bk-root / .bk-portal-content ([f91db17](https://github.com/TightknitAI/block-kitchen/commit/f91db17b03595d07c6ef86b96af48ae59280453d))
+
+## [0.9.6](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.5...block-kitchen-v0.9.6) (2026-07-02)
+
+
+### Features
+
+* **editing:** pre-load a message into edit mode via editing.initialTarget ([aa73bf6](https://github.com/TightknitAI/block-kitchen/commit/aa73bf66fe945ec5406d64a0860783039f8a51d9))
+* **editing:** pre-load a message into edit mode via editing.initialTarget ([a7ed7e8](https://github.com/TightknitAI/block-kitchen/commit/a7ed7e87d6cc8d861c88642a944edc633b54b176))
+
 ## [0.9.5](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.4...block-kitchen-v0.9.5) (2026-07-01)
 
 

@@ -14,13 +14,13 @@
     "slack-web-api-client": "^1.1.14"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.3.1",
+    "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.1.0",
-    "@vitejs/plugin-react": "^6.0.2",
-    "tailwindcss": "^4.3.1",
+    "@vitejs/plugin-react": "^6.0.3",
+    "tailwindcss": "^4.3.3",
     "typescript": "^6.0.3",
-    "vite": "^8.0.16"
+    "vite": "^8.1.5"
   },
   "pnpm": {
     "onlyBuiltDependencies": ["esbuild"]

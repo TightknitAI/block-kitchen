@@ -105,19 +105,15 @@ describe('rich-text editor config: input rules (ENG-4850 #2)', () => {
 describe('rich-text editor config: autolink (ENG-4850 #1)', () => {
   // The autolinker fires when a space is typed after a URL-like token, so
   // we type the token followed by a space (char-by-char) to exercise it.
-  it.each([
-    '2.xyz',
-    'report.zip',
-    'logo.png',
-    'example.com',
-    'www.example.com',
-    'v2.api'
-  ])('does NOT auto-link bare host-like token %p', (token) => {
-    const editor = makeEditor();
-    typeText(editor, `${token} `);
-    expect(hasMark(editor, 'link')).toBe(false);
-    editor.destroy();
-  });
+  it.each(['2.xyz', 'report.zip', 'logo.png', 'example.com', 'www.example.com', 'v2.api'])(
+    'does NOT auto-link bare host-like token %p',
+    (token) => {
+      const editor = makeEditor();
+      typeText(editor, `${token} `);
+      expect(hasMark(editor, 'link')).toBe(false);
+      editor.destroy();
+    }
+  );
 
   it('DOES auto-link a URL typed with an explicit https scheme', () => {
     const editor = makeEditor();

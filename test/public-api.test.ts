@@ -58,15 +58,12 @@ describe('url-state', () => {
     expect(encodeBlocksToString([])).toBe('');
   });
 
-  it.each([
-    null,
-    undefined,
-    '',
-    'not-base64!!!',
-    'eyJub3QiOiJhbiBhcnJheSJ9'
-  ])('decodes invalid input %p to null', (input) => {
-    expect(decodeBlocksFromString(input)).toBeNull();
-  });
+  it.each([null, undefined, '', 'not-base64!!!', 'eyJub3QiOiJhbiBhcnJheSJ9'])(
+    'decodes invalid input %p to null',
+    (input) => {
+      expect(decodeBlocksFromString(input)).toBeNull();
+    }
+  );
 
   it('preserves multibyte (utf-8) text through the roundtrip', () => {
     const blocks: SupportedBlock[] = [

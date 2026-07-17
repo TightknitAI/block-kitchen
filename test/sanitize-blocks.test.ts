@@ -136,6 +136,30 @@ describe('retrieval-only image metadata', () => {
     expect(Object.hasOwn(out.elements[0], 'image_bytes')).toBe(false);
   });
 
+  it('drops preview_images Slack adds to retrieved data_visualization blocks', () => {
+    const block = {
+      type: 'data_visualization',
+      title: 'Weekly active users',
+      chart: { type: 'line', series: [] },
+      preview_images: [{ url: 'https://slack.example/chart.png' }]
+    } as unknown as SupportedBlock;
+    const out = sanitizeBlock(block) as Record<string, unknown>;
+    expect(Object.hasOwn(out, 'preview_images')).toBe(false);
+    expect(out.title).toBe('Weekly active users');
+    expect(out.chart).toBeDefined();
+  });
+
+  it('leaves preview_images untouched on non-data_visualization objects', () => {
+    const block = {
+      type: 'section',
+      text: { type: 'mrkdwn', text: 'hi' },
+      preview_images: ['keep me']
+    } as unknown as SupportedBlock;
+    const out = sanitizeBlock(block) as Record<string, unknown>;
+    expect(out.preview_images).toEqual(['keep me']);
+    expect(out).toBe(block);
+  });
+
   it('leaves the same field names untouched on non-image objects', () => {
     const block = {
       type: 'section',
