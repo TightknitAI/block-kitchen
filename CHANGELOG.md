@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.9.10](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.9...block-kitchen-v0.9.10) (2026-07-17)
+
+
+### Features
+
+* caller-customized send — compose-only mode, send-dialog extras, exported primitives ([5c8b33e](https://github.com/TightknitAI/block-kitchen/commit/5c8b33e0cd9690ca135f96a8bc0a6c91ffe68708))
+* send-dialog extras slot, compose-only primaryAction, exported send primitives ([122c2d3](https://github.com/TightknitAI/block-kitchen/commit/122c2d3c67447246af5f99a03a6d5f849f466cc1))
+
 ## [0.9.9](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.8...block-kitchen-v0.9.9) (2026-07-07)
 
 
