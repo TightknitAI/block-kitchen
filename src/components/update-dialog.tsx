@@ -5,19 +5,8 @@ import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Label } from '../lib/ui/label';
 import { isSafeHref } from '../lib/url-safety';
-import type { EditableVia, SendAsUserStatus, SupportedBlock, UpdatePayload, UpdateResult } from '../types';
+import type { LoadedMessage, SendAsUserStatus, SupportedBlock, UpdatePayload, UpdateResult } from '../types';
 import { SlackSignInButton, useSlackSignIn } from './slack-sign-in';
-
-/** The loaded message being edited. Destination + identity are fixed by the host's verdict. */
-export interface EditTarget {
-  channelId: string;
-  channelName?: string;
-  ts: string;
-  editableVia: EditableVia;
-  workspaceName?: string;
-  username?: string;
-  iconUrl?: string;
-}
 
 type UpdateStatus = { kind: 'idle' } | { kind: 'updating' } | { kind: 'error'; error: string };
 
@@ -53,7 +42,7 @@ export function UpdateDialog({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  target: EditTarget;
+  target: LoadedMessage;
   blocks: SupportedBlock[];
   loadSendAsUserStatus: () => Promise<SendAsUserStatus>;
   onUpdate: (payload: UpdatePayload) => Promise<UpdateResult>;

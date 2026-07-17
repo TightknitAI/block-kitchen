@@ -568,6 +568,14 @@ export interface PrimaryActionContext {
    * {@link BlockKitchenBaseProps.onValidationChange} reports.
    */
   validation: ValidationSummary;
+  /**
+   * The existing message currently loaded into the builder (via
+   * {@link BlockKitchenBaseProps.loading}), or `null` when composing a new
+   * message. Carries `channelId` + `ts` + the host's editability verdict, so
+   * a host-owned commitment step can offer "update in place" alongside
+   * "post as new".
+   */
+  loadedMessage: LoadedMessage | null;
 }
 
 /**
@@ -604,7 +612,7 @@ export interface PrimaryActionConfig {
 export type EditableVia = 'bot' | 'user';
 
 /**
- * Input passed to {@link EditingConfig.onLoadMessage}. The user pastes a
+ * Input passed to {@link LoadingConfig.onLoadMessage}. The user pastes a
  * Slack message permalink (Slack's "Copy link"); the host parses
  * `channel + ts` out of it — the package never touches raw timestamps.
  */
@@ -613,11 +621,46 @@ export interface LoadMessageInput {
 }
 
 /**
- * Result of loading an existing message for editing, computed by the host.
+ * The existing message currently loaded into the builder: its source
+ * coordinates (`channelId` + `ts`), the host's editability verdict, and
+ * display metadata for the preview header / loaded banner. The `ok` branch
+ * of {@link LoadResult} is this plus `blocks`, so the loaded-message field
+ * list lives in exactly one place. Reported through
+ * {@link LoadingConfig.onLoadedMessageChange} and
+ * {@link PrimaryActionContext.loadedMessage}, and consumed by the built-in
+ * update flow ({@link BlockKitchenSendProps.onUpdate}).
+ */
+export interface LoadedMessage {
+  channelId: string;
+  /**
+   * Channel name for the loaded banner (display only). Falls back to
+   * `channelId`.
+   */
+  channelName?: string;
+  ts: string;
+  editableVia: EditableVia;
+  workspaceName?: string;
+  /**
+   * Display name of the message's author. When provided, the preview header
+   * shows it instead of `workspaceName`. Optional.
+   */
+  username?: string;
+  /**
+   * Avatar image URL of the message's author, shown in the preview header.
+   * Optional; ignored if it isn't a safe `http(s)` URL.
+   */
+  iconUrl?: string;
+}
+
+/**
+ * Result of loading an existing message, computed by the host.
  *
- * On `ok`, the package enters edit mode: it hydrates the editor with
- * `blocks`, locks the destination to `channelId`, and constrains the
- * post-as identity to `editableVia`.
+ * On `ok` — the {@link LoadedMessage} shape plus `blocks` — the package
+ * hydrates the editor with `blocks` and shows the loaded banner. Only the
+ * *update* flow ({@link BlockKitchenSendProps.onUpdate}) locks the
+ * destination to `channelId` and constrains the post-as identity to
+ * `editableVia`; the plain send dialog always posts a brand-new message
+ * with free channel/identity choice, loaded draft or not.
  *
  * On `!ok`, the package renders the host's `reason` inline and offers
  * "Open as a new message instead". If the message round-trips through the
@@ -626,26 +669,10 @@ export interface LoadMessageInput {
  * attachment-only messages, omit it.
  */
 export type LoadResult =
-  | {
+  | (LoadedMessage & {
       ok: true;
-      channelId: string;
-      /** Channel name for the edit-mode badge (display only). Falls back to `channelId`. */
-      channelName?: string;
-      ts: string;
       blocks: SupportedBlock[];
-      editableVia: EditableVia;
-      workspaceName?: string;
-      /**
-       * Display name of the existing message's author. When provided, the
-       * preview header shows it instead of `workspaceName`. Optional.
-       */
-      username?: string;
-      /**
-       * Avatar image URL of the existing message's author, shown in the
-       * preview header. Optional; ignored if it isn't a safe `http(s)` URL.
-       */
-      iconUrl?: string;
-    }
+    })
   | {
       ok: false;
       reason: string;
@@ -661,7 +688,7 @@ export type LoadResult =
     };
 
 /**
- * Payload passed to {@link EditingConfig.onUpdate}. Sibling to
+ * Payload passed to {@link BlockKitchenSendProps.onUpdate}. Sibling to
  * {@link SendPayload} but carries the source `channel + ts`. `chat.update`
  * requires re-sending the full blocks payload (no partial update).
  */
@@ -673,7 +700,7 @@ export interface UpdatePayload {
 }
 
 /**
- * Result returned from {@link EditingConfig.onUpdate}. Mirrors
+ * Result returned from {@link BlockKitchenSendProps.onUpdate}. Mirrors
  * {@link SendResult}; `error` is rendered as-is.
  */
 export interface UpdateResult {
@@ -683,7 +710,7 @@ export interface UpdateResult {
 
 /**
  * One entry in the "recent messages from this app" picker, returned by
- * {@link EditingConfig.loadRecentMessages} for the selected channel. These are
+ * {@link LoadingConfig.loadRecentMessages} for the selected channel. These are
  * editable-by-construction — the app authored them — so they load straight into
  * edit mode without a separate verdict round-trip. `editableVia` defaults to
  * `'bot'` when omitted.
@@ -705,41 +732,68 @@ export interface RecentMessage {
 }
 
 /**
- * Opt-in edit-mode configuration. Presence of {@link BlockKitchenProps.editing}
- * enables loading an existing message and dispatching an update; omit it to
- * keep the send-only behavior. The package stays integration-agnostic — it
- * makes no network calls and has no Slack-token knowledge; the host brokers
- * I/O and computes the editability verdict.
+ * Opt-in configuration for loading an existing message into the editor —
+ * a *composition* concern, so it works in both send mode and
+ * [compose-only mode](https://github.com/TightknitAI/block-kitchen#compose-only-mode-bring-your-own-send-flow).
+ * Presence of {@link BlockKitchenBaseProps.loading} adds the toolbar's
+ * "Find message" entry: the user pastes a Slack permalink (or picks a recent
+ * message), the host loads it, and the draft is hydrated with its blocks.
+ *
+ * What happens *after* composing stays mode-specific: in send mode, pair
+ * with {@link BlockKitchenSendProps.onUpdate} to update the message in place;
+ * in compose-only mode the host owns the commitment step and receives the
+ * loaded target via {@link PrimaryActionContext.loadedMessage} /
+ * {@link LoadingConfig.onLoadedMessageChange}.
  */
-export interface EditingConfig {
+export interface LoadingConfig {
   /**
    * Host parses the pasted permalink, fetches the message, and returns a
    * host-computed editability verdict plus blocks. See {@link LoadResult}.
    */
   onLoadMessage: (input: LoadMessageInput) => Promise<LoadResult>;
   /**
-   * Dispatches the update for the loaded message. Sibling to
-   * {@link BlockKitchenProps.onSend}; carries `channel + ts`.
-   */
-  onUpdate: (payload: UpdatePayload) => Promise<UpdateResult>;
-  /**
-   * Optional. When provided, the load dialog adds a "recent messages from this
-   * app" picker alongside the paste-a-link input. The user first picks a channel
-   * (reusing {@link BlockKitchenProps.loadChannels}); only then is this called
-   * with the chosen `channelId`, scoping the lookup to that single channel.
-   * Returns messages the app authored in that channel (editable-by-construction);
-   * picking one loads it straight into edit mode. Omit to offer the paste-link
-   * entry only.
+   * Optional. When provided (together with a channel source — see
+   * {@link LoadingConfig.loadChannels}), the load dialog adds a "recent
+   * messages from this app" picker alongside the paste-a-link input. The user
+   * first picks a channel; only then is this called with the chosen
+   * `channelId`, scoping the lookup to that single channel. Returns messages
+   * the app authored in that channel (editable-by-construction); picking one
+   * loads it directly. Omit to offer the paste-link entry only.
    */
   loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
   /**
-   * Optional. Pre-load a message straight into edit mode at mount, skipping the
-   * load dialog. Same shape the host returns from {@link onLoadMessage} on
-   * success. Read once at mount (like {@link BlockKitchenProps.initialBlocks});
-   * changing it later needs a remount. When set, its `blocks` seed the draft and
-   * {@link BlockKitchenProps.initialBlocks} is ignored.
+   * Channels used to scope the recent-messages picker. Only consulted when
+   * {@link LoadingConfig.loadRecentMessages} is provided. In send mode this
+   * defaults to the send integration's
+   * {@link BlockKitchenSendProps.loadChannels}; in compose-only mode there is
+   * no send integration, so provide it here or the picker is hidden.
+   */
+  loadChannels?: () => Promise<ChannelOption[]>;
+  /**
+   * Optional. Pre-load a message at mount, skipping the load dialog. Same
+   * shape the host returns from {@link LoadingConfig.onLoadMessage} on
+   * success. Read once at mount (like
+   * {@link BlockKitchenBaseProps.initialBlocks}); changing it later needs a
+   * remount. When set, its `blocks` seed the draft and `initialBlocks` is
+   * ignored.
    */
   initialTarget?: Extract<LoadResult, { ok: true }>;
+  /**
+   * Notified when the loaded message changes: the target after a successful
+   * load (including a mount-time {@link LoadingConfig.initialTarget}), and
+   * `null` when the user exits it ("Switch to a new message" / "Open as a
+   * new message instead"). Useful in compose-only mode to keep host state in
+   * sync — e.g. so a host-owned commitment step knows whether to offer
+   * "update in place" without waiting for a
+   * {@link PrimaryActionConfig.onClick}.
+   *
+   * Dedupe is by value, so this can re-fire for the same `channelId` + `ts`
+   * when the host's verdict or display metadata changed (e.g. `editableVia`
+   * flipping after a Slack sign-in) — key host state on the full target,
+   * not `ts` alone. Notifications flow only while `loading` is configured;
+   * removing the config mid-session is treated as unsubscribing.
+   */
+  onLoadedMessageChange?: (message: LoadedMessage | null) => void;
 }
 
 /**
@@ -870,10 +924,21 @@ export interface BlockKitchenBaseProps {
    */
   customEmojis?: CustomEmoji[];
   /**
+   * Opt-in: load an existing Slack message into the editor. Adds a
+   * "Find message" toolbar entry — the user pastes a permalink (or picks a
+   * recent message) and the draft is hydrated with its blocks. Loading is a
+   * *composition* concern, so it works in both send mode and compose-only
+   * mode. Pair with {@link BlockKitchenSendProps.onUpdate} (send mode) for
+   * the built-in update-in-place flow, or consume
+   * {@link PrimaryActionContext.loadedMessage} /
+   * {@link LoadingConfig.onLoadedMessageChange} (compose-only) to run your
+   * own.
+   */
+  loading?: LoadingConfig;
+  /**
    * Label + accessible name for the toolbar button that opens the
-   * load-message dialog (the edit-mode entry point). Defaults to
-   * `'Find message'`. Only shown when {@link BlockKitchenProps.editing} is set
-   * and no message is currently loaded.
+   * load-message dialog. Defaults to `'Find message'`. Only shown when
+   * {@link BlockKitchenBaseProps.loading} is configured.
    */
   loadButtonLabel?: string;
   /**
@@ -885,7 +950,7 @@ export interface BlockKitchenBaseProps {
   updateButtonLabel?: string;
   /**
    * Label for the update dialog's final confirm button, which dispatches the
-   * update via {@link EditingConfig.onUpdate}. Defaults to `'Update message'`
+   * update via {@link BlockKitchenSendProps.onUpdate}. Defaults to `'Update message'`
    * (and shows `'Updating…'` while in flight).
    */
   confirmUpdateLabel?: string;
@@ -1057,14 +1122,16 @@ export interface BlockKitchenSendProps {
    */
   onSend: (payload: SendPayload) => Promise<SendResult>;
   /**
-   * Opt-in edit mode. When provided, the toolbar exposes an "Edit existing
-   * message" entry: the user pastes a Slack message link, the host loads it
-   * and returns an editability verdict ({@link EditingConfig.onLoadMessage}),
-   * and a successful load flips the primary action from Send to "Update
-   * message" ({@link EditingConfig.onUpdate}). Omit to keep send-only
-   * behavior. The user-token path reuses {@link BlockKitchenSendProps.loadSendAsUserStatus}.
+   * Opt-in update-in-place mode. Dispatches the update for the loaded
+   * message — sibling to {@link BlockKitchenSendProps.onSend}, but carries
+   * the source `channel + ts`. When provided alongside
+   * {@link BlockKitchenBaseProps.loading}, a loaded message flips the
+   * primary action from Send to "Update message". Omit to keep send-only
+   * behavior: with `loading` alone, a loaded message can still be posted as
+   * a brand-new message. The user-token path reuses
+   * {@link BlockKitchenSendProps.loadSendAsUserStatus}.
    */
-  editing?: EditingConfig;
+  onUpdate?: (payload: UpdatePayload) => Promise<UpdateResult>;
   /**
    * Renders host-defined fields inside the built-in send dialog, below the
    * channel and identity pickers. Values collected via
@@ -1098,8 +1165,15 @@ export interface BlockKitchenComposeOnlyProps {
   loadChannels?: undefined;
   loadSendAsUserStatus?: undefined;
   onSend?: undefined;
-  /** Edit mode depends on the send integration, so it is unavailable too. */
-  editing?: undefined;
+  /**
+   * The update-in-place flow (`chat.update`) depends on the send
+   * integration, so it is unavailable here. *Loading* an existing message
+   * is a composition concern and stays available via
+   * {@link BlockKitchenBaseProps.loading} — the host receives the loaded
+   * target ({@link PrimaryActionContext.loadedMessage} /
+   * {@link LoadingConfig.onLoadedMessageChange}) and owns any update flow.
+   */
+  onUpdate?: undefined;
   /** Extends the built-in send dialog, which doesn't exist in this mode. */
   renderSendExtras?: undefined;
   /**

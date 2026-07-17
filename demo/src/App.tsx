@@ -591,7 +591,8 @@ export function App() {
               loadChannels={loadChannels}
               loadSendAsUserStatus={loadSendAsUserStatus}
               onSend={onSend}
-              editing={editingEnabled ? { onLoadMessage, onUpdate, loadRecentMessages } : undefined}
+              loading={editingEnabled ? { onLoadMessage, loadRecentMessages } : undefined}
+              onUpdate={editingEnabled ? onUpdate : undefined}
               previewTheme={theme}
               theme={preset}
               allowedSurfaces={['message', 'modal', 'app_home']}
@@ -867,7 +868,7 @@ function EditingMenu({
                 <div>
                   <div style={{ fontWeight: 600, fontSize: 15 }}>Edit-mode demo</div>
                   <div style={{ opacity: 0.7, marginTop: 2 }}>
-                    Mocks the host side of the package's <code>editing</code> prop.
+                    Mocks the host side of the package's <code>loading</code> + <code>onUpdate</code> props.
                   </div>
                 </div>
                 <button
@@ -986,8 +987,8 @@ function EditingMenu({
                   </>
                 ) : (
                   <div style={{ opacity: 0.7 }}>
-                    The <code>editing</code> prop is omitted, so the builder is a plain composer. “Find message” is
-                    hidden and the primary action stays “Send”.
+                    The <code>loading</code> + <code>onUpdate</code> props are omitted, so the builder is a plain
+                    composer. “Find message” is hidden and the primary action stays “Send”.
                   </div>
                 )}
               </div>

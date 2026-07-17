@@ -65,7 +65,8 @@ it('renders the host primaryAction in the toolbar and passes draft + verdict on 
   expect(onClick).toHaveBeenCalledTimes(1);
   expect(onClick).toHaveBeenCalledWith({
     blocks: [{ type: 'divider' }],
-    validation: { valid: true, errorCount: 0, errors: [] }
+    validation: { valid: true, errorCount: 0, errors: [] },
+    loadedMessage: null
   });
 });
 
@@ -116,30 +117,24 @@ it('warns and ignores `renderSendExtras` when the send trio is absent', () => {
   expect(warn).toHaveBeenCalledWith(expect.stringMatching(/`renderSendExtras` extends the built-in send dialog/));
 });
 
-it('warns and ignores `editing` when the send trio is absent', () => {
+it('warns and ignores `onUpdate` when the send trio is absent', () => {
   const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-  const editingOnly = {
-    editing: {
-      onLoadMessage: async () => ({ ok: false as const, reason: 'n/a' }),
-      onUpdate: async () => ({ ok: true })
-    }
+  const updateOnly = {
+    onUpdate: async () => ({ ok: true })
   } as unknown as BlockKitchenProps;
-  render(<BlockKitchen {...editingOnly} />);
-  expect(warn).toHaveBeenCalledWith(expect.stringMatching(/`editing` requires the send integration/));
+  render(<BlockKitchen {...updateOnly} />);
+  expect(warn).toHaveBeenCalledWith(expect.stringMatching(/`onUpdate` requires the send integration/));
   expect(screen.queryByRole('button', { name: /find message/i })).toBeNull();
 });
 
-// Type-level guarantees: the send trio is all-or-nothing; `editing` and
+// Type-level guarantees: the send trio is all-or-nothing; `onUpdate` and
 // `renderSendExtras` require it; `primaryAction` excludes it. These lines are
 // enforced by `pnpm typecheck` (tsc runs over the test tsconfig), not vitest.
 // @ts-expect-error partial send wiring is rejected — the trio is all-or-nothing
 const partialWiring: BlockKitchenProps = { loadChannels: sendProps.loadChannels };
-// @ts-expect-error `editing` is unavailable without the send trio
-const editingWithoutSend: BlockKitchenProps = {
-  editing: {
-    onLoadMessage: async () => ({ ok: false, reason: 'n/a' }),
-    onUpdate: async () => ({ ok: true })
-  }
+// @ts-expect-error `onUpdate` is unavailable without the send trio
+const updateWithoutSend: BlockKitchenProps = {
+  onUpdate: async () => ({ ok: true })
 };
 // @ts-expect-error `renderSendExtras` extends the send dialog, so it requires the send trio
 const extrasWithoutSend: BlockKitchenProps = { renderSendExtras: () => null };
@@ -149,6 +144,6 @@ const primaryActionWithSend: BlockKitchenProps = {
   primaryAction: { label: 'Save template', onClick: () => {} }
 };
 void partialWiring;
-void editingWithoutSend;
+void updateWithoutSend;
 void extrasWithoutSend;
 void primaryActionWithSend;
