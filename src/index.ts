@@ -46,6 +46,8 @@ export type {
   IconButtonElement,
   IconButtonIcon,
   InputBlock,
+  LoadedMessage,
+  LoadingConfig,
   LoadMessageInput,
   LoadResult,
   MarkdownBlock,

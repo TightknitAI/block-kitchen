@@ -111,7 +111,8 @@ export function Toolbar({
   showSend = true,
   primaryAction,
   sendButtonLabel = 'Review & send',
-  editingEnabled = false,
+  loadEnabled = false,
+  updateEnabled = false,
   editBadge,
   onOpenLoad,
   onOpenUpdate,
@@ -147,15 +148,26 @@ export function Toolbar({
    */
   primaryAction?: { label: string; onClick: () => void; disabled?: boolean } | null;
   sendButtonLabel?: string;
-  /** Whether edit mode is configured (shows the "Edit existing message" entry). */
-  editingEnabled?: boolean;
-  /** When set, a message is loaded for editing: renders the edit-mode badge. */
+  /**
+   * Whether loading an existing message is configured: shows the
+   * "Find message" entry and the loaded-message banner. Works in both send
+   * mode and compose-only mode — loading is a composition concern.
+   */
+  loadEnabled?: boolean;
+  /**
+   * Whether the update-in-place flow is available (send mode with
+   * `editing.onUpdate`). With a message loaded, `true` renders the primary
+   * slot as the update split button; `false` keeps the plain send button
+   * (the loaded message can still be posted as new).
+   */
+  updateEnabled?: boolean;
+  /** When set, a message is loaded: renders the loaded-message banner. */
   editBadge?: { channelLabel: string; ts: string } | null;
-  /** Opens the load-message dialog (edit-mode entry point). */
+  /** Opens the load-message dialog (the loading entry point). */
   onOpenLoad?: () => void;
   /** Opens the update dialog (split button's main action + "Update message"). */
   onOpenUpdate?: () => void;
-  /** Switches back to a new message, clearing the loaded edit target. */
+  /** Switches back to a new message, clearing the loaded target. */
   onExitEdit?: () => void;
   /** Label for the load-message entry button. Defaults to `'Find message'`. */
   loadButtonLabel?: string;
@@ -179,7 +191,7 @@ export function Toolbar({
     <>
       <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1 border-b bg-background px-2 py-1.5 sm:px-3 sm:py-2">
         <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
-          {editingEnabled ? (
+          {loadEnabled ? (
             <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
               <MailSearch className="h-3.5 w-3.5" />
               <span className="hidden md:inline">{loadButtonLabel}</span>
@@ -312,9 +324,12 @@ export function Toolbar({
                 <span>{primaryAction.label}</span>
               </Button>
             ) : null
-          ) : editBadge ? (
-            // A message is loaded: split button. Main action updates it in
-            // place; the menu also offers posting the blocks as a new message.
+          ) : editBadge && updateEnabled ? (
+            // A message is loaded and update-in-place is wired: split button.
+            // Main action updates it in place; the menu also offers posting
+            // the blocks as a new message. Without `updateEnabled` (loading
+            // configured but no `editing.onUpdate`), the plain send button
+            // below stays — the loaded message can only be posted as new.
             <div className="flex items-stretch">
               <Button
                 type="button"
@@ -379,7 +394,7 @@ export function Toolbar({
           )}
         </div>
       </div>
-      {editingEnabled && editBadge ? (
+      {loadEnabled && editBadge ? (
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 border-b bg-muted px-2 py-2 text-foreground sm:px-3">
           <Pencil className="h-4 w-4 shrink-0 text-primary" />
           <span className="min-w-0 flex-1 text-sm">

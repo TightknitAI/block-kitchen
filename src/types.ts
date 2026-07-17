@@ -568,6 +568,14 @@ export interface PrimaryActionContext {
    * {@link BlockKitchenBaseProps.onValidationChange} reports.
    */
   validation: ValidationSummary;
+  /**
+   * The existing message currently loaded into the builder (via
+   * {@link BlockKitchenBaseProps.loading}), or `null` when composing a new
+   * message. Carries `channelId` + `ts` + the host's editability verdict, so
+   * a host-owned commitment step can offer "update in place" alongside
+   * "post as new".
+   */
+  loadedMessage: LoadedMessage | null;
 }
 
 /**
@@ -705,39 +713,115 @@ export interface RecentMessage {
 }
 
 /**
- * Opt-in edit-mode configuration. Presence of {@link BlockKitchenProps.editing}
- * enables loading an existing message and dispatching an update; omit it to
- * keep the send-only behavior. The package stays integration-agnostic — it
- * makes no network calls and has no Slack-token knowledge; the host brokers
- * I/O and computes the editability verdict.
+ * The existing message currently loaded into the builder: its source
+ * coordinates (`channelId` + `ts`), the host's editability verdict, and
+ * display metadata for the preview header / loaded banner. Reported through
+ * {@link LoadingConfig.onLoadedMessageChange} and
+ * {@link PrimaryActionContext.loadedMessage}, and consumed by the built-in
+ * update flow ({@link EditingConfig.onUpdate}).
  */
-export interface EditingConfig {
+export interface LoadedMessage {
+  channelId: string;
+  /** Channel name for the loaded banner (display only). Falls back to `channelId`. */
+  channelName?: string;
+  ts: string;
+  editableVia: EditableVia;
+  workspaceName?: string;
+  /** Display name of the message's author, shown in the preview header. */
+  username?: string;
+  /** Avatar image URL of the message's author, shown in the preview header. */
+  iconUrl?: string;
+}
+
+/**
+ * Opt-in configuration for loading an existing message into the editor —
+ * a *composition* concern, so it works in both send mode and
+ * [compose-only mode](https://github.com/TightknitAI/block-kitchen#compose-only-mode-bring-your-own-send-flow).
+ * Presence of {@link BlockKitchenBaseProps.loading} adds the toolbar's
+ * "Find message" entry: the user pastes a Slack permalink (or picks a recent
+ * message), the host loads it, and the draft is hydrated with its blocks.
+ *
+ * What happens *after* composing stays mode-specific: in send mode, pair
+ * with {@link BlockKitchenSendProps.editing} to update the message in place;
+ * in compose-only mode the host owns the commitment step and receives the
+ * loaded target via {@link PrimaryActionContext.loadedMessage} /
+ * {@link LoadingConfig.onLoadedMessageChange}.
+ */
+export interface LoadingConfig {
   /**
    * Host parses the pasted permalink, fetches the message, and returns a
    * host-computed editability verdict plus blocks. See {@link LoadResult}.
    */
   onLoadMessage: (input: LoadMessageInput) => Promise<LoadResult>;
   /**
+   * Optional. When provided (together with a channel source — see
+   * {@link LoadingConfig.loadChannels}), the load dialog adds a "recent
+   * messages from this app" picker alongside the paste-a-link input. The user
+   * first picks a channel; only then is this called with the chosen
+   * `channelId`, scoping the lookup to that single channel. Returns messages
+   * the app authored in that channel (editable-by-construction); picking one
+   * loads it directly. Omit to offer the paste-link entry only.
+   */
+  loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
+  /**
+   * Channels used to scope the recent-messages picker. Only consulted when
+   * {@link LoadingConfig.loadRecentMessages} is provided. In send mode this
+   * defaults to the send integration's
+   * {@link BlockKitchenSendProps.loadChannels}; in compose-only mode there is
+   * no send integration, so provide it here or the picker is hidden.
+   */
+  loadChannels?: () => Promise<ChannelOption[]>;
+  /**
+   * Optional. Pre-load a message at mount, skipping the load dialog. Same
+   * shape the host returns from {@link LoadingConfig.onLoadMessage} on
+   * success. Read once at mount (like
+   * {@link BlockKitchenBaseProps.initialBlocks}); changing it later needs a
+   * remount. When set, its `blocks` seed the draft and `initialBlocks` is
+   * ignored.
+   */
+  initialTarget?: Extract<LoadResult, { ok: true }>;
+  /**
+   * Notified when the loaded message changes: the target after a successful
+   * load (including a mount-time {@link LoadingConfig.initialTarget}), and
+   * `null` when the user exits it ("Switch to a new message" / "Open as a
+   * new message instead"). Useful in compose-only mode to keep host state in
+   * sync — e.g. so a host-owned commitment step knows whether to offer
+   * "update in place" without waiting for a
+   * {@link PrimaryActionConfig.onClick}.
+   */
+  onLoadedMessageChange?: (message: LoadedMessage | null) => void;
+}
+
+/**
+ * Opt-in update-in-place configuration (send mode only). Presence of
+ * {@link BlockKitchenProps.editing} enables dispatching a `chat.update` for
+ * a loaded message; a message gets loaded via
+ * {@link BlockKitchenBaseProps.loading} (or this config's deprecated load
+ * fields). The package stays integration-agnostic — it makes no network
+ * calls and has no Slack-token knowledge; the host brokers I/O and computes
+ * the editability verdict.
+ */
+export interface EditingConfig {
+  /**
+   * @deprecated Moved to {@link LoadingConfig.onLoadMessage} — loading is a
+   * composition concern and now works without the send integration (e.g. in
+   * compose-only mode). Still honored here when
+   * {@link BlockKitchenBaseProps.loading} is absent.
+   */
+  onLoadMessage?: (input: LoadMessageInput) => Promise<LoadResult>;
+  /**
    * Dispatches the update for the loaded message. Sibling to
    * {@link BlockKitchenProps.onSend}; carries `channel + ts`.
    */
   onUpdate: (payload: UpdatePayload) => Promise<UpdateResult>;
   /**
-   * Optional. When provided, the load dialog adds a "recent messages from this
-   * app" picker alongside the paste-a-link input. The user first picks a channel
-   * (reusing {@link BlockKitchenProps.loadChannels}); only then is this called
-   * with the chosen `channelId`, scoping the lookup to that single channel.
-   * Returns messages the app authored in that channel (editable-by-construction);
-   * picking one loads it straight into edit mode. Omit to offer the paste-link
-   * entry only.
+   * @deprecated Moved to {@link LoadingConfig.loadRecentMessages}. Still
+   * honored here when {@link BlockKitchenBaseProps.loading} is absent.
    */
   loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
   /**
-   * Optional. Pre-load a message straight into edit mode at mount, skipping the
-   * load dialog. Same shape the host returns from {@link onLoadMessage} on
-   * success. Read once at mount (like {@link BlockKitchenProps.initialBlocks});
-   * changing it later needs a remount. When set, its `blocks` seed the draft and
-   * {@link BlockKitchenProps.initialBlocks} is ignored.
+   * @deprecated Moved to {@link LoadingConfig.initialTarget}. Still honored
+   * here when {@link BlockKitchenBaseProps.loading} is absent.
    */
   initialTarget?: Extract<LoadResult, { ok: true }>;
 }
@@ -870,10 +954,23 @@ export interface BlockKitchenBaseProps {
    */
   customEmojis?: CustomEmoji[];
   /**
+   * Opt-in: load an existing Slack message into the editor. Adds a
+   * "Find message" toolbar entry — the user pastes a permalink (or picks a
+   * recent message) and the draft is hydrated with its blocks. Loading is a
+   * *composition* concern, so it works in both send mode and compose-only
+   * mode. Pair with {@link BlockKitchenSendProps.editing} (send mode) for
+   * the built-in update-in-place flow, or consume
+   * {@link PrimaryActionContext.loadedMessage} /
+   * {@link LoadingConfig.onLoadedMessageChange} (compose-only) to run your
+   * own. Takes precedence over the deprecated load fields on
+   * {@link EditingConfig}.
+   */
+  loading?: LoadingConfig;
+  /**
    * Label + accessible name for the toolbar button that opens the
-   * load-message dialog (the edit-mode entry point). Defaults to
-   * `'Find message'`. Only shown when {@link BlockKitchenProps.editing} is set
-   * and no message is currently loaded.
+   * load-message dialog. Defaults to `'Find message'`. Only shown when
+   * loading is configured ({@link BlockKitchenBaseProps.loading} or legacy
+   * {@link BlockKitchenProps.editing} load fields).
    */
   loadButtonLabel?: string;
   /**
@@ -1057,12 +1154,13 @@ export interface BlockKitchenSendProps {
    */
   onSend: (payload: SendPayload) => Promise<SendResult>;
   /**
-   * Opt-in edit mode. When provided, the toolbar exposes an "Edit existing
-   * message" entry: the user pastes a Slack message link, the host loads it
-   * and returns an editability verdict ({@link EditingConfig.onLoadMessage}),
-   * and a successful load flips the primary action from Send to "Update
+   * Opt-in update-in-place mode. When provided alongside a load source
+   * ({@link BlockKitchenBaseProps.loading}, or this config's deprecated load
+   * fields), a loaded message flips the primary action from Send to "Update
    * message" ({@link EditingConfig.onUpdate}). Omit to keep send-only
-   * behavior. The user-token path reuses {@link BlockKitchenSendProps.loadSendAsUserStatus}.
+   * behavior: with `loading` alone, a loaded message can still be posted as
+   * a brand-new message. The user-token path reuses
+   * {@link BlockKitchenSendProps.loadSendAsUserStatus}.
    */
   editing?: EditingConfig;
   /**
@@ -1098,7 +1196,14 @@ export interface BlockKitchenComposeOnlyProps {
   loadChannels?: undefined;
   loadSendAsUserStatus?: undefined;
   onSend?: undefined;
-  /** Edit mode depends on the send integration, so it is unavailable too. */
+  /**
+   * The update-in-place flow (`chat.update`) depends on the send
+   * integration, so it is unavailable here. *Loading* an existing message
+   * is a composition concern and stays available via
+   * {@link BlockKitchenBaseProps.loading} — the host receives the loaded
+   * target ({@link PrimaryActionContext.loadedMessage} /
+   * {@link LoadingConfig.onLoadedMessageChange}) and owns any update flow.
+   */
   editing?: undefined;
   /** Extends the built-in send dialog, which doesn't exist in this mode. */
   renderSendExtras?: undefined;

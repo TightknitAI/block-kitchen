@@ -86,10 +86,10 @@ export const ClickSendInvokesHandler: Story = {
   }
 };
 
-// Edit mode configured but no message loaded yet: the "Find message" entry
+// Loading configured but no message loaded yet: the "Find message" entry
 // appears and the primary action is a plain "Send".
-export const EditingEnabled: Story = {
-  args: { editingEnabled: true, onOpenLoad: fn() },
+export const LoadingEnabled: Story = {
+  args: { loadEnabled: true, onOpenLoad: fn() },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Find message' }));
@@ -98,11 +98,13 @@ export const EditingEnabled: Story = {
   }
 };
 
-// A message is loaded for editing: the badge shows and the primary split
-// button reads "Review & update" with a "More message options" menu.
+// A message is loaded and update-in-place is wired: the banner shows and
+// the primary split button reads "Review & update" with a "More message
+// options" menu.
 export const EditingActive: Story = {
   args: {
-    editingEnabled: true,
+    loadEnabled: true,
+    updateEnabled: true,
     editBadge: { channelLabel: '#engineering', ts: '1718000042.000100' },
     onOpenUpdate: fn(),
     onExitEdit: fn()

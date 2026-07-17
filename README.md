@@ -111,8 +111,9 @@ export function MyBuilderPage() {
 | `onSend` | `(payload) => Promise<{ ok: boolean; error?: string }>` | grouped\* | Called when the user submits the send dialog. Payload is `{ channelId, blocks, sendAsUser, extras? }` (`extras` only when `renderSendExtras` is wired). |
 | `renderSendExtras` | `(ctx: SendExtrasContext) => ReactNode` | no | Renders host-defined fields inside the built-in send dialog, below the channel and identity pickers. Collect values with `ctx.setExtras(patch)`; they arrive on `onSend` as `payload.extras`. Requires the send trio. See [Extending the send dialog](#extending-the-send-dialog-custom-fields). |
 | `primaryAction` | `{ label, onClick, disableWhenInvalid? }` | no | Compose-only mode only: a host-owned button in the toolbar slot where "Review & send" normally sits. `onClick` receives `{ blocks, validation }` — the current draft plus the same verdict `onValidationChange` reports. See [Keeping the CTA in the toolbar](#keeping-the-cta-in-the-toolbar-primaryaction). |
-| `editing` | `{ onLoadMessage, onUpdate, loadRecentMessages? }` | no | Opt-in edit mode. When present, the toolbar exposes "Edit message": the user pastes a Slack message link, `onLoadMessage({ link })` returns a host-computed [editability verdict](#editing-an-existing-message-opt-in), and a successful load flips the primary action to "Update message" wired to `onUpdate`. Pass `loadRecentMessages` to add a "recent messages from this app" picker beside the paste input; the user picks a channel first (reusing `loadChannels`) and the lookup is scoped to it. Omit `editing` to keep send-only behavior. |
-| `loadButtonLabel` | `string` | no | Label + accessible name for the toolbar button that opens the load-message dialog (the edit-mode entry point). Defaults to `'Load message'`. Only shown when `editing` is set and no message is loaded. |
+| `loading` | `{ onLoadMessage, loadRecentMessages?, loadChannels?, initialTarget?, onLoadedMessageChange? }` | no | Opt-in: [load an existing message](#loading-an-existing-message-opt-in) into the editor. Adds a "Find message" toolbar entry — the user pastes a Slack permalink (or picks a recent message) and the draft is hydrated with its blocks. Loading is a *composition* concern, so it works in **both** send mode and compose-only mode. `onLoadedMessageChange` reports the loaded target (`null` on exit) so a host-owned commitment step can stay in sync. |
+| `editing` | `{ onUpdate }` | no | Opt-in update-in-place mode (send mode only). With a load source configured (`loading`), a loaded message flips the primary action to a "Review & update" split button wired to `onUpdate` (`chat.update`). The legacy bundle shape (`onLoadMessage` etc. on `editing`) still works but is deprecated — move load fields to `loading`. |
+| `loadButtonLabel` | `string` | no | Label + accessible name for the toolbar button that opens the load-message dialog. Defaults to `'Find message'`. Only shown when `loading` (or legacy `editing` load fields) is configured. |
 | `updateButtonLabel` | `string` | no | Label for the toolbar's primary button while a message is loaded for editing. It's a split button: clicking it updates the message in place; the menu beside it also offers "Send as a new message" (post the current blocks as new). Defaults to `'Review & update'`. |
 | `confirmUpdateLabel` | `string` | no | Label for the update dialog's final confirm button. Defaults to `'Update message'` (shows `'Updating…'` while in flight). |
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
@@ -136,7 +137,8 @@ three for [compose-only mode](#compose-only-mode-bring-your-own-send-flow)
 (no send button; your app owns the send flow). Wiring only some of the three
 is a type error. `editing` and `renderSendExtras` require the trio;
 `primaryAction` requires its absence (the built-in Send/Update flow owns the
-toolbar's primary slot otherwise).
+toolbar's primary slot otherwise). `loading` is mode-agnostic — it works
+with or without the trio.
 
 ## Compose-only mode (bring your own send flow)
 
@@ -186,9 +188,15 @@ Notes:
 - `onValidationChange` reports the same verdict the issues sheet displays
   (validated against the `message` surface, like Send), so your CTA and the
   in-builder issue count can never disagree.
-- `editing` is unavailable in compose-only mode: updating an existing message
-  is inherently bound to its channel + timestamp, so the update flow only
-  exists alongside the send integration.
+- [Loading an existing message](#loading-an-existing-message-opt-in) works
+  here too — pass `loading` and the "Find message" entry appears. The loaded
+  target (channel + ts + editability verdict) reaches your app via
+  `primaryAction`'s `loadedMessage` context and
+  `loading.onLoadedMessageChange`, so your own commitment step can offer
+  "update in place" alongside "post as new".
+- The built-in *update* flow (`editing`) is unavailable in compose-only
+  mode: dispatching a `chat.update` is inherently bound to a channel +
+  timestamp + token, so it only exists alongside the send integration.
 
 ### Keeping the CTA in the toolbar (`primaryAction`)
 
@@ -287,17 +295,20 @@ Notes:
   (identities, channels), prefer proposing a first-class prop over routing
   them through extras; the slot is for genuinely host-specific concerns.
 
-## Editing an existing message (opt-in)
+## Loading an existing message (opt-in)
 
-By default the builder is send-only. Pass `editing` to let users load an
-already-posted message, edit its blocks, and dispatch a `chat.update`. The
+By default the builder starts from a blank canvas. Pass `loading` to let
+users load an already-posted message's blocks into the editor — paste a
+permalink, or pick from a "recent messages from this app" list. Loading is a
+*composition* concern, so it works in **both** send mode and
+[compose-only mode](#compose-only-mode-bring-your-own-send-flow). The
 package stays integration-agnostic: it makes no Slack calls and computes
 nothing about who can edit; the host does both.
 
 ```tsx
 <BlockKitchen
-  /* …send-only props… */
-  editing={{
+  /* …send trio, or nothing (compose-only)… */
+  loading={{
     // Host parses the pasted permalink, fetches the message, and returns a
     // verdict. `chat.update` only edits a message authored by the calling
     // token, so the host decides: bot message → 'bot', the user's own
@@ -315,17 +326,11 @@ nothing about who can edit; the host does both.
         return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'user', ...author };
       return { ok: false, reason: 'Only messages your app or you posted can be edited.', blocks: msg.blocks };
     },
-    // Sibling to onSend; carries the source channel + ts. `asUser` follows
-    // the verdict's `editableVia`.
-    onUpdate: async ({ channelId, ts, blocks, asUser }) => {
-      await chatUpdate({ channel: channelId, ts, blocks, asUser }); // your code
-      return { ok: true };
-    },
     // Optional: adds a "recent messages from this app" picker beside the paste
-    // input. The user first picks a channel (reusing `loadChannels`), then this
-    // is called with that `channelId` so the lookup scans only one channel.
-    // These are editable-by-construction (the app authored them), so picking one
-    // loads it straight into edit mode (no verdict needed).
+    // input. The user first picks a channel, then this is called with that
+    // `channelId` so the lookup scans only one channel. These are
+    // editable-by-construction (the app authored them), so picking one loads
+    // it directly (no verdict needed).
     loadRecentMessages: async (channelId) => {
       const msgs = await fetchRecentAppMessages(channelId); // your code
       return msgs.map((m) => ({
@@ -337,17 +342,56 @@ nothing about who can edit; the host does both.
         label: m.preview // one-line preview shown in the picker row
       }));
     }
+    // In send mode the recent picker's channel list reuses the send trio's
+    // `loadChannels`. In compose-only mode there is no trio — pass
+    // `loadChannels` here too, or the picker is hidden.
   }}
 />
 ```
 
-- On `ok`, the builder hydrates with `blocks`, shows an edit-mode badge, locks
-  the destination to the source channel, and fixes the post-as identity to
-  `editableVia` (the `'user'` path reuses `loadSendAsUserStatus` for the "Sign
-  in with Slack" gate).
+- On `ok`, the builder hydrates with `blocks` and shows a loaded banner
+  ("References an existing message in #channel"), with the author's
+  name/avatar in the preview header.
 - On `{ ok: false, reason }`, the load dialog renders the reason inline and
   offers **Open as a new message instead**. Pass `blocks` on the failure
   result to hydrate the draft for that fallback.
+- `loading.onLoadedMessageChange` reports the loaded target — and `null`
+  when the user exits it — so host state stays in sync (most useful in
+  compose-only mode, where your app owns what happens next).
+
+### Updating it in place (send mode)
+
+In send mode, pair `loading` with `editing` to dispatch a `chat.update` for
+the loaded message. The primary action flips to a "Review & update" split
+button (the menu also offers "Send as a new message"), the destination is
+locked to the source channel, and the post-as identity is fixed to the
+verdict's `editableVia` (the `'user'` path reuses `loadSendAsUserStatus` for
+the "Sign in with Slack" gate).
+
+```tsx
+<BlockKitchen
+  /* …send trio… */
+  loading={{ onLoadMessage }}
+  editing={{
+    // Sibling to onSend; carries the source channel + ts. `asUser` follows
+    // the verdict's `editableVia`.
+    onUpdate: async ({ channelId, ts, blocks, asUser }) => {
+      await chatUpdate({ channel: channelId, ts, blocks, asUser }); // your code
+      return { ok: true };
+    }
+  }}
+/>
+```
+
+With `loading` alone (no `editing`), a loaded message can still be posted as
+a brand-new message via the regular Send flow — there's just no in-place
+update. In compose-only mode `editing` doesn't exist; implement your own
+update against the target from `loadedMessage` / `onLoadedMessageChange`.
+
+> **Migrating from the pre-split `editing` bundle:** `onLoadMessage`,
+> `loadRecentMessages`, and `initialTarget` used to live on `editing` and
+> still work there (deprecated, send mode only). Move them to `loading`
+> unchanged; `editing` keeps only `onUpdate`.
 
 ## Customizing the palette
 
@@ -406,6 +450,8 @@ import type {
   BlockKitchenProps,
   BlockKitchenBaseProps,        // shared props
   BlockKitchenSendProps,        // the send trio + `editing` + `renderSendExtras`
+  LoadingConfig,                // load an existing message (works in both modes)
+  LoadedMessage,                // the loaded target: channel + ts + verdict
   BlockKitchenComposeOnlyProps, // the trio explicitly absent + `primaryAction`
   PaletteSection,
   PaletteVariant,

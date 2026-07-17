@@ -65,7 +65,8 @@ it('renders the host primaryAction in the toolbar and passes draft + verdict on 
   expect(onClick).toHaveBeenCalledTimes(1);
   expect(onClick).toHaveBeenCalledWith({
     blocks: [{ type: 'divider' }],
-    validation: { valid: true, errorCount: 0, errors: [] }
+    validation: { valid: true, errorCount: 0, errors: [] },
+    loadedMessage: null
   });
 });
 

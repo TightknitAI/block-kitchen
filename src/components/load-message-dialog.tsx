@@ -61,7 +61,8 @@ type LoadStatus =
  * @param props.onOpenChange - notified when the user closes the dialog
  * @param props.onLoadMessage - host loader returning an editability verdict
  * @param props.loadRecentMessages - optional loader for the "recent messages" picker, scoped to a channel
- * @param props.loadChannels - returns channels to scope the recent-messages picker by
+ * @param props.loadChannels - returns channels to scope the recent-messages picker by; the
+ *   picker only renders when both this and `loadRecentMessages` are provided
  * @param props.onLoaded - called with the `ok` result so the parent enters edit mode
  * @param props.onOpenAsNew - called with optional blocks for the "open as new" fallback
  * @returns the rendered load-message dialog
@@ -79,7 +80,7 @@ export function LoadMessageDialog({
   onOpenChange: (open: boolean) => void;
   onLoadMessage: (input: { link: string }) => Promise<LoadResult>;
   loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
-  loadChannels: () => Promise<ChannelOption[]>;
+  loadChannels?: () => Promise<ChannelOption[]>;
   onLoaded: (result: Extract<LoadResult, { ok: true }>) => void;
   onOpenAsNew: (blocks?: SupportedBlock[]) => void;
 }) {
@@ -113,7 +114,10 @@ export function LoadMessageDialog({
     loadChannelsRef.current = loadChannels;
   });
 
-  const hasRecent = !!loadRecentMessages;
+  // The recent-messages picker needs both a message loader and a channel
+  // source to scope it by; with either missing, only the paste-link entry
+  // renders (compose-only hosts may have no channel list at all).
+  const hasRecent = !!loadRecentMessages && !!loadChannels;
 
   // Reset to a clean slate each time the dialog opens, and load the channel
   // list so the user can scope the recent-messages picker.
@@ -127,7 +131,7 @@ export function LoadMessageDialog({
     setRecent(null);
     setRecentError(null);
     setSelectedRecent(null);
-    if (!loadRecentMessagesRef.current) {
+    if (!loadRecentMessagesRef.current || !loadChannelsRef.current) {
       setChannels([]);
       setChannelsError(null);
       return;
