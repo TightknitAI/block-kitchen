@@ -112,7 +112,9 @@ it('hides the recent-messages picker and warns without a channel source in compo
   expect(screen.queryByText(/or pick a recent message/i)).toBeNull();
 });
 
-it('re-notifies when the same message is re-loaded with a changed verdict', async () => {
+// Two full load-dialog round trips over the whole builder tree — well over
+// the default 5s budget on slow CI runners, hence the explicit timeout.
+it('re-notifies when the same message is re-loaded with a changed verdict', { timeout: 20000 }, async () => {
   const onLoadedMessageChange = vi.fn<(message: LoadedMessage | null) => void>();
   // The host's verdict changes between loads (e.g. the user signed in and
   // their own message became editable via the user token).
