@@ -1,8 +1,9 @@
 import { nanoid } from 'nanoid';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { isContainerChildType, MAX_CONTAINER_CHILDREN } from '../lib/container-blocks';
 import { sanitizeBlocks } from '../lib/sanitize-blocks';
 import type { BuilderBlock, ContainerBlock, SupportedBlock } from '../types';
+import { useHistoryState } from './use-history-state';
 
 /**
  * Re-derive a container node's `block.child_blocks` from its `children`
@@ -97,13 +98,20 @@ export type MoveTarget = { kind: 'top'; index: number } | { kind: 'container'; p
  *   container `children`).
  * - Mutators operate on ids, not indices, and resolve a node whether it
  *   lives at the top level or inside a container.
+ * - Every mutation is recorded for undo/redo (`undo`/`redo`, gated by
+ *   `canUndo`/`canRedo`). Consecutive edits to the *same* block coalesce
+ *   into one undo step so typing doesn't flood the stack; structural moves,
+ *   adds, removes, and `replaceAll` (Clear, JSON apply) each form their own
+ *   step. `resetAll` (loading a different message) starts a fresh baseline
+ *   with an empty history.
  * - On any change, calls the optional `onChange` with the unwrapped Slack
  *   payloads (container `child_blocks` mirrored in) so the consumer can
- *   persist (URL, localStorage, etc).
+ *   persist (URL, localStorage, etc). Undo and redo are changes too, so they
+ *   notify as well.
  * @param params - hook params
  * @param params.initialBlocks - starting payloads
  * @param params.onChange - notified on any state change with Slack payloads
- * @returns state slice + mutators
+ * @returns state slice + mutators + history controls
  */
 export function useBlockKitchenState({
   initialBlocks,
@@ -112,7 +120,15 @@ export function useBlockKitchenState({
   initialBlocks?: SupportedBlock[];
   onChange?: (blocks: SupportedBlock[]) => void;
 } = {}) {
-  const [blocks, setBlocks] = useState<BuilderBlock[]>(() => (initialBlocks ?? []).map(wrap));
+  const {
+    present: blocks,
+    commit,
+    undo,
+    redo,
+    reset,
+    canUndo,
+    canRedo
+  } = useHistoryState<BuilderBlock[]>(() => (initialBlocks ?? []).map(wrap));
 
   const onChangeRef = useRef(onChange);
   useEffect(() => {
@@ -128,143 +144,185 @@ export function useBlockKitchenState({
     onChangeRef.current?.(blocks.map((b) => b.block));
   }, [blocks]);
 
-  const addBlock = useCallback((block: SupportedBlock, atIndex?: number) => {
-    setBlocks((prev) => {
-      const next = [...prev];
-      const idx = atIndex === undefined ? next.length : Math.max(0, Math.min(atIndex, next.length));
-      next.splice(idx, 0, wrap(block));
-      return next;
-    });
-  }, []);
-
-  const addChild = useCallback((parentId: string, block: SupportedBlock, atIndex?: number) => {
-    if (!isContainerChildType(block.type)) {
-      return;
-    }
-    setBlocks((prev) =>
-      withChildren(prev, parentId, (children) => {
-        if (children.length >= MAX_CONTAINER_CHILDREN) {
-          return children;
-        }
-        const next = [...children];
+  const addBlock = useCallback(
+    (block: SupportedBlock, atIndex?: number) => {
+      commit((prev) => {
+        const next = [...prev];
         const idx = atIndex === undefined ? next.length : Math.max(0, Math.min(atIndex, next.length));
         next.splice(idx, 0, wrap(block));
         return next;
-      })
-    );
-  }, []);
-
-  const updateBlock = useCallback((id: string, block: SupportedBlock) => {
-    setBlocks((prev) =>
-      prev.map((b) => {
-        if (b.id === id) {
-          return applyUpdate(b, block);
-        }
-        if (b.children?.some((c) => c.id === id)) {
-          return mirror({ ...b, children: b.children.map((c) => (c.id === id ? applyUpdate(c, block) : c)) });
-        }
-        return b;
-      })
-    );
-  }, []);
-
-  const removeBlock = useCallback((id: string) => {
-    setBlocks((prev) => {
-      if (prev.some((b) => b.id === id)) {
-        return prev.filter((b) => b.id !== id);
-      }
-      return prev.map((b) =>
-        b.children?.some((c) => c.id === id) ? mirror({ ...b, children: b.children.filter((c) => c.id !== id) }) : b
-      );
-    });
-  }, []);
-
-  const duplicateBlock = useCallback((id: string) => {
-    setBlocks((prev) => {
-      const loc = locate(prev, id);
-      if (!loc) {
-        return prev;
-      }
-      if (loc.kind === 'top') {
-        const next = [...prev];
-        next.splice(loc.index + 1, 0, cloneNode(prev[loc.index]));
-        return next;
-      }
-      return withChildren(prev, loc.parentId, (children) => {
-        const next = [...children];
-        next.splice(loc.index + 1, 0, cloneNode(children[loc.index]));
-        return next;
       });
-    });
-  }, []);
+    },
+    [commit]
+  );
 
-  const reorderBlock = useCallback((fromId: string, toIndex: number) => {
-    setBlocks((prev) => {
-      const loc = locate(prev, fromId);
-      if (!loc) {
-        return prev;
+  const addChild = useCallback(
+    (parentId: string, block: SupportedBlock, atIndex?: number) => {
+      if (!isContainerChildType(block.type)) {
+        return;
       }
-      const reorder = (list: BuilderBlock[]) => {
-        const next = [...list];
-        const [moved] = next.splice(loc.index, 1);
-        next.splice(Math.max(0, Math.min(toIndex, next.length)), 0, moved);
-        return next;
-      };
-      if (loc.kind === 'top') {
-        return reorder(prev);
-      }
-      return withChildren(prev, loc.parentId, reorder);
-    });
-  }, []);
+      commit((prev) =>
+        withChildren(prev, parentId, (children) => {
+          if (children.length >= MAX_CONTAINER_CHILDREN) {
+            return children;
+          }
+          const next = [...children];
+          const idx = atIndex === undefined ? next.length : Math.max(0, Math.min(atIndex, next.length));
+          next.splice(idx, 0, wrap(block));
+          return next;
+        })
+      );
+    },
+    [commit]
+  );
 
-  const moveBlock = useCallback((activeId: string, target: MoveTarget) => {
-    setBlocks((prev) => {
-      const loc = locate(prev, activeId);
-      if (!loc) {
-        return prev;
-      }
-      const moved =
-        loc.kind === 'top' ? prev[loc.index] : prev.find((b) => b.id === loc.parentId)?.children?.[loc.index];
-      if (!moved) {
-        return prev;
-      }
+  const updateBlock = useCallback(
+    (id: string, block: SupportedBlock) => {
+      commit(
+        (prev) =>
+          prev.map((b) => {
+            if (b.id === id) {
+              return applyUpdate(b, block);
+            }
+            if (b.children?.some((c) => c.id === id)) {
+              return mirror({ ...b, children: b.children.map((c) => (c.id === id ? applyUpdate(c, block) : c)) });
+            }
+            return b;
+          }),
+        // Coalesce a run of edits to the same block (every keystroke in an
+        // editor field lands here) into a single undo step. Editing a
+        // different block, or any structural change, starts a new step.
+        { tag: `update:${id}` }
+      );
+    },
+    [commit]
+  );
 
-      if (target.kind === 'container') {
-        // Containers can't nest, and only allowed child types may enter.
-        if (moved.children || !isContainerChildType(moved.block.type)) {
+  const removeBlock = useCallback(
+    (id: string) => {
+      commit((prev) => {
+        if (prev.some((b) => b.id === id)) {
+          return prev.filter((b) => b.id !== id);
+        }
+        return prev.map((b) =>
+          b.children?.some((c) => c.id === id) ? mirror({ ...b, children: b.children.filter((c) => c.id !== id) }) : b
+        );
+      });
+    },
+    [commit]
+  );
+
+  const duplicateBlock = useCallback(
+    (id: string) => {
+      commit((prev) => {
+        const loc = locate(prev, id);
+        if (!loc) {
           return prev;
         }
-        // Enforce the child cap, but never against a reorder within the same
-        // container (which doesn't grow it).
-        const sameContainer = loc.kind === 'child' && loc.parentId === target.parentId;
-        const destCount = prev.find((b) => b.id === target.parentId)?.children?.length ?? 0;
-        if (!sameContainer && destCount >= MAX_CONTAINER_CHILDREN) {
+        if (loc.kind === 'top') {
+          const next = [...prev];
+          next.splice(loc.index + 1, 0, cloneNode(prev[loc.index]));
+          return next;
+        }
+        return withChildren(prev, loc.parentId, (children) => {
+          const next = [...children];
+          next.splice(loc.index + 1, 0, cloneNode(children[loc.index]));
+          return next;
+        });
+      });
+    },
+    [commit]
+  );
+
+  const reorderBlock = useCallback(
+    (fromId: string, toIndex: number) => {
+      commit((prev) => {
+        const loc = locate(prev, fromId);
+        if (!loc) {
           return prev;
         }
-      }
+        const reorder = (list: BuilderBlock[]) => {
+          const next = [...list];
+          const [moved] = next.splice(loc.index, 1);
+          next.splice(Math.max(0, Math.min(toIndex, next.length)), 0, moved);
+          return next;
+        };
+        if (loc.kind === 'top') {
+          return reorder(prev);
+        }
+        return withChildren(prev, loc.parentId, reorder);
+      });
+    },
+    [commit]
+  );
 
-      // Detach from the source list, then splice into the destination.
-      const detached =
-        loc.kind === 'top'
-          ? prev.filter((_, i) => i !== loc.index)
-          : withChildren(prev, loc.parentId, (children) => children.filter((_, i) => i !== loc.index));
+  const moveBlock = useCallback(
+    (activeId: string, target: MoveTarget) => {
+      commit((prev) => {
+        const loc = locate(prev, activeId);
+        if (!loc) {
+          return prev;
+        }
+        const moved =
+          loc.kind === 'top' ? prev[loc.index] : prev.find((b) => b.id === loc.parentId)?.children?.[loc.index];
+        if (!moved) {
+          return prev;
+        }
 
-      const insert = (list: BuilderBlock[]) => {
-        const next = [...list];
-        next.splice(Math.max(0, Math.min(target.index, next.length)), 0, moved);
-        return next;
-      };
-      return target.kind === 'container' ? withChildren(detached, target.parentId, insert) : insert(detached);
-    });
-  }, []);
+        if (target.kind === 'container') {
+          // Containers can't nest, and only allowed child types may enter.
+          if (moved.children || !isContainerChildType(moved.block.type)) {
+            return prev;
+          }
+          // Enforce the child cap, but never against a reorder within the same
+          // container (which doesn't grow it).
+          const sameContainer = loc.kind === 'child' && loc.parentId === target.parentId;
+          const destCount = prev.find((b) => b.id === target.parentId)?.children?.length ?? 0;
+          if (!sameContainer && destCount >= MAX_CONTAINER_CHILDREN) {
+            return prev;
+          }
+        }
 
-  // Full-replace entry point for loading an existing message, "open as new",
-  // and JSON-drawer apply. Cleanse here (not just at send) so blocks pulled
-  // from a retrieved message enter the working state already send-valid —
+        // Detach from the source list, then splice into the destination.
+        const detached =
+          loc.kind === 'top'
+            ? prev.filter((_, i) => i !== loc.index)
+            : withChildren(prev, loc.parentId, (children) => children.filter((_, i) => i !== loc.index));
+
+        const insert = (list: BuilderBlock[]) => {
+          const next = [...list];
+          next.splice(Math.max(0, Math.min(target.index, next.length)), 0, moved);
+          return next;
+        };
+        return target.kind === 'container' ? withChildren(detached, target.parentId, insert) : insert(detached);
+      });
+    },
+    [commit]
+  );
+
+  // Undoable full-replace: swap the whole draft but keep it reachable by
+  // undo. Backs Clear and the JSON-drawer apply — a mistaken Clear or a bad
+  // paste should be one Ctrl+Z away. Cleanse here (not just at send) so
+  // blocks pulled from elsewhere enter the working state already send-valid —
   // dropping Slack's retrieval-only fields and scrubbing unsafe URLs.
-  const replaceAll = useCallback((newBlocks: SupportedBlock[]) => {
-    setBlocks(sanitizeBlocks(newBlocks).map(wrap));
-  }, []);
+  const replaceAll = useCallback(
+    (newBlocks: SupportedBlock[]) => {
+      commit(sanitizeBlocks(newBlocks).map(wrap));
+    },
+    [commit]
+  );
+
+  // Fresh-baseline replace: swap the draft AND clear the undo history. Backs
+  // loading a different message (and its "open as new" / exit-to-new
+  // fallbacks) — that's a new document, so undo must not step back across the
+  // boundary into an unrelated draft (which would also desync the loaded
+  // banner the parent tracks separately). Same cleansing as `replaceAll`.
+  const resetAll = useCallback(
+    (newBlocks: SupportedBlock[]) => {
+      reset(sanitizeBlocks(newBlocks).map(wrap));
+    },
+    [reset]
+  );
 
   return {
     blocks,
@@ -275,6 +333,11 @@ export function useBlockKitchenState({
     duplicateBlock,
     reorderBlock,
     moveBlock,
-    replaceAll
+    replaceAll,
+    resetAll,
+    undo,
+    redo,
+    canUndo,
+    canRedo
   };
 }

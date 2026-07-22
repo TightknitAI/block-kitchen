@@ -8,6 +8,10 @@ const meta = {
   component: Toolbar,
   parameters: { layout: 'fullscreen', a11y: { test: 'error' } },
   args: {
+    onUndo: fn(),
+    onRedo: fn(),
+    canUndo: false,
+    canRedo: false,
     onClear: fn(),
     onOpenJson: fn(),
     onOpenIssues: fn(),
@@ -64,6 +68,30 @@ export const CustomSendLabel: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByRole('button', { name: 'Send to channel…' })).toBeInTheDocument();
+  }
+};
+
+// Undo/redo are disabled when there's no history to walk. This is the
+// builder's initial state — nothing to undo, nothing to redo.
+export const HistoryEmpty: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const undo = await canvas.findByRole('button', { name: 'Undo' });
+    const redo = await canvas.findByRole('button', { name: 'Redo' });
+    await expect(undo).toBeDisabled();
+    await expect(redo).toBeDisabled();
+  }
+};
+
+// With history available, both controls are live and invoke their handlers.
+export const HistoryAvailable: Story = {
+  args: { canUndo: true, canRedo: true },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Undo' }));
+    await expect(args.onUndo).toHaveBeenCalledOnce();
+    await userEvent.click(await canvas.findByRole('button', { name: 'Redo' }));
+    await expect(args.onRedo).toHaveBeenCalledOnce();
   }
 };
 

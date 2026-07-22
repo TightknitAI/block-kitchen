@@ -494,6 +494,37 @@ Pass [`customEmojis`](#props) to add your workspace's custom emoji: image entrie
 
 Defense-in-depth: blocks are validated against [slack-block-kit-validator](https://github.com/TightknitAI/slack-block-kit-validator) before send. Issues are surfaced in the issues sheet with line numbers — users can fix them inline before posting.
 
+## Undo & redo
+
+Every edit to the draft is undoable — adding, deleting, duplicating,
+reordering, dragging in and out of containers, editing a block's fields, and
+the toolbar's **Clear** and **View JSON → apply**. The toolbar shows **Undo**
+and **Redo** buttons (disabled when there's nothing to step to), and the
+keyboard shortcuts work whenever focus is inside the builder:
+
+| Shortcut | Action |
+|---|---|
+| `Ctrl`/`Cmd` + `Z` | Undo |
+| `Ctrl`/`Cmd` + `Shift` + `Z`, or `Ctrl` + `Y` | Redo |
+
+Notes:
+
+- **Typing coalesces.** A run of edits to the *same* field collapses into a
+  single undo step, so one `Ctrl+Z` rewinds the whole edit rather than one
+  character at a time. Editing a different block, or any structural change,
+  starts a new step.
+- **Native text undo is preserved.** While a text input, textarea, or the
+  inline rich-text editor is focused, `Ctrl/Cmd+Z` performs the browser's
+  own per-character undo — the builder only takes over when focus is on the
+  canvas or toolbar. The shortcut is scoped to the builder, so it never
+  hijacks the host app's own `Ctrl/Cmd+Z`.
+- **Loading is a fresh baseline.** [Loading an existing
+  message](#loading-an-existing-message-opt-in) (or "open as new") starts a
+  new document with an empty history — undo won't step back across the load
+  into the previous draft. **Clear**, by contrast, is undoable.
+- Undo and redo are ordinary draft changes, so they flow through `onChange`
+  (and re-run validation) like any other edit.
+
 ## Styling
 
 Ships a compiled stylesheet at `@tightknitai/block-kitchen/styles.css`. The styles use CSS custom properties (`--background`, `--primary`, `--border`, etc.) for theming. Consumers must provide values for these vars — the standard shadcn/ui token set works as-is.

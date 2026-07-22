@@ -12,9 +12,11 @@ import {
   Moon,
   Pencil,
   Plus,
+  Redo2,
   Send,
   Sun,
   Trash2,
+  Undo2,
   X
 } from 'lucide-react';
 import type { ComponentType, KeyboardEvent } from 'react';
@@ -66,6 +68,10 @@ const SEND_MENU_ITEM =
  * Top toolbar with the preview theme picker, View JSON escape hatch, and
  * the Send action.
  * @param props - toolbar props
+ * @param props.canUndo - whether the Undo button is enabled
+ * @param props.canRedo - whether the Redo button is enabled
+ * @param props.onUndo - steps the draft back one history entry
+ * @param props.onRedo - steps the draft forward one history entry
  * @param props.onClear - resets the draft to empty (disabled when already empty)
  * @param props.onOpenJson - opens the JSON drawer
  * @param props.onOpenIssues - opens the issues sheet
@@ -93,6 +99,10 @@ const SEND_MENU_ITEM =
  * @returns the rendered toolbar
  */
 export function Toolbar({
+  canUndo = false,
+  canRedo = false,
+  onUndo,
+  onRedo,
   onClear,
   onOpenJson,
   onOpenIssues,
@@ -120,6 +130,14 @@ export function Toolbar({
   loadButtonLabel = 'Find message',
   updateButtonLabel = 'Review & update'
 }: {
+  /** Whether an undo step is available (enables the Undo button). */
+  canUndo?: boolean;
+  /** Whether a redo step is available (enables the Redo button). */
+  canRedo?: boolean;
+  /** Steps the draft back one history entry. Undo button is hidden if omitted. */
+  onUndo?: () => void;
+  /** Steps the draft forward one history entry. Redo button is hidden if omitted. */
+  onRedo?: () => void;
   onClear: () => void;
   onOpenJson: () => void;
   onOpenIssues: () => void;
@@ -269,6 +287,34 @@ export function Toolbar({
           ) : null}
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
+          {onUndo && onRedo ? (
+            <div className="flex items-center">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onUndo}
+                disabled={!canUndo}
+                aria-label="Undo"
+                title="Undo (Ctrl+Z)"
+                className="px-2"
+              >
+                <Undo2 className="h-3.5 w-3.5" />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onRedo}
+                disabled={!canRedo}
+                aria-label="Redo"
+                title="Redo (Ctrl+Shift+Z)"
+                className="px-2"
+              >
+                <Redo2 className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          ) : null}
           {errorCount > 0 ? (
             <Button
               type="button"
