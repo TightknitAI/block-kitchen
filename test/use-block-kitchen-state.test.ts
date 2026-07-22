@@ -100,6 +100,127 @@ describe('useBlockKitchenState container nesting', () => {
   });
 });
 
+describe('useBlockKitchenState history (undo/redo)', () => {
+  const textAt = (result: { current: ReturnType<typeof useBlockKitchenState> }, idx: number) =>
+    (result.current.blocks[idx].block as { text: { text: string } }).text.text;
+
+  it('has nothing to undo or redo initially', () => {
+    const { result } = renderHook(() => useBlockKitchenState({ initialBlocks: [section('a')] }));
+    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it('undoes and redoes an addBlock', () => {
+    const { result } = renderHook(() => useBlockKitchenState({}));
+    act(() => result.current.addBlock(section('new')));
+    expect(result.current.blocks).toHaveLength(1);
+    expect(result.current.canUndo).toBe(true);
+
+    act(() => result.current.undo());
+    expect(result.current.blocks).toHaveLength(0);
+    expect(result.current.canRedo).toBe(true);
+
+    act(() => result.current.redo());
+    expect(result.current.blocks).toHaveLength(1);
+    expect(textAt(result, 0)).toBe('new');
+  });
+
+  it('undoes a removeBlock, restoring the block', () => {
+    const { result } = renderHook(() => useBlockKitchenState({ initialBlocks: [section('a'), section('b')] }));
+    const firstId = result.current.blocks[0].id;
+    act(() => result.current.removeBlock(firstId));
+    expect(result.current.blocks).toHaveLength(1);
+    expect(textAt(result, 0)).toBe('b');
+
+    act(() => result.current.undo());
+    expect(result.current.blocks).toHaveLength(2);
+    expect(textAt(result, 0)).toBe('a');
+  });
+
+  it('coalesces consecutive edits to the same block into one undo step', () => {
+    const { result } = renderHook(() => useBlockKitchenState({ initialBlocks: [section('a')] }));
+    const id = result.current.blocks[0].id;
+    // Simulate a burst of keystrokes on the same field.
+    act(() => result.current.updateBlock(id, section('ab')));
+    act(() => result.current.updateBlock(id, section('abc')));
+    act(() => result.current.updateBlock(id, section('abcd')));
+    expect(textAt(result, 0)).toBe('abcd');
+
+    // A single undo rewinds the whole typing burst back to the original.
+    act(() => result.current.undo());
+    expect(textAt(result, 0)).toBe('a');
+    expect(result.current.canUndo).toBe(false);
+  });
+
+  it('keeps edits to different blocks as separate undo steps', () => {
+    const { result } = renderHook(() => useBlockKitchenState({ initialBlocks: [section('a'), section('b')] }));
+    const [idA, idB] = [result.current.blocks[0].id, result.current.blocks[1].id];
+    act(() => result.current.updateBlock(idA, section('A')));
+    act(() => result.current.updateBlock(idB, section('B')));
+
+    act(() => result.current.undo());
+    expect(textAt(result, 0)).toBe('A'); // A's edit survives
+    expect(textAt(result, 1)).toBe('b'); // B's edit is undone
+
+    act(() => result.current.undo());
+    expect(textAt(result, 0)).toBe('a'); // now A's edit is undone too
+  });
+
+  it('treats replaceAll (Clear / JSON apply) as an undoable step', () => {
+    const { result } = renderHook(() => useBlockKitchenState({ initialBlocks: [section('a'), section('b')] }));
+    act(() => result.current.replaceAll([])); // e.g. the toolbar Clear button
+    expect(result.current.blocks).toHaveLength(0);
+    expect(result.current.canUndo).toBe(true);
+
+    act(() => result.current.undo());
+    expect(result.current.blocks).toHaveLength(2);
+    expect(textAt(result, 0)).toBe('a');
+  });
+
+  it('resetAll (loading a new message) starts a fresh baseline with no history', () => {
+    const { result } = renderHook(() => useBlockKitchenState({ initialBlocks: [section('a')] }));
+    act(() => result.current.addBlock(section('b')));
+    expect(result.current.canUndo).toBe(true);
+
+    act(() => result.current.resetAll([section('loaded')]));
+    expect(result.current.blocks).toHaveLength(1);
+    expect(textAt(result, 0)).toBe('loaded');
+    // A loaded message is a new document: undo must not cross the boundary.
+    expect(result.current.canUndo).toBe(false);
+    expect(result.current.canRedo).toBe(false);
+  });
+
+  it('restores container children (and mirrored child_blocks) on undo', () => {
+    const { result } = renderHook(() =>
+      useBlockKitchenState({ initialBlocks: [container(section('a'), section('b'))] })
+    );
+    const childId = result.current.blocks[0].children![0].id;
+    act(() => result.current.removeBlock(childId));
+    expect(result.current.blocks[0].children).toHaveLength(1);
+    expect(payloadAt(result, 0).child_blocks).toHaveLength(1);
+
+    act(() => result.current.undo());
+    expect(result.current.blocks[0].children).toHaveLength(2);
+    // The serialized child_blocks are mirrored back in lockstep.
+    expect(payloadAt(result, 0).child_blocks).toHaveLength(2);
+  });
+
+  it('notifies onChange on undo and redo', () => {
+    const onChange = vi.fn();
+    const { result } = renderHook(() => useBlockKitchenState({ initialBlocks: [section('a')], onChange }));
+    act(() => result.current.addBlock(section('b')));
+    onChange.mockClear();
+
+    act(() => result.current.undo());
+    expect(onChange).toHaveBeenCalledTimes(1);
+    expect(onChange.mock.calls[0][0]).toHaveLength(1);
+
+    act(() => result.current.redo());
+    expect(onChange).toHaveBeenCalledTimes(2);
+    expect(onChange.mock.calls[1][0]).toHaveLength(2);
+  });
+});
+
 describe('useBlockKitchenState replaceAll cleansing', () => {
   it('strips Slack retrieval-only image fields when a message is loaded', () => {
     const { result } = renderHook(() => useBlockKitchenState({}));

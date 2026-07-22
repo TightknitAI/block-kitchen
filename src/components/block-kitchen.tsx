@@ -14,7 +14,7 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { GripVertical } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { type KeyboardEvent, useCallback, useMemo, useState } from 'react';
 import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
 import { buildVariantById, defaultPalette, type PaletteSection } from '../lib/default-blocks';
@@ -217,8 +217,22 @@ export function BlockKitchen(props: BlockKitchenProps) {
       'ignoring `primaryAction`.'
   );
 
-  const { blocks, addBlock, addChild, updateBlock, removeBlock, duplicateBlock, reorderBlock, moveBlock, replaceAll } =
-    useBlockKitchenState({ initialBlocks: seededBlocks, onChange });
+  const {
+    blocks,
+    addBlock,
+    addChild,
+    updateBlock,
+    removeBlock,
+    duplicateBlock,
+    reorderBlock,
+    moveBlock,
+    replaceAll,
+    resetAll,
+    undo,
+    redo,
+    canUndo,
+    canRedo
+  } = useBlockKitchenState({ initialBlocks: seededBlocks, onChange });
 
   // Lookups for resolving a drop target: which ids are container children,
   // and which container each child belongs to. Recomputed when the tree
@@ -405,6 +419,38 @@ export function BlockKitchen(props: BlockKitchenProps) {
     setActivePaletteVariantId(null);
   }, []);
 
+  // Undo/redo keyboard shortcuts, scoped to the builder: this is a React
+  // `onKeyDown` on the root, so it only fires while focus is inside the
+  // builder and never hijacks the host app's own Cmd+Z. Text-editing targets
+  // (inputs, textareas, the inline rich-text contentEditable) keep their
+  // native per-character undo — we bail before preventing default. Popover
+  // and dialog editors render in body-level portals outside this subtree, so
+  // their fields are unaffected regardless.
+  const handleKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+        return;
+      }
+      const key = event.key.toLowerCase();
+      const isUndo = key === 'z' && !event.shiftKey;
+      const isRedo = key === 'y' || (key === 'z' && event.shiftKey);
+      if (!isUndo && !isRedo) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) {
+        return;
+      }
+      event.preventDefault();
+      if (isRedo) {
+        if (canRedo) redo();
+      } else if (canUndo) {
+        undo();
+      }
+    },
+    [canRedo, canUndo, redo, undo]
+  );
+
   const activePaletteVariant = activePaletteVariantId ? variantById.get(activePaletteVariantId) : null;
 
   const blockPayloads = blocks.map((b) => b.block);
@@ -420,8 +466,19 @@ export function BlockKitchen(props: BlockKitchenProps) {
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
           >
-            <div className="bk-root flex h-full w-full flex-col overflow-hidden rounded-md border bg-background text-foreground">
+            {/* The builder shell doubles as the keydown scope for undo/redo
+              shortcuts: the handler only augments already-focusable children
+              (toolbar buttons, block rows, fields) and never acts as a
+              control itself, so it needs no role or tabindex. */}
+            <div
+              className="bk-root flex h-full w-full flex-col overflow-hidden rounded-md border bg-background text-foreground"
+              onKeyDown={handleKeyDown}
+            >
               <Toolbar
+                canUndo={canUndo}
+                canRedo={canRedo}
+                onUndo={undo}
+                onRedo={redo}
                 onClear={() => replaceAll([])}
                 onOpenJson={() => setJsonOpen(true)}
                 onOpenIssues={() => setIssuesOpen(true)}
@@ -476,9 +533,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
                   if (sendEnabled) {
                     // Edit-centric exit (send mode): discard the loaded
                     // message's draft and reopen the loader so the user
-                    // starts fresh or picks another message.
+                    // starts fresh or picks another message. Reset (not
+                    // replace) so undo can't resurrect the abandoned draft
+                    // after the banner is gone.
                     setEditTarget(null);
-                    replaceAll([]);
+                    resetAll([]);
                     setLoadOpen(true);
                     return;
                   }
@@ -613,16 +672,20 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 loadRecentMessages={loading.loadRecentMessages}
                 loadChannels={recentChannelSource}
                 onLoaded={(result) => {
-                  replaceAll(result.blocks);
+                  // A newly loaded message is a fresh document: reset history
+                  // so undo starts from the loaded blocks and can't step back
+                  // across the load into the previous draft.
+                  resetAll(result.blocks);
                   setEditTarget(toLoadedMessage(result));
                   setLoadOpen(false);
                 }}
                 onOpenAsNew={(loadedBlocks) => {
                   // Fallback for a not-editable verdict: drop edit mode and
                   // hydrate the draft (when the host supplied blocks) so the
-                  // user can repost it as a brand-new message.
+                  // user can repost it as a brand-new message. Fresh document,
+                  // so reset history here too.
                   if (loadedBlocks) {
-                    replaceAll(loadedBlocks);
+                    resetAll(loadedBlocks);
                   }
                   setEditTarget(null);
                   setLoadOpen(false);
