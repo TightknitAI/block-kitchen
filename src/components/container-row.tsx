@@ -109,7 +109,12 @@ export function ContainerRow({
             </div>
           </PopoverTrigger>
           <PopoverContent className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]" align="start">
-            <BlockEditor block={block} errors={errors} onChange={(next) => onUpdate(id, next)} />
+            <BlockEditor
+              block={block}
+              errors={errors}
+              onChange={(next) => onUpdate(id, next)}
+              onDone={() => onOpenBlockChange?.(null)}
+            />
           </PopoverContent>
         </Popover>
 
