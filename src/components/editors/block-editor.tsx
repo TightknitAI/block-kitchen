@@ -7,6 +7,7 @@ import type {
   SectionBlock
 } from 'slack-web-api-client';
 import { labelForBlockType } from '../../lib/default-blocks';
+import { Button } from '../../lib/ui/button';
 import type {
   AlertBlock,
   CardBlock,
@@ -46,21 +47,28 @@ import { VideoEditor } from './video-editor';
 /**
  * Dispatches to the correct per-block editor form. Provides a consistent
  * header (block type label) and surfaces this block's validation errors
- * so the popover feels unified.
+ * so the popover feels unified. Edits apply live via `onChange`; when
+ * hosted in a closable context window the caller passes `onDone`, which
+ * renders a "Done" button in a shared footer so every block-editing
+ * surface has an explicit way to dismiss itself.
  * @param props - editor props
  * @param props.block - the block being edited
  * @param props.errors - validation errors for this block, if any
  * @param props.onChange - called with the updated block
+ * @param props.onDone - if provided, renders a "Done" button that dismisses
+ *   the surrounding context window (e.g. the editor popover)
  * @returns the rendered editor for the block's type
  */
 export function BlockEditor({
   block,
   errors,
-  onChange
+  onChange,
+  onDone
 }: {
   block: SupportedBlock;
   errors?: string[];
   onChange: (next: SupportedBlock) => void;
+  onDone?: () => void;
 }) {
   return (
     <div className="flex flex-col gap-3">
@@ -77,6 +85,13 @@ export function BlockEditor({
         </ul>
       ) : null}
       {dispatch(block, onChange)}
+      {onDone ? (
+        <div className="flex justify-end border-t pt-3">
+          <Button type="button" size="sm" onClick={onDone}>
+            Done
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }

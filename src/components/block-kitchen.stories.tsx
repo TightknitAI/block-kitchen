@@ -311,3 +311,33 @@ export const ReorderBlocksViaDrag: Story = {
     });
   }
 };
+
+// The block editor opens in a popover; a "Done" button in its footer lets
+// the user dismiss it explicitly (rather than only by clicking away).
+export const DoneButtonClosesBlockEditor: Story = {
+  args: {
+    initialBlocks: STARTER_BLOCKS
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // Open the section block's editor by clicking its row trigger. Anchor
+    // on rendered preview text to find it (mirrors ReorderBlocksViaDrag).
+    const sectionText = await canvas.findByText(/compose slack messages/i);
+    const sectionRow = sectionText.closest('div[role="button"]') as HTMLElement | null;
+    expect(sectionRow).not.toBeNull();
+    await userEvent.click(sectionRow!);
+
+    // The popover renders in a portal on document.body, so query from there.
+    const body = within(document.body);
+    const done = await body.findByRole('button', { name: /^done$/i });
+    await expect(body.getByRole('heading', { name: /edit section/i })).toBeInTheDocument();
+
+    // Clicking Done dismisses the editor.
+    await userEvent.click(done);
+    await waitFor(() => {
+      expect(body.queryByRole('button', { name: /^done$/i })).not.toBeInTheDocument();
+      expect(body.queryByRole('heading', { name: /edit section/i })).not.toBeInTheDocument();
+    });
+  }
+};

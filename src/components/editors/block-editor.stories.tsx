@@ -78,6 +78,7 @@ const meta = {
           args.onChange?.(next);
           updateArgs({ block: next });
         }}
+        onDone={args.onDone}
       />
     );
   },
@@ -357,5 +358,29 @@ export const EditingImageUrlAndAltProducesValidBlock: Story = {
     await expect(args.onChange).toHaveBeenCalled();
     const latest = expectLastOnChangeIsValid(args.onChange as ReturnType<typeof fn>);
     expect(latest.type).toBe('image');
+  }
+};
+
+// When hosted in a closable context window the caller passes `onDone`,
+// which renders the shared "Done" footer button. Clicking it dismisses
+// the window (here we just assert the callback fires).
+export const WithDoneButton: Story = {
+  args: { block: variant('section_mrkdwn'), onDone: fn() },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const done = await canvas.findByRole('button', { name: /^done$/i });
+    await expect(done).toBeInTheDocument();
+    await userEvent.click(done);
+    await expect(args.onDone).toHaveBeenCalledTimes(1);
+  }
+};
+
+// Without `onDone` (the standalone catalog default) there is no footer
+// button — the surface is not self-dismissing.
+export const WithoutDoneButton: Story = {
+  args: { block: variant('section_mrkdwn') },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    expect(canvas.queryByRole('button', { name: /^done$/i })).not.toBeInTheDocument();
   }
 };

@@ -183,6 +183,7 @@ export function BlockRow({
                 block={builderBlock.block}
                 errors={errors}
                 onChange={(next) => onUpdate(builderBlock.id, next)}
+                onDone={() => onOpenChange?.(false)}
               />
             </PopoverContent>
           </Popover>
