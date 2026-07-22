@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.1](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.0...block-kitchen-v0.10.1) (2026-07-22)
+
+
+### Features
+
+* add "Done" button to close block editor context windows ([2775c6b](https://github.com/TightknitAI/block-kitchen/commit/2775c6b5d676ecc8cd34835406d9000391b1a4d8))
+* add Done button to block editor popover ([0f509f0](https://github.com/TightknitAI/block-kitchen/commit/0f509f03b0680fb22420f164b81c6aee14ebea67))
+* add undo/redo to the block builder ([7878585](https://github.com/TightknitAI/block-kitchen/commit/7878585d99d0a47dc24c3b1ca1e68118078d479d))
+* add undo/redo to the block builder ([1847f38](https://github.com/TightknitAI/block-kitchen/commit/1847f383b4e29c34683ec77fd5b688e865aab9ea))
+
 ## [0.10.0](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.9.10...block-kitchen-v0.10.0) (2026-07-17)
 
 
