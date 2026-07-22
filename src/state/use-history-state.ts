@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
 
 /**
- * Upper bound on retained undo steps. Editing sessions rarely need more,
- * and the cap keeps a long session's memory footprint flat: once `past`
- * grows past this, the oldest snapshot is dropped on the next commit.
+ * Upper bound on retained undo steps. Twenty covers the practical reach of
+ * an undo session while keeping a long session's memory footprint flat:
+ * once `past` grows past this, the oldest snapshot is dropped on the next
+ * commit.
  */
-export const MAX_HISTORY = 100;
+export const MAX_HISTORY = 20;
 
 /** Internal past/present/future record plus the coalescing tag. */
 type HistoryRecord<T> = {
