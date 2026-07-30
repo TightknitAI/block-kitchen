@@ -63,7 +63,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "emoji-datasource": "^16.0.0",
-    "nanoid": "^5.1.11",
+    "nanoid": "^6.0.0",
     "slack-blocks-to-jsx": "^1.1.1",
     "tailwind-merge": "^3.6.0"
   },

@@ -43,8 +43,8 @@ importers:
         specifier: ^16.0.0
         version: 16.0.0
       nanoid:
-        specifier: ^5.1.11
-        version: 5.1.11
+        specifier: ^6.0.0
+        version: 6.0.0
       slack-blocks-to-jsx:
         specifier: ^1.1.1
         version: 1.1.1(@types/react@19.2.17)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -2958,9 +2958,9 @@ packages:
     engines: {node: ^10 || ^12 || ^13.7 || ^14 || >=15.0.1}
     hasBin: true
 
-  nanoid@5.1.11:
-    resolution: {integrity: sha512-v+KEsUv2ps74PaSKv0gHTxTCgMXOIfBEbaqa6w6ISIGC7ZsvHN4N9oJ8d4cmf0n5oTzQz2SLmThbQWhjd/8eKg==}
-    engines: {node: ^18 || >=20}
+  nanoid@6.0.0:
+    resolution: {integrity: sha512-mkUH+rPkwU2qPadJ0oJZOjeZ5Mxn8Q1UhevwkTRWNuUZzyia3h4rhzK39hxaHTk0o2OxB8W2SQ6A8k23ZDi1pQ==}
+    engines: {node: ^22 || ^24 || >=26}
     hasBin: true
 
   node-addon-api@7.1.1:
@@ -6321,7 +6321,7 @@ snapshots:
 
   nanoid@3.3.16: {}
 
-  nanoid@5.1.11: {}
+  nanoid@6.0.0: {}
 
   node-addon-api@7.1.1: {}
 
