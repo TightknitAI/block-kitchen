@@ -23,7 +23,11 @@ jobs:
     concurrency:
       group: cf-preview-url-${{ github.event.check_run.check_suite.head_branch }}
     permissions:
-      pull-requests: read
+      # Commenting on a PR goes through the issue-comments endpoint, which
+      # requires BOTH grants: it answers 403 with
+      # `x-accepted-github-permissions: issues=write; pull_requests=write`.
+      # `pull-requests: read` is enough to list PRs but not to comment on one.
+      pull-requests: write
       issues: write
 
     steps:
