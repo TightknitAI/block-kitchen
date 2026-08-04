@@ -1,0 +1,93 @@
+name: Cloudflare Preview URL
+
+# Cloudflare Workers Builds reports each build as a check run whose summary
+# carries the preview URLs. Its GitHub App is also supposed to post those as a
+# PR comment, but that stopped happening for this repo; the check run itself
+# still arrives, so post the comment ourselves from the data it carries.
+#
+# GitHub only dispatches `check_run` events to workflow files on the default
+# branch, so edits here take effect once merged, not on the PR that makes them.
+on:
+  check_run:
+    types: [completed]
+
+jobs:
+  comment:
+    name: Post preview URL
+    # Cloudflare is not the only app posting check runs on this repo.
+    if: github.event.check_run.app.slug == 'cloudflare-workers-and-pages'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # One comment per branch: serialize so two builds finishing together can't
+    # each decide no comment exists yet and create their own.
+    concurrency:
+      group: cf-preview-url-${{ github.event.check_run.check_suite.head_branch }}
+    permissions:
+      pull-requests: read
+      issues: write
+
+    steps:
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const run = context.payload.check_run;
+            const sha = run.head_sha;
+            const branch = run.check_suite?.head_branch;
+            if (!branch) {
+              console.log('No head branch on the check run, skipping.');
+              return;
+            }
+
+            // Resolve the PR by branch rather than by head SHA: a build that
+            // finishes after another push has already moved the head still
+            // needs to find its PR (the staleness guard below handles ordering).
+            const { data: prs } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${branch}`,
+              state: 'open'
+            });
+            if (prs.length === 0) {
+              console.log(`No open PR for branch ${branch}, skipping.`);
+              return;
+            }
+
+            const summary = run.output?.summary ?? '';
+            const branchUrl = summary.match(/Preview Alias URL:\s*(https:\/\/\S+)/)?.[1];
+            const commitUrl = summary.match(/Preview URL:\s*(https:\/\/\S+)/)?.[1];
+
+            const MARKER = '<!-- cf-preview-url -->';
+            const status = run.conclusion === 'success' ? '✅ Deployed' : `❌ Build ${run.conclusion}`;
+            const links = [
+              branchUrl ? `[Branch preview](${branchUrl})` : null,
+              commitUrl ? `[Commit preview](${commitUrl})` : null,
+              run.details_url ? `[Build logs](${run.details_url})` : null
+            ].filter(Boolean);
+            const body = `${MARKER}\n## Cloudflare preview\n\n${status} \`${sha.slice(0, 7)}\` · ${links.join(' · ') || 'no URLs reported'}\n`;
+
+            for (const pr of prs) {
+              // SHORTCUT: only comment for the PR's current head. A build that
+              // finishes after a newer push is stale, and the newer build posts
+              // its own check run moments later. Cheaper than ordering the two
+              // commits, at the cost of no comment during that gap.
+              if (sha !== pr.head.sha) {
+                console.log(`Build ${sha.slice(0, 7)} is behind PR #${pr.number} head, skipping.`);
+                continue;
+              }
+
+              const comments = await github.paginate(github.rest.issues.listComments, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                per_page: 100
+              });
+              const existing = comments.find((c) => c.body?.includes(MARKER));
+              const target = { owner: context.repo.owner, repo: context.repo.repo };
+
+              if (existing) {
+                await github.rest.issues.updateComment({ ...target, comment_id: existing.id, body });
+              } else {
+                await github.rest.issues.createComment({ ...target, issue_number: pr.number, body });
+              }
+              console.log(`${existing ? 'Updated' : 'Created'} preview comment on PR #${pr.number}`);
+            }
