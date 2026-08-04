@@ -33,6 +33,7 @@ import { ContextActionsEditor } from './context-actions-editor';
 import { ContextEditor } from './context-editor';
 import { DataVisualizationEditor } from './data-visualization-editor';
 import { DividerEditor } from './divider-editor';
+import { AdvancedIdField } from './field';
 import { HeaderEditor } from './header-editor';
 import { ImageEditor } from './image-editor';
 import { InputEditor } from './input-editor';
@@ -85,6 +86,14 @@ export function BlockEditor({
         </ul>
       ) : null}
       {dispatch(block, onChange)}
+      <AdvancedIdField
+        label="Block ID"
+        help="Optional. Unique within the message or view. Slack returns it in interaction payloads."
+        htmlFor="block-id"
+        value={block.block_id}
+        placeholder="e.g. approval_row"
+        onChange={(next) => onChange({ ...block, block_id: next })}
+      />
       {onDone ? (
         <div className="flex justify-end border-t pt-3">
           <Button type="button" size="sm" onClick={onDone}>

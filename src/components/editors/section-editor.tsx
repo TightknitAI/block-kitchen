@@ -5,7 +5,7 @@ import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { Textarea } from '../../lib/ui/textarea';
 import { EmojiTextInsertButton } from '../emoji/emoji-text-insert-button';
-import { EditorField } from './field';
+import { AdvancedIdField, EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
 type AccessoryKind = 'none' | 'button' | 'image' | 'other';
@@ -230,6 +230,14 @@ function ButtonAccessoryFields({ button, onChange }: { button: SlackButton; onCh
           ))}
         </RadioGroup>
       </EditorField>
+      <AdvancedIdField
+        label="Action ID"
+        help="Optional. Sent in the interaction payload so your app knows which button was clicked."
+        htmlFor="section-acc-btn-action"
+        value={button.action_id}
+        placeholder="e.g. learn_more"
+        onChange={(next) => onChange({ ...button, action_id: next })}
+      />
     </div>
   );
 }
