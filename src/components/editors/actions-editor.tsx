@@ -5,7 +5,7 @@ import { Button } from '../../lib/ui/button';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
-import { EditorField } from './field';
+import { AdvancedIdField, EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
 type ButtonStyle = 'default' | 'primary' | 'danger';
@@ -125,6 +125,14 @@ export function ActionsEditor({ block, onChange }: BlockEditorProps<ActionsBlock
                 ))}
               </RadioGroup>
             </EditorField>
+            <AdvancedIdField
+              label="Action ID"
+              help="Optional. Sent in the interaction payload so your app knows which button was clicked."
+              htmlFor={`btn-action-${idx}`}
+              value={el.action_id}
+              placeholder="e.g. approve_request"
+              onChange={(next) => updateButton(idx, { action_id: next })}
+            />
           </div>
         );
       })}

@@ -8,7 +8,7 @@ import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { Textarea } from '../../lib/ui/textarea';
 import type { CardBlock } from '../../types';
-import { EditorField } from './field';
+import { AdvancedIdField, EditorField } from './field';
 import type { BlockEditorProps } from './types';
 
 type ButtonStyle = 'default' | 'primary' | 'danger';
@@ -289,6 +289,14 @@ function ButtonsField({
                 ))}
               </RadioGroup>
             </EditorField>
+            <AdvancedIdField
+              label="Action ID"
+              help="Optional. Sent in the interaction payload so your app knows which button was clicked."
+              htmlFor={`${idPrefix}-btn-action-${idx}`}
+              value={btn.action_id}
+              placeholder="e.g. open_details"
+              onChange={(next) => update(idx, { action_id: next })}
+            />
           </div>
         );
       })}
