@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.2](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.1...block-kitchen-v0.10.2) (2026-08-04)
+
+
+### Features
+
+* **editors:** expose block_id and action_id behind an Advanced toggle ([d0d0938](https://github.com/TightknitAI/block-kitchen/commit/d0d0938450fbbf96d3296b3394fbe9d080b15fc4))
+* **editors:** expose block_id and action_id behind an Advanced toggle ([b537e9b](https://github.com/TightknitAI/block-kitchen/commit/b537e9bef4ea65a5e6cc43a2e3fbc1a9ce2dca85))
+
+
+### Bug Fixes
+
+* **ci:** grant pull-requests write so the preview comment can post ([c388a24](https://github.com/TightknitAI/block-kitchen/commit/c388a24927f30d155b0065ad3a592fa86f358677))
+* **ci:** grant pull-requests write so the preview comment can post ([1b02e35](https://github.com/TightknitAI/block-kitchen/commit/1b02e35be260c843dc831146af8c6cc058b7985b))
+* **deps:** bump slack-block-kit-validator to 0.1.13 for duplicate action_id ([84623cb](https://github.com/TightknitAI/block-kitchen/commit/84623cbf564dc5a0c486c77e5ac64927a121a944))
+
 ## [0.10.1](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.0...block-kitchen-v0.10.1) (2026-07-22)
 
 
