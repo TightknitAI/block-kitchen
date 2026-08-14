@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.3](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.2...block-kitchen-v0.10.3) (2026-08-14)
+
+
+### Bug Fixes
+
+* stop stripping header `level` from sent Block Kit payloads ([e8724bf](https://github.com/TightknitAI/block-kitchen/commit/e8724bf6919053ccf472ddea61dc5b0635e3f19c))
+* stop stripping header `level` from sent Block Kit payloads ([cfba02f](https://github.com/TightknitAI/block-kitchen/commit/cfba02f883c4990610a4c79556abbdf70f2441f3))
+
 ## [0.10.2](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.1...block-kitchen-v0.10.2) (2026-08-04)
 
 
