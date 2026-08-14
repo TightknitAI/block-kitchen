@@ -13,7 +13,7 @@ const HEADER_LEVELS: HeaderLevel[] = [1, 2, 3, 4];
 /**
  * Editor form for header blocks. Slack enforces plain text only.
  * Shows a character count against the 150-char Slack limit, plus an
- * optional 1-4 level selector (builder-only extension; Slack ignores it).
+ * optional 1-4 heading level selector.
  * @param props - editor props
  * @param props.block - the header block to edit
  * @param props.onChange - called with the updated block payload
@@ -44,7 +44,7 @@ export function HeaderEditor({ block, onChange }: BlockEditorProps<SupportedHead
           <EmojiTextInsertButton targetRef={inputRef} value={text} onChange={setText} className="shrink-0 border" />
         </div>
       </EditorField>
-      <EditorField label="Level" help="Optional. Builder-only extension; Slack's API ignores this value.">
+      <EditorField label="Level" help="Optional. Sets the heading size Slack renders, from H1 (largest) to H4.">
         <RadioGroup
           value={level === undefined ? 'default' : String(level)}
           onValueChange={(v) => {

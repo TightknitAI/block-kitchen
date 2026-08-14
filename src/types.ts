@@ -407,15 +407,17 @@ export interface ContainerBlock {
 }
 
 /**
- * Header heading level shown in the preview. Slack's API has no
- * `level` field on header blocks, so this is a builder-only extension
- * that round-trips on the block payload but is otherwise cosmetic.
+ * Header heading level. A real Slack field on header blocks — an optional
+ * integer 1-4 that Slack renders at the corresponding heading size — so it
+ * round-trips through {@link SupportedBlock} and is sent to the API.
+ * @see https://docs.slack.dev/reference/block-kit/blocks/header-block
  */
 export type HeaderLevel = 1 | 2 | 3 | 4;
 
 /**
  * Header block as edited by the builder. Extends Slack's HeaderBlock
- * with an optional {@link HeaderLevel}.
+ * with an optional {@link HeaderLevel}, which the bundled
+ * `slack-web-api-client` types predate.
  */
 export type SupportedHeaderBlock = HeaderBlock & { level?: HeaderLevel };
 

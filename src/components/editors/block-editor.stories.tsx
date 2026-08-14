@@ -332,6 +332,22 @@ export const TypingHeaderTextProducesValidBlock: Story = {
   }
 };
 
+// Regression: header `level` is a real Slack field, so picking a level in
+// the editor must survive `toSlackBlocks` and reach the wire payload.
+// It used to be stripped on the way out, silently discarding the choice.
+export const SelectingHeaderLevelProducesValidBlock: Story = {
+  args: { block: variant('structure_header') },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByLabelText(/^h2$/i));
+    await expect(args.onChange).toHaveBeenCalled();
+    const latest = expectLastOnChangeIsValid(args.onChange as ReturnType<typeof fn>);
+    expect(latest.type).toBe('header');
+    expect(latest).toHaveProperty('level', 2);
+    expect(toSlackBlocks([latest])[0]).toHaveProperty('level', 2);
+  }
+};
+
 export const TypingMarkdownTextProducesValidBlock: Story = {
   args: { block: variant('markdown_list') },
   play: async ({ canvasElement, args }) => {
