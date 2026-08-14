@@ -6,7 +6,10 @@ import { decodeBlocksFromString, encodeBlocksToString } from '../src/lib/url-sta
 import type { SupportedBlock } from '../src/types';
 
 describe('toSlackBlocks', () => {
-  it('strips the builder-only `level` field from header blocks', () => {
+  // Regression: `level` is a real Slack header field (integer 1-4), not a
+  // builder-only extension. It used to be stripped here, which silently
+  // dropped the heading level from every message the builder sent.
+  it('preserves the `level` field on header blocks', () => {
     const input: SupportedBlock[] = [
       {
         type: 'header',
@@ -17,7 +20,40 @@ describe('toSlackBlocks', () => {
 
     const [out] = toSlackBlocks(input);
     expect(out.type).toBe('header');
+    expect(out).toEqual(input[0]);
+  });
+
+  it('emits header `level` in a payload the validator accepts', () => {
+    for (const level of [1, 2, 3, 4]) {
+      const payload = toSlackBlocks([
+        {
+          type: 'header',
+          level,
+          text: { type: 'plain_text', text: 'Heading', emoji: true }
+        } as SupportedBlock
+      ]);
+      expect(payload[0]).toHaveProperty('level', level);
+      expect(validateBlockKit(payload, { target: 'blocks' }).valid).toBe(true);
+    }
+  });
+
+  it('leaves an out-of-range header `level` intact so it surfaces as a validation error', () => {
+    const payload = toSlackBlocks([
+      {
+        type: 'header',
+        level: 6,
+        text: { type: 'plain_text', text: 'Heading', emoji: true }
+      } as unknown as SupportedBlock
+    ]);
+    expect(payload[0]).toHaveProperty('level', 6);
+    expect(validateBlockKit(payload, { target: 'blocks' }).valid).toBe(false);
+  });
+
+  it('leaves a header block without a `level` untouched', () => {
+    const input: SupportedBlock[] = [{ type: 'header', text: { type: 'plain_text', text: 'Heading', emoji: true } }];
+    const [out] = toSlackBlocks(input);
     expect('level' in out).toBe(false);
+    expect(out).toBe(input[0]);
   });
 
   it('passes non-header blocks through unchanged', () => {
