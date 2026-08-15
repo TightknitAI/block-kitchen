@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.6](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.5...block-kitchen-v0.10.6) (2026-08-15)
+
+
+### Features
+
+* add simple palette mode with basic variant filtering ([3f2c329](https://github.com/TightknitAI/block-kitchen/commit/3f2c329d833a51f43f26527754c82565d9ccf8db))
+* **demo:** palette-mode + editing-mode selectors, always-on Sample Data ([5106e92](https://github.com/TightknitAI/block-kitchen/commit/5106e92fecd3b3eff5a0f391b9c41ab37a18bf1d))
+* **palette:** title the simple-mode header "Message Elements" ([61946ef](https://github.com/TightknitAI/block-kitchen/commit/61946ef57e4c30c449ca0f1988479bb0013a4962))
+* simple palette mode, Slack-marked find button, verdict callout fixes ([5cd4611](https://github.com/TightknitAI/block-kitchen/commit/5cd4611625b0da737d641b122c3c80fc07e4c266))
+
 ## [0.10.5](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.4...block-kitchen-v0.10.5) (2026-08-15)
 
 
