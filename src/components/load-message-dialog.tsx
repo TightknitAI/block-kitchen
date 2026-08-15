@@ -475,8 +475,14 @@ export function LoadMessageDialog({
 
         {/* Two panes side by side on wide viewports, stacked below that. Each
             pane grows inside this flex box and scrolls on its own, so neither
-            can push the pinned header/footer around. */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto lg:flex-row lg:gap-5 lg:overflow-hidden">
+            can push the pinned header/footer around.
+
+            Every scroll container here (this one and the panels inside it)
+            carries `-mx-1 px-1`: focus rings paint *outside* the control's
+            border box, so without that gutter the clip edge shaves the ring off
+            the full-width input and channel picker. The negative margin cancels
+            the padding, so nothing shifts. */}
+        <div className="-mx-1 flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-1 lg:flex-row lg:gap-5 lg:overflow-hidden">
           <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:min-h-0 lg:w-[19rem]">
             {hasRecent && (
               <TabStrip activeTab={activeTab} onSelect={setTab} tabDomId={tabDomId} panelDomId={panelDomId} />
@@ -485,7 +491,7 @@ export function LoadMessageDialog({
             {activeTab === 'recent' ? (
               <div
                 {...panelProps('recent')}
-                className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1 lg:overflow-hidden"
+                className="-mx-1 flex min-w-0 flex-col gap-2 px-1 lg:min-h-0 lg:flex-1 lg:overflow-hidden"
               >
                 {/* Pick a channel first — the recent lookup is scoped to it. */}
                 <div className="flex shrink-0 flex-col gap-1.5">
@@ -589,7 +595,7 @@ export function LoadMessageDialog({
             ) : (
               <div
                 {...panelProps('link')}
-                className="flex min-w-0 flex-col gap-2 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
+                className="-mx-1 flex min-w-0 flex-col gap-2 px-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
               >
                 <div className="flex flex-col gap-1.5">
                   <Label htmlFor="message-link">Message link</Label>
