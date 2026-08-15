@@ -1,10 +1,11 @@
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Input } from '../lib/ui/input';
 import { Label } from '../lib/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
 import { isSafeHref, isSafeImageSrc } from '../lib/url-safety';
 import type {
   ChannelOption,
@@ -25,9 +26,16 @@ import { SlackSignInButton } from './slack-sign-in';
  */
 const LINK_DEBOUNCE_MS = 400;
 
-/** Copy under the link input explaining where a Slack message link comes from. */
+/**
+ * Where a Slack message link comes from. Shown on the info bubble beside the
+ * "Message link" label rather than as standing copy under the input: it's
+ * one-time orientation, and the pane is the narrow column at wide viewports.
+ */
 const LINK_HELP_TEXT =
   'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link".';
+
+/** Accessible name for the info bubble that carries {@link LINK_HELP_TEXT}. */
+const LINK_HELP_LABEL = 'Where to find a message link';
 
 /** The left pane's two entry points. Order drives arrow-key navigation. */
 const TABS = [
@@ -605,7 +613,24 @@ export function LoadMessageDialog({
                 className="-mx-1 flex min-w-0 flex-col gap-2 px-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
               >
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="message-link">Message link</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="message-link">Message link</Label>
+                    {/* Focusable, not just hoverable: the hint is the only
+                        place that explains where a link comes from, so it has
+                        to be reachable from the keyboard too. */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={LINK_HELP_LABEL}
+                          className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{LINK_HELP_TEXT}</TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Input
                     ref={inputRef}
                     id="message-link"
@@ -626,7 +651,6 @@ export function LoadMessageDialog({
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  <p className="text-xs leading-relaxed text-muted-foreground">{LINK_HELP_TEXT}</p>
                 </div>
 
                 {emptyLinkError && (
