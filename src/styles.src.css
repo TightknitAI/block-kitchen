@@ -73,18 +73,30 @@
   --radius-sm: calc(var(--radius, 0.5rem) - 4px);
 }
 
-/* Restore a sensible border-color default for the builder chrome.
-   Tailwind v4's preflight sets `*, ::before, ::after { border-color:
-   var(--default-border-color, currentColor); }`, but we deliberately
-   skip preflight (see the import above) to avoid leaking globals into
-   the host document. Without that rule, bare `border` utilities fall
-   back to `currentColor`, which inherits the text color — visually
-   correct in light mode (dark text → dark borders) but very wrong in
-   dark mode, where light foreground text turns every border near-white.
-   Scope this default to elements we own: `.bk-root` and its descendants,
-   plus `.bk-portal-content` (the marker class on every Radix Portal
-   container in this package, so popovers/dialogs/tooltips/sheets get
-   the same default even though they render outside `.bk-root`). */
+/* Restore the two preflight defaults the builder chrome depends on.
+   We deliberately skip Tailwind's preflight (see the import above) to
+   avoid leaking globals into the host document, so both of these have
+   to come back scoped to elements we own: `.bk-root` and its
+   descendants, plus `.bk-portal-content` (the marker class on every
+   Radix Portal container in this package, so popovers/dialogs/tooltips/
+   sheets get them too even though they render outside `.bk-root`).
+
+   - `border-color`. Preflight sets `*, ::before, ::after { border-color:
+     var(--default-border-color, currentColor); }`. Without it, bare
+     `border` utilities fall back to `currentColor`, which inherits the
+     text color — visually correct in light mode (dark text → dark
+     borders) but very wrong in dark mode, where light foreground text
+     turns every border near-white.
+   - `box-sizing`. Preflight sets `border-box`, and every Tailwind
+     sizing utility is written expecting it. Under the `content-box`
+     initial value, `p-6` and `border` stack *outside* a width or height
+     cap: the load dialog's `max-h-[85svh] w-[calc(100vw-1.5rem)] p-6
+     border` measures 85svh + 50px tall and 26px wider than the
+     viewport. Hosts built on Tailwind (or any normalize-style reset)
+     already set `border-box` globally, which is why the builder looks
+     right in most apps and why this only shows up with our stylesheet
+     standing alone — exactly the case the package promises to support,
+     since consumers are only asked to supply the design tokens. */
 .bk-root,
 .bk-root *,
 .bk-root *::before,
@@ -93,6 +105,7 @@
 .bk-portal-content *,
 .bk-portal-content *::before,
 .bk-portal-content *::after {
+  box-sizing: border-box;
   border-color: hsl(var(--border, 214.3 31.8% 91.4%));
 }
 
