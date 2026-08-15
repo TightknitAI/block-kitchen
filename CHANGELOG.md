@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.4](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.3...block-kitchen-v0.10.4) (2026-08-15)
+
+
+### Features
+
+* add preview pane to load message dialog with tab navigation ([f940c62](https://github.com/TightknitAI/block-kitchen/commit/f940c6221ecda39653f40a301c791ba8bf53c79b))
+* **load-dialog:** split "Find an existing message" into two panes ([0a1866a](https://github.com/TightknitAI/block-kitchen/commit/0a1866a5422eed87aa8ca9627bd1d1b60e6a9119))
+
+
+### Bug Fixes
+
+* **load-dialog:** drop "Paste here." from the link help text ([487183a](https://github.com/TightknitAI/block-kitchen/commit/487183aa2209e95b089c9dc9a4c8303e91d47e8b))
+* **load-dialog:** stop the panes clipping control focus rings ([61b0571](https://github.com/TightknitAI/block-kitchen/commit/61b05716770675253458c9d7252a644db35d1100))
+
 ## [0.10.3](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.2...block-kitchen-v0.10.3) (2026-08-14)
 
 
