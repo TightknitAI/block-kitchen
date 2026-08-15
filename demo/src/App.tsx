@@ -155,6 +155,237 @@ function sampleBlocks(title: string): SupportedBlock[] {
   ];
 }
 
+// A deliberately long release-notes post — 33 blocks: a hero image, a chart
+// further down, five thumbnail accessories, markdown lists, and code. Slack
+// caps a message at 50 blocks, so this is a realistic worst case, and it is
+// taller than any pane that previews it. Use it to check that the find
+// dialog's preview scrolls inside its own container instead of growing the
+// modal.
+function longReleaseNotesBlocks(): SupportedBlock[] {
+  return [
+    { type: 'header', text: { type: 'plain_text', text: 'Platform release 2026.8', emoji: true } },
+    {
+      type: 'image',
+      image_url: 'https://placehold.co/1200x420/4a154b/ffffff?text=Platform+2026.8',
+      alt_text: 'Platform 2026.8 release banner',
+      title: { type: 'plain_text', text: 'Everything that shipped this month', emoji: true }
+    },
+    {
+      type: 'context',
+      elements: [
+        { type: 'image', image_url: 'https://placehold.co/24x24/4a154b/ffffff?text=BK', alt_text: 'Avatar' },
+        { type: 'mrkdwn', text: '*Acme Bot* · posted to <#C0003|engineering> · <https://example.com/releases/2026.8|changelog>' }
+      ]
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: 'Our largest release of the year: *77 merged PRs* across the API, the ingest pipeline, and the dashboard. Highlights first, then the full list of fixes and the upgrade guide at the bottom.'
+      }
+    },
+    { type: 'divider' },
+    { type: 'header', text: { type: 'plain_text', text: 'Highlights', emoji: true } },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*Streaming ingest*\nEvents now land in under 200ms p99 instead of the old 30-second batch window. Backfills replay through the same path, so there is one code path to reason about.'
+      },
+      accessory: { type: 'image', image_url: 'https://placehold.co/72x72/0ea5e9/ffffff?text=1', alt_text: 'Streaming ingest' }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*Saved views*\nAny filter combination can be pinned, shared with a team, or set as a workspace default. Views are versioned, so an edit never surprises the people you shared it with.'
+      },
+      accessory: { type: 'image', image_url: 'https://placehold.co/72x72/16a34a/ffffff?text=2', alt_text: 'Saved views' }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*Scoped API tokens*\nTokens can be limited to a single project and a read-only scope. Existing tokens keep working unchanged; the new scopes are opt-in per token.'
+      },
+      accessory: { type: 'image', image_url: 'https://placehold.co/72x72/f59e0b/ffffff?text=3', alt_text: 'Scoped tokens' }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*Audit log export*\nStream the audit log straight to S3 or GCS on a schedule, in JSONL. Retention is configurable per destination.'
+      },
+      accessory: { type: 'image', image_url: 'https://placehold.co/72x72/8b5cf6/ffffff?text=4', alt_text: 'Audit export' }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*Dark mode everywhere*\nThe last three surfaces — billing, admin, and the embedded report viewer — finally follow the workspace theme.'
+      },
+      accessory: { type: 'image', image_url: 'https://placehold.co/72x72/ec4899/ffffff?text=5', alt_text: 'Dark mode' }
+    },
+    { type: 'divider' },
+    { type: 'header', text: { type: 'plain_text', text: 'Performance', emoji: true } },
+    {
+      type: 'markdown',
+      text: '- **p99 read latency** 412ms → **188ms** after the query planner rewrite\n- **Cold start** 2.4s → **0.9s** on the ARM runtime\n- **Dashboard first paint** 1.8s → **1.1s** with the new bundle split\n- **Ingest throughput** 41k → **96k** events/sec per shard\n- **Monthly infra spend** down **8%** despite the throughput gain'
+    },
+    {
+      type: 'image',
+      image_url: 'https://placehold.co/1200x360/0ea5e9/ffffff?text=p99+latency+412ms+to+188ms',
+      alt_text: 'Chart showing p99 latency dropping from 412ms to 188ms',
+      title: { type: 'plain_text', text: 'p99 read latency, last 90 days', emoji: true }
+    },
+    {
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_preformatted',
+          elements: [
+            {
+              type: 'text',
+              text: '# before\np99=412ms  cold_start=2.4s  throughput=41k/s\n\n# after\np99=188ms  cold_start=0.9s  throughput=96k/s'
+            }
+          ]
+        }
+      ]
+    },
+    { type: 'divider' },
+    { type: 'header', text: { type: 'plain_text', text: 'Breaking changes', emoji: true } },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*1. `GET /v1/events` default page size is now 100* (was 500).\nPass `?limit=500` to keep the old behaviour. The maximum is unchanged at 1000.'
+      }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*2. `created_at` is RFC 3339 with an explicit offset.*\nPreviously it was a bare UTC timestamp. Parsers that assumed UTC without an offset need updating.'
+      }
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: '*3. Legacy `X-Api-Key` header removed.*\nIt has been deprecated since 2025.4. Use `Authorization: Bearer <token>` instead.'
+      }
+    },
+    {
+      type: 'context',
+      elements: [
+        { type: 'mrkdwn', text: 'Each breaking change has a migration note in the <https://example.com/releases/2026.8#breaking|changelog>.' }
+      ]
+    },
+    { type: 'divider' },
+    { type: 'header', text: { type: 'plain_text', text: 'Fixes', emoji: true } },
+    {
+      type: 'markdown',
+      text: '- Webhook retries no longer duplicate a delivery when the first attempt times out mid-write\n- Timezone picker now respects the workspace default on first load\n- CSV export escapes leading `=`, `+`, `-` and `@` so spreadsheets stop evaluating them\n- Fixed a race where two rapid saves could resurrect a deleted filter\n- Session cookies are refreshed on activity instead of only on navigation\n- The report viewer no longer double-counts rows when a group-by is applied twice\n- Long channel names truncate instead of pushing the toolbar off-screen\n- Retry budgets are now per-destination rather than global\n- Fixed a memory leak in the ingest worker on connection churn\n- Empty search results render the empty state instead of a blank panel'
+    },
+    { type: 'divider' },
+    { type: 'header', text: { type: 'plain_text', text: 'Upgrade guide', emoji: true } },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: 'Rolling upgrades are supported from *2026.6* and later. From an older version, step through 2026.6 first — the schema migration is not reversible past two minor versions.'
+      }
+    },
+    {
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_preformatted',
+          elements: [
+            {
+              type: 'text',
+              text: 'acme upgrade --to 2026.8 --plan\nacme upgrade --to 2026.8 --apply\nacme migrate status --watch'
+            }
+          ]
+        }
+      ]
+    },
+    {
+      type: 'section',
+      text: {
+        type: 'mrkdwn',
+        text: 'The migration takes roughly *4 minutes per shard* and runs online. Reads stay available throughout; writes pause for under a second at cutover.'
+      }
+    },
+    {
+      type: 'actions',
+      elements: [
+        {
+          type: 'button',
+          action_id: 'release_read_notes',
+          text: { type: 'plain_text', text: 'Read the full notes', emoji: true },
+          style: 'primary',
+          url: 'https://example.com/releases/2026.8'
+        },
+        {
+          type: 'button',
+          action_id: 'release_upgrade_guide',
+          text: { type: 'plain_text', text: 'Upgrade guide', emoji: true },
+          url: 'https://example.com/docs/upgrade'
+        },
+        {
+          type: 'button',
+          action_id: 'release_report_issue',
+          text: { type: 'plain_text', text: 'Report an issue', emoji: true },
+          style: 'danger',
+          value: 'report'
+        }
+      ]
+    },
+    { type: 'divider' },
+    {
+      type: 'context',
+      elements: [
+        { type: 'mrkdwn', text: 'Questions? Ask in <#C0003|engineering> — the release captain is on call until Friday.' }
+      ]
+    }
+  ];
+}
+
+// A deep #engineering history so the find dialog's recent-messages picker has
+// more rows than it can show at once: the list scrolls inside its own
+// container while the channel selector stays pinned above it. All bot-authored
+// so every row is offered without the mock user sign-in, and ordered
+// newest-first below the existing deploy fixture.
+const ENGINEERING_HISTORY: StoredMessage[] = [
+  'Platform release 2026.8 — full release notes',
+  'Deploy #481 promoted to production',
+  'Nightly integration suite: 412 passed, 0 failed',
+  'Postgres primary failover completed in 38s',
+  'Dependency audit: 3 highs cleared, 1 waiver renewed',
+  'Canary at 25% — error rate flat, p99 down 12ms',
+  'Feature flag `checkout-v3` enabled for internal users',
+  'Incident #204 resolved — webhook retry storm',
+  'Weekly infra spend down 8% after the ARM migration',
+  'Schema migration 0142 applied to all shards',
+  'CDN cache hit ratio recovered to 96%',
+  'On-call handoff: Riley → Jordan',
+  'Build cache warm-up cut CI wall time to 6m14s',
+  'Rate limiter rollout complete across all edges',
+  'Staging refreshed from the latest production snapshot'
+].map((title, i) => ({
+  // Descending from just before the existing #engineering fixture, 90 minutes
+  // apart, so the channel reads newest-first.
+  ts: `${1717994442 - i * 5400}.000${100 + i}`,
+  channelId: 'C0003',
+  channelName: 'engineering',
+  author: 'bot' as const,
+  kind: 'normal' as const,
+  // The first row is the long one, so the preview pane has something that
+  // overflows it.
+  blocks: i === 0 ? longReleaseNotesBlocks() : sampleBlocks(title)
+}));
+
 // One fixture per outcome the verdict logic can produce.
 const SEED_MESSAGES: StoredMessage[] = [
   {
@@ -196,7 +427,8 @@ const SEED_MESSAGES: StoredMessage[] = [
     author: 'you',
     kind: 'edit-window-closed',
     blocks: sampleBlocks('Sprint 24 retro')
-  }
+  },
+  ...ENGINEERING_HISTORY
 ];
 
 // Match a pasted permalink to a stored message. Tolerant of extra query/thread
