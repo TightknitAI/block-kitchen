@@ -1,10 +1,11 @@
-import { AlertTriangle, Loader2 } from 'lucide-react';
+import { AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
 import { Input } from '../lib/ui/input';
 import { Label } from '../lib/ui/label';
+import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
 import { isSafeHref, isSafeImageSrc } from '../lib/url-safety';
 import type {
   ChannelOption,
@@ -25,9 +26,16 @@ import { SlackSignInButton } from './slack-sign-in';
  */
 const LINK_DEBOUNCE_MS = 400;
 
-/** Copy under the link input explaining where a Slack message link comes from. */
+/**
+ * Where a Slack message link comes from. Shown on the info bubble beside the
+ * "Message link" label rather than as standing copy under the input: it's
+ * one-time orientation, and the pane is the narrow column at wide viewports.
+ */
 const LINK_HELP_TEXT =
   'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link".';
+
+/** Accessible name for the info bubble that carries {@link LINK_HELP_TEXT}. */
+const LINK_HELP_LABEL = 'Where to find a message link';
 
 /** The left pane's two entry points. Order drives arrow-key navigation. */
 const TABS = [
@@ -453,7 +461,14 @@ export function LoadMessageDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[85svh] w-[calc(100vw-1.5rem)] flex-col rounded-lg lg:max-w-4xl"
+        // Responsive layout here is written as mutually exclusive `max-lg:` /
+        // `lg:` pairs rather than a base utility a `lg:` one overrides. The
+        // package's utilities ship in the named `bk-utilities` layer, which a
+        // consumer's own Tailwind build usually outranks (see styles.src.css);
+        // a host that emits the base class but not our `lg:` variant would win
+        // the base and the override would never land. Two variants that can't
+        // both match resolve the same way in every host.
+        className="flex max-h-[85svh] w-[calc(100vw-1.5rem)] max-w-4xl flex-col rounded-lg max-lg:max-w-lg"
         // With no tab strip the link input is the entry point, so focus it
         // directly instead of leaving focus on the dialog chrome.
         onOpenAutoFocus={(e) => {
@@ -482,7 +497,7 @@ export function LoadMessageDialog({
             border box, so without that gutter the clip edge shaves the ring off
             the full-width input and channel picker. The negative margin cancels
             the padding, so nothing shifts. */}
-        <div className="-mx-1 flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-1 lg:flex-row lg:gap-5 lg:overflow-hidden">
+        <div className="-mx-1 flex min-h-0 min-w-0 flex-1 px-1 max-lg:flex-col max-lg:gap-4 max-lg:overflow-y-auto lg:flex-row lg:gap-5 lg:overflow-hidden">
           <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:min-h-0 lg:w-[19rem]">
             {hasRecent && (
               <TabStrip activeTab={activeTab} onSelect={setTab} tabDomId={tabDomId} panelDomId={panelDomId} />
@@ -538,7 +553,7 @@ export function LoadMessageDialog({
                     viewports, and on wide ones it takes whatever height the
                     channel picker leaves and scrolls inside that. */}
                 {channelId && recent && recent.length > 0 && (
-                  <div className="flex max-h-60 min-h-0 min-w-0 flex-col gap-1 overflow-y-auto lg:max-h-none lg:flex-1">
+                  <div className="flex min-h-0 min-w-0 flex-col gap-1 overflow-y-auto max-lg:max-h-60 lg:flex-1">
                     {recent.map((m) => {
                       // Which identity the message was posted as — drives both
                       // this badge and (on load) the token the update uses.
@@ -598,7 +613,24 @@ export function LoadMessageDialog({
                 className="-mx-1 flex min-w-0 flex-col gap-2 px-1 lg:min-h-0 lg:flex-1 lg:overflow-y-auto"
               >
                 <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="message-link">Message link</Label>
+                  <div className="flex items-center gap-1.5">
+                    <Label htmlFor="message-link">Message link</Label>
+                    {/* Focusable, not just hoverable: the hint is the only
+                        place that explains where a link comes from, so it has
+                        to be reachable from the keyboard too. */}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <button
+                          type="button"
+                          aria-label={LINK_HELP_LABEL}
+                          className="flex h-4 w-4 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                          <Info className="h-3.5 w-3.5" />
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent side="right">{LINK_HELP_TEXT}</TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Input
                     ref={inputRef}
                     id="message-link"
@@ -619,7 +651,6 @@ export function LoadMessageDialog({
                     autoComplete="off"
                     spellCheck={false}
                   />
-                  <p className="text-xs leading-relaxed text-muted-foreground">{LINK_HELP_TEXT}</p>
                 </div>
 
                 {emptyLinkError && (
@@ -793,7 +824,7 @@ function PreviewPane({
         aria-label="Message preview"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: axe's scrollable-region-focusable rule wants the opposite — a scroll container whose content isn't focusable must itself be focusable, or keyboard users can't scroll it.
         tabIndex={0}
-        className="flex max-h-72 min-h-32 flex-1 flex-col gap-3 overflow-y-auto rounded-md border bg-muted/40 p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring lg:max-h-none lg:min-h-0"
+        className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-md border bg-muted/40 p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-lg:max-h-72 max-lg:min-h-32 lg:min-h-0"
       >
         {state.kind === 'not-editable' && (
           <div className="flex shrink-0 flex-col gap-2 rounded-md border border-amber-200! bg-amber-50 p-3 text-xs text-amber-800">

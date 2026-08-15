@@ -169,11 +169,20 @@ describe('LoadMessageDialog tabs', () => {
     expect(screen.queryByRole('tablist')).toBeNull();
     expect(screen.queryByRole('tab')).toBeNull();
     expect(screen.getByLabelText('Message link')).toBeTruthy();
-    expect(
-      screen.getByText(
-        'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link".'
-      )
-    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Where to find a message link' })).toBeTruthy();
+  });
+
+  it('reveals the "Copy Link" hint from the info bubble, on keyboard focus as well as hover', async () => {
+    renderLinkOnlyDialog();
+    const hint = 'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link".';
+
+    // The hint is the bubble's content, not standing copy under the input.
+    expect(screen.queryByText(hint)).toBeNull();
+
+    fireEvent.focus(screen.getByRole('button', { name: 'Where to find a message link' }));
+    // Radix renders the tooltip twice — the visible bubble and a visually
+    // hidden copy that names the trigger for screen readers.
+    expect((await screen.findAllByText(hint)).length).toBeGreaterThan(0);
   });
 
   it('moves selection and focus with the arrow keys', async () => {
