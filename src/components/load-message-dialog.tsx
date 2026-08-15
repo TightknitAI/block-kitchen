@@ -27,7 +27,7 @@ const LINK_DEBOUNCE_MS = 400;
 
 /** Copy under the link input explaining where a Slack message link comes from. */
 const LINK_HELP_TEXT =
-  'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link". Paste here.';
+  'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link".';
 
 /** The left pane's two entry points. Order drives arrow-key navigation. */
 const TABS = [

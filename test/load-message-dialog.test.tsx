@@ -171,7 +171,7 @@ describe('LoadMessageDialog tabs', () => {
     expect(screen.getByLabelText('Message link')).toBeTruthy();
     expect(
       screen.getByText(
-        'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link". Paste here.'
+        'Click the ⠇menu while hovering over the message in Slack (or right-click), and select "Copy Link".'
       )
     ).toBeTruthy();
   });
