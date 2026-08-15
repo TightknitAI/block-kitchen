@@ -2,12 +2,11 @@
  * Behavior guard for the toolbar's expand-on-hover utilities (Clear, View
  * JSON), measured in a real browser against the *built* stylesheet.
  *
- * They rest as bare icons and slide their label open on hover or keyboard
- * focus. All of that is CSS — a `0fr` → `1fr` grid track under `group-hover`
- * / `group-focus-visible` — so nothing in React re-renders and no assertion
- * on the component tree can see it. The Storybook runner can't either: its
+ * The reveal is pure CSS — a `0fr` → `1fr` grid track under `group-hover` /
+ * `group-focus-visible` — so nothing re-renders for an assertion on the
+ * component tree to catch. The Storybook runner can't see it either: its
  * `userEvent` dispatches synthetic pointer events, which never set `:hover`.
- * Only a real mouse move and a real Tab press do, which is what this drives.
+ * Only the real mouse move and Tab press below do.
  */
 import { render } from '@testing-library/react';
 import type { Browser, Page } from 'playwright';
@@ -33,8 +32,8 @@ describe('toolbar expanding labels (built stylesheet, real browser)', () => {
 
   beforeAll(async () => {
     const css = buildStylesheet();
-    // A block in the draft so Clear is enabled: a disabled button takes no
-    // focus, and the keyboard case below tabs through it.
+    // A block in the draft so Clear is enabled — the keyboard case tabs
+    // through it, and a disabled button takes no focus.
     const { container } = render(
       <BlockKitchen workspaceName="Acme Inc." initialBlocks={[{ type: 'divider' }] as SupportedBlock[]} />
     );
@@ -74,8 +73,7 @@ describe('toolbar expanding labels (built stylesheet, real browser)', () => {
     await tab.hover(JSON_BUTTON);
     await tab.waitForTimeout(SETTLE_MS);
     const expanded = await widthOf(tab, JSON_BUTTON);
-    // "View JSON" is a good deal wider than its icon; 20px is a floor that
-    // catches a dead animation without pinning the exact font metrics.
+    // 20px catches a dead animation without pinning font metrics.
     expect(expanded).toBeGreaterThan(collapsed + 20);
     // Its neighbour is untouched — the group scopes to one button.
     expect(await widthOf(tab, CLEAR_BUTTON)).toBeLessThan(COLLAPSED_MAX);
@@ -91,8 +89,8 @@ describe('toolbar expanding labels (built stylesheet, real browser)', () => {
     const tab = await open();
     const collapsed = await widthOf(tab, JSON_BUTTON);
 
-    // Reach the button by a real Tab press: `:focus-visible` keys off the
-    // input modality, so a programmatic `.focus()` alone would not prove it.
+    // A real Tab press: `:focus-visible` keys off the input modality, so a
+    // programmatic `.focus()` alone would not prove it.
     await tab.focus(CLEAR_BUTTON);
     await tab.keyboard.press('Tab');
     await tab.waitForTimeout(SETTLE_MS);
@@ -104,9 +102,8 @@ describe('toolbar expanding labels (built stylesheet, real browser)', () => {
 
   it('keeps the label out of the accessible name either way', async () => {
     const tab = await open();
-    // The label text stays in the DOM through the collapse; every one of
-    // these buttons carries an `aria-label`, so it was never the accessible
-    // name and assistive tech reads the same thing open or shut.
+    // The text stays in the DOM through the collapse, but the `aria-label`
+    // was always the accessible name — same reading open or shut.
     const names = await tab.evaluate(
       ([json, clear]) => ({
         json: document.querySelector(json)?.getAttribute('aria-label'),

@@ -1,19 +1,14 @@
 /**
  * Layout regression guard for the builder shell, measured in a real browser
- * against the *built* stylesheet — the only place the thing under test is
- * observable, since jsdom implements neither layout nor `svh`.
+ * against the *built* stylesheet — the only place this is observable, since
+ * jsdom implements neither layout nor `svh`.
  *
- * The shell sizes itself with `h-full`, which resolves against a host that
- * gives its container a definite height and computes to `auto` against one
- * that doesn't. In the `auto` case every internal `overflow-y-auto` goes
- * inert — nothing is bounded, so nothing has anything to scroll — and the
- * shell grows to its tallest child. That child is the palette, whose full
- * variant list runs a couple of thousand pixels, so an embed in ordinary
- * document flow used to stretch the host page by that much instead of
- * scrolling the rail. `max-h-[var(--bk-max-height,100svh)]` is the floor
- * under that case; these tests pin all three of its behaviors: it bounds an
- * unbounded host, it stays inert when the host's own height is smaller, and
- * `--bk-max-height` opts out of it.
+ * `h-full` computes to `auto` against a host that supplies no height, which
+ * left every internal `overflow-y-auto` inert and grew the shell to its
+ * tallest child: the palette, a couple of thousand pixels of variant list.
+ * `max-h-[var(--bk-max-height,100svh)]` bounds that. Pinned here: it bounds
+ * an unbounded host, stays inert under a smaller host height, and honors
+ * `--bk-max-height`.
  */
 import { render } from '@testing-library/react';
 import type { Browser } from 'playwright';
@@ -98,10 +93,8 @@ describe('builder shell scrolling (built stylesheet, real browser)', () => {
         stickyHeader: {
           position: getComputedStyle(stickyHeader).position,
           backgroundColor: getComputedStyle(stickyHeader).backgroundColor,
-          // Read the alpha off a painted pixel rather than parsing the string:
-          // Chromium reports a `bg-muted/20` header as `oklab(… / 0.2)` and an
-          // opaque one as `oklab(…)`, and the serialization is not something
-          // this test should be pinned to.
+          // Alpha off a painted pixel, not the string: Chromium serializes
+          // this as `oklab(… / 0.2)`, which isn't worth pinning.
           backgroundAlpha: (() => {
             const canvas = document.createElement('canvas');
             canvas.width = 1;
@@ -127,9 +120,7 @@ describe('builder shell scrolling (built stylesheet, real browser)', () => {
     expect(m.root.maxHeight).toBe(`${CAPPED_HEIGHT}px`);
     expect(m.root.height).toBeLessThanOrEqual(CAPPED_HEIGHT);
 
-    // The rail is bounded and scrolls on its own — the whole point. Its
-    // content is far taller than the shell, which is precisely why it used to
-    // drag the page down with it.
+    // The rail is bounded and scrolls on its own — the whole point.
     expect(m.aside.overflowY).toBe('auto');
     expect(m.aside.clientHeight).toBeGreaterThan(0);
     expect(m.aside.clientHeight).toBeLessThan(CAPPED_HEIGHT);
@@ -139,8 +130,7 @@ describe('builder shell scrolling (built stylesheet, real browser)', () => {
     expect(m.page.scrollHeight).toBeLessThanOrEqual(CAPPED_HEIGHT);
     expect(m.page.scrollHeight).toBeLessThan(m.aside.scrollHeight);
 
-    // The preview scrolls independently of the rail rather than sharing one
-    // scrollbar with it.
+    // The preview scrolls independently rather than sharing one scrollbar.
     expect(m.main.overflowY).toBe('auto');
     expect(m.main.clientHeight).toBeGreaterThan(0);
     expect(m.main.clientHeight).toBeLessThan(CAPPED_HEIGHT);
@@ -149,8 +139,8 @@ describe('builder shell scrolling (built stylesheet, real browser)', () => {
   it('leaves the cap inert when the host does supply a height', async () => {
     const m = await measure(`height: ${BOUNDED_HEIGHT}px`);
 
-    // A host that sizes the builder still wins: the cap is a floor under the
-    // unbounded case, not a ceiling on the bounded one.
+    // A host that sizes the builder still wins: the cap is a floor under
+    // the unbounded case, not a ceiling on the bounded one.
     expect(m.root.height).toBe(BOUNDED_HEIGHT);
     expect(m.aside.clientHeight).toBeLessThan(BOUNDED_HEIGHT);
     expect(m.aside.scrollHeight).toBeGreaterThan(m.aside.clientHeight);
@@ -173,9 +163,8 @@ describe('builder shell scrolling (built stylesheet, real browser)', () => {
     const m = await measure('');
 
     expect(m.stickyHeader.position).toBe('sticky');
-    // A translucent header composites over whatever has scrolled under it, and
-    // section headings show through the search box. A `backdrop-blur` softens
-    // them; only an opaque base hides them.
+    // A translucent header composites over the scrolled list, and headings
+    // show through the search box. Only an opaque base hides them.
     expect(m.stickyHeader.backgroundAlpha).toBe(255);
   });
 });

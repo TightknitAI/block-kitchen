@@ -1,11 +1,9 @@
 /**
- * Shared plumbing for the tests that measure real layout in a real browser.
- *
- * Both of them need the same two things — the package stylesheet compiled the
- * way `pnpm build:css` compiles it, and a Chromium to load it into — and both
- * are checking for regressions that only exist in the *built* artifact
- * (`@scope`, cascade layers, `svh` units, actual box geometry). jsdom can see
- * none of it.
+ * Shared plumbing for the tests that measure real layout in a real browser:
+ * the stylesheet compiled the way `pnpm build:css` compiles it, and a
+ * Chromium to load it into. They check for regressions that exist only in
+ * the *built* artifact — `@scope`, cascade layers, `svh`, box geometry —
+ * none of which jsdom can see.
  */
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync } from 'node:fs';
@@ -38,9 +36,8 @@ export function buildStylesheet(): string {
 }
 
 /**
- * Launch the Chromium these tests measure in. `BK_CHROMIUM_EXECUTABLE` lets a
- * pre-provisioned image point at its own binary; CI uses `playwright install
- * chromium` and needs no override.
+ * Launch the Chromium these tests measure in. `BK_CHROMIUM_EXECUTABLE` lets
+ * a pre-provisioned image point at its own binary; CI installs its own.
  * @returns the launched browser
  */
 export function launchChromium(): Promise<Browser> {

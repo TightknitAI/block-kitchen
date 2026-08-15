@@ -472,17 +472,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
               (toolbar buttons, block rows, fields) and never acts as a
               control itself, so it needs no role or tabindex.
 
-              `h-full` only resolves against a host that gives its container a
-              definite height; in ordinary document flow it computes to `auto`
-              and the shell grows to its tallest child — the palette, whose
-              ~40-variant list then stretches the host page by a couple of
-              thousand pixels and never engages its own `overflow-y-auto`. The
-              `max-h` is the floor under that case: it bounds the shell so the
-              palette and preview each scroll inside it, and it stays inert
-              whenever the host's own height is the smaller of the two. Hosts
-              that want a different bound (a page header to sit above, say, or
-              no bound at all) set `--bk-max-height` on any ancestor:
-              `--bk-max-height: calc(100svh - 4rem)`, or `none` to opt out. */}
+              `h-full` computes to `auto` in ordinary document flow, so the
+              shell grew to its tallest child — the palette — instead of
+              scrolling it. The `max-h` bounds that case and stays inert when
+              the host's own height is smaller. Override with
+              `--bk-max-height` on any ancestor (`none` opts out). */}
             <div
               className="bk-root flex h-full max-h-[var(--bk-max-height,100svh)] w-full flex-col overflow-hidden rounded-md border bg-background text-foreground"
               onKeyDown={handleKeyDown}

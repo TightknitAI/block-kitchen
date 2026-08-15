@@ -194,20 +194,12 @@ export function Palette({
       )}
     >
       {offersSimple || searchVisible ? (
-        // Two elements so the header can be opaque *and* the exact color of
-        // the rail behind it. The rail's tint is `bg-muted/20` composited
-        // over the shell's `bg-background`; a sticky header painted with
-        // that same 20% tint composites over whatever has scrolled beneath
-        // it instead, and section headings read straight through the search
-        // box. So the outer element restores the opaque `bg-background` base
-        // and the inner one lays the tint back on top of it — the same two
-        // layers the rail itself is made of, which keeps the match exact
-        // under any theme rather than only where `--muted` happens to sit
-        // near `--background`. The sheet variant has no tint to reproduce.
-        //
-        // This replaces a `backdrop-blur` that was standing in for opacity:
-        // blurring what shows through is not the same as not showing it, and
-        // at 20% the headings stayed legible through the blur.
+        // Two elements so the header is opaque *and* the exact color of the
+        // rail. Painted with the rail's own `bg-muted/20`, it composited over
+        // the scrolled list instead and headings read through the search box
+        // (a `backdrop-blur` softened them, it didn't hide them). Restoring
+        // the `bg-background` base under the tint rebuilds the rail's own two
+        // layers, so the match holds under any theme.
         <div className="sticky top-0 z-10 shrink-0 bg-background">
           <div className={cn('flex flex-col gap-2 border-b px-3 pt-3 pb-2', isSheet ? 'bg-background' : 'bg-muted/20')}>
             {offersSimple ? (

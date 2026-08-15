@@ -470,27 +470,21 @@ export function Toolbar({
 }
 
 /**
- * A toolbar label that rides collapsed at zero width and slides open when
- * its button is hovered or takes keyboard focus, leaving the icon as the
- * button's resting state. Used for the secondary utilities (Clear, View
- * JSON) so they read as a compact icon cluster without becoming a guessing
- * game — the name is one hover or one Tab away.
+ * A toolbar label that rests collapsed at zero width and slides open on
+ * hover or keyboard focus, leaving the icon as the button's resting state.
+ * Keeps the secondary utilities (Clear, View JSON) a compact icon cluster
+ * with the name one hover or one Tab away.
  *
- * The width animation is the `0fr` → `1fr` grid-track trick: a lone
- * flexible column in an intrinsically-sized grid resolves to its item's
- * max-content width, and the flex factor between the two interpolates,
- * which `width: auto` on its own can't do. Three elements, each load-
- * bearing: the grid owns the animated track, the middle span is the grid
- * item that gets sized to it and clips, and the inner block carries the
- * gap to the icon as padding — padding on the clipped item itself would
- * survive the collapse, since `border-box` sizing floors an element's
- * width at its own padding. The buttons pass `gap-0` for the same reason:
- * the button's usual flex gap would hold 8px open around a label that
- * isn't there.
+ * Animated as a `0fr` → `1fr` grid track, since the flex factor
+ * interpolates to the item's max-content width and `width: auto` can't.
+ * All three elements are load-bearing: the grid owns the track, the middle
+ * span is the item sized to it and clipping, and the inner block carries
+ * the gap to the icon — padding on the clipped item would survive the
+ * collapse, since `border-box` floors width at padding. Callers pass
+ * `gap-0` for the same reason.
  *
- * The label stays in the DOM throughout, but every one of these buttons
- * carries an `aria-label`, so it was never the accessible name — assistive
- * tech is unaffected by the collapse either way.
+ * The text stays in the DOM, but these buttons all carry an `aria-label`,
+ * so it was never the accessible name.
  * @param props - label props
  * @param props.children - the label text to reveal
  * @returns the rendered expanding label
