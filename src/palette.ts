@@ -13,4 +13,4 @@ export {
   extraAlertVariant,
   legacyInputVariants
 } from './lib/default-blocks';
-export type { SupportedBlock, SupportedBlockType } from './types';
+export type { PaletteMode, SupportedBlock, SupportedBlockType } from './types';

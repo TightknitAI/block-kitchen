@@ -1,7 +1,7 @@
 import { DndContext } from '@dnd-kit/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AlignLeft } from 'lucide-react';
-import { expect, fn, userEvent, within } from 'storybook/test';
+import { expect, fn, screen, userEvent, within } from 'storybook/test';
 import { defaultPalette, type PaletteSection } from '../lib/default-blocks';
 import { Palette } from './palette';
 
@@ -154,5 +154,61 @@ export const CustomSearchPlaceholder: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole('searchbox', { name: /find a block/i });
+  }
+};
+
+export const SimpleMode: Story = {
+  args: {
+    mode: 'simple'
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // One block, flat — no section headings, no search.
+    await canvas.findByRole('button', { name: /^add rich text section to preview$/i });
+    expect(canvas.queryByRole('searchbox')).toBeNull();
+    expect(canvas.queryByRole('button', { name: /^add divider to preview$/i })).toBeNull();
+    expect(canvas.queryByRole('button', { name: /^structure$/i })).toBeNull();
+  }
+};
+
+export const SimpleModeAdvancedLink: Story = {
+  args: {
+    mode: 'simple'
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const link = await canvas.findByRole('button', { name: /^advanced block palette$/i });
+
+    // Hovering explains what's behind the link before the user commits to it.
+    // The tooltip portals out of the canvas, so it's queried on the document.
+    await userEvent.hover(link);
+    const help = await screen.findByText(/browse every slack block type/i);
+    expect(help).toBeTruthy();
+    await userEvent.unhover(link);
+
+    // Clicking it swaps in the full palette, search and all.
+    await userEvent.click(link);
+    await canvas.findByRole('searchbox', { name: /search blocks/i });
+    await canvas.findByRole('button', { name: /^add divider to preview$/i });
+
+    // ...and the same link leads back.
+    await userEvent.click(await canvas.findByRole('button', { name: /^basic block palette$/i }));
+    expect(canvas.queryByRole('searchbox')).toBeNull();
+    await canvas.findByRole('button', { name: /^add rich text section to preview$/i });
+  }
+};
+
+export const SimpleModeWithoutBasicVariants: Story = {
+  args: {
+    mode: 'simple',
+    // No variant here opts into the simple list, so there's nothing to show
+    // in it — the palette renders the full list instead of an empty rail.
+    sections: CUSTOM_PALETTE
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole('button', { name: /^add help footer to preview$/i });
+    await canvas.findByRole('searchbox', { name: /search blocks/i });
+    expect(canvas.queryByRole('button', { name: /^advanced block palette$/i })).toBeNull();
   }
 };

@@ -311,9 +311,15 @@ describe('LoadMessageDialog preview pane', () => {
 
     const reason = await screen.findByText("Can't edit this one.");
     const pane = previewPane();
-    expect(pane.contains(reason)).toBe(true);
+    // The verdict and its escape hatch are chrome *about* the message, so they
+    // sit between the pane header and the scrolling card...
+    expect(pane.contains(reason)).toBe(false);
+    const header = screen.getByText('Preview');
+    expect(header.compareDocumentPosition(reason) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(reason.compareDocumentPosition(pane) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(pane.contains(screen.getByRole('button', { name: 'Open as a new message instead' }))).toBe(false);
+    // ...while the message the verdict carried still renders inside the card.
     expect(within(pane).getByText('Someone else’s message')).toBeTruthy();
-    expect(within(pane).getByRole('button', { name: 'Open as a new message instead' })).toBeTruthy();
   });
 });
 
@@ -340,12 +346,65 @@ describe('LoadMessageDialog not-editable verdict', () => {
 
   it('keeps the link controls usable while the preview shows the failure', async () => {
     await loadViaLink(async () => ({ ok: false, reason: 'No message matched that link.' }));
-    // The verdict lands in the preview pane...
-    expect(within(await screen.findByRole('region', { name: 'Message preview' })).getByText(/No message matched/));
+    // The verdict lands in the right-hand pane, above the (now empty) card...
+    const reason = await screen.findByText(/No message matched/);
+    const pane = screen.getByRole('region', { name: 'Message preview' });
+    expect(pane.contains(reason)).toBe(false);
+    expect(within(pane).getByText('Nothing to preview.')).toBeTruthy();
     // ...and the left pane still holds the link the user typed, ready to fix.
     expect((screen.getByLabelText('Message link') as HTMLInputElement).value).toBe(
       'https://x.slack.com/archives/C1/p1'
     );
+  });
+
+  // A verdict the user can act on owns the next step: the callout's own button
+  // is the way forward, so the footer's load button gets out of the way.
+  it('disables the load button when the verdict offers "open as new"', async () => {
+    await loadViaLink(async () => ({
+      ok: false,
+      reason: 'This message was posted by someone else.',
+      blocks: [{ type: 'divider' }]
+    }));
+    await screen.findByRole('button', { name: 'Open as a new message instead' });
+    expect((screen.getByRole('button', { name: 'Load message' }) as HTMLButtonElement).disabled).toBe(true);
+    // The callout's own button stays live — that's the whole point.
+    expect((screen.getByRole('button', { name: 'Open as a new message instead' }) as HTMLButtonElement).disabled).toBe(
+      false
+    );
+  });
+
+  it('disables the load button when the verdict asks the user to sign in', async () => {
+    await loadViaLink(async () => ({
+      ok: false,
+      reason: 'Connect your Slack account to edit your own messages.',
+      oauthUrl: 'https://slack.com/oauth'
+    }));
+    await screen.findByRole('button', { name: /sign in with slack/i });
+    expect((screen.getByRole('button', { name: 'Load message' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('keeps the load button live for a bare no-match verdict, so the link can be retried', async () => {
+    const calls: string[] = [];
+    renderDialog({
+      onLoadMessage: async ({ link }) => {
+        calls.push(link);
+        return { ok: false, reason: 'No message matched that link.' };
+      }
+    });
+    await openLinkTab();
+    fireEvent.change(await screen.findByLabelText('Message link'), {
+      target: { value: 'https://x.slack.com/archives/C1/p1' }
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Load message' }));
+    await screen.findByText('No message matched that link.');
+
+    // Nothing else to click, so re-submitting the same link is the retry.
+    const load = screen.getByRole('button', { name: 'Load message' }) as HTMLButtonElement;
+    expect(load.disabled).toBe(false);
+    await act(async () => {
+      fireEvent.click(load);
+    });
+    expect(calls).toHaveLength(2);
   });
 });
 

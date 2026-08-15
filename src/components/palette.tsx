@@ -5,7 +5,8 @@ import { useMemo, useState } from 'react';
 import { cn } from '../lib/cn';
 import type { PaletteSection as PaletteSectionDef, PaletteVariant } from '../lib/default-blocks';
 import { Input } from '../lib/ui/input';
-import type { SupportedBlock } from '../types';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../lib/ui/tooltip';
+import type { PaletteMode, SupportedBlock } from '../types';
 
 /**
  * The DnD draggable id format for palette items, e.g. `palette:section_mrkdwn`.
@@ -45,6 +46,32 @@ function isDefaultOpen(sectionName: string, config: DefaultOpenSections): boolea
   return config.includes(sectionName);
 }
 
+/**
+ * Copy for the mode link's tooltip. The simple palette is deliberately a
+ * dead end — one block, no search — so the link has to say what's behind it.
+ */
+const ADVANCED_HELP =
+  'Browse every Slack block type — sections, images, buttons, inputs, tables and more — plus a search box.';
+
+/** Counterpart for the link once the full palette is showing. */
+const BASIC_HELP = 'Go back to the short list: just the rich text block for writing a message.';
+
+/**
+ * The variants simple mode offers, flattened out of their sections: it's a
+ * short starter list, so section headings would be chrome around one row.
+ */
+function basicVariants(sections: readonly PaletteSectionDef[]): PaletteVariant[] {
+  const out: PaletteVariant[] = [];
+  for (const section of sections) {
+    for (const variant of section.variants) {
+      if (variant.basic) {
+        out.push(variant);
+      }
+    }
+  }
+  return out;
+}
+
 function filterSections(sections: readonly PaletteSectionDef[], query: string): readonly PaletteSectionDef[] {
   const q = query.trim().toLowerCase();
   if (q.length === 0) return sections;
@@ -71,6 +98,12 @@ function filterSections(sections: readonly PaletteSectionDef[], query: string): 
  * search input at the top filters variants by label across all sections;
  * an active query temporarily expands every matching section regardless
  * of its collapsed state.
+ *
+ * With `mode="simple"` the palette instead opens on a flat list of the
+ * variants flagged `basic` — no sections, no search — behind an "Advanced"
+ * link that swaps in the full palette described above. That keeps the first
+ * screen to the one block most messages are made of, without hiding the
+ * rest from anyone who goes looking.
  * @param props - palette props
  * @param props.onAddBlock - called when a palette item is added via its
  *   chevron button (appends the block to the bottom of the preview)
@@ -81,9 +114,14 @@ function filterSections(sections: readonly PaletteSectionDef[], query: string): 
  *   `true` (all open).
  * @param props.showSearch - whether the quick-search input is rendered
  *   above the section list. Defaults to `true`. Set `false` for compact
- *   palettes where the list is short enough to scan by eye.
+ *   palettes where the list is short enough to scan by eye. Simple mode
+ *   never shows it, whatever this says.
  * @param props.searchPlaceholder - placeholder text shown in the search
  *   input. Defaults to `'Search blocks…'`. Useful for localization.
+ * @param props.mode - `'advanced'` (default) renders the full sectioned
+ *   palette straight away. `'simple'` starts on a flat list of the
+ *   variants flagged `basic`, with no search and an "Advanced" link at the
+ *   top that swaps in the full palette. See {@link PaletteMode}.
  * @returns the rendered palette aside
  */
 export function Palette({
@@ -92,6 +130,7 @@ export function Palette({
   defaultOpenSections = true,
   showSearch = true,
   searchPlaceholder = 'Search blocks…',
+  mode = 'advanced',
   variant = 'aside'
 }: {
   onAddBlock: (block: SupportedBlock) => void;
@@ -99,6 +138,7 @@ export function Palette({
   defaultOpenSections?: DefaultOpenSections;
   showSearch?: boolean;
   searchPlaceholder?: string;
+  mode?: PaletteMode;
   /**
    * `'aside'` — persistent left rail (default). Fixed width with right border.
    * `'sheet'` — full-width content for mobile bottom-sheet hosting. No
@@ -107,11 +147,24 @@ export function Palette({
   variant?: 'aside' | 'sheet';
 }) {
   const [query, setQuery] = useState('');
+  // Which side of the simple/advanced switch we're on. Only consulted when
+  // the palette offers the switch at all; a mode-less palette is always
+  // advanced, so the initial `false` never surfaces there.
+  const [advancedOpen, setAdvancedOpen] = useState(false);
+
+  const basics = useMemo(() => (mode === 'simple' ? basicVariants(sections) : []), [mode, sections]);
+  // A simple mode with nothing in it would render an empty rail, so a palette
+  // that flags no `basic` variants (a fully custom one, say) stays advanced —
+  // the switch is withheld rather than leading somewhere blank.
+  const offersSimple = mode === 'simple' && basics.length > 0;
+  const advanced = !offersSimple || advancedOpen;
+
+  const searchVisible = showSearch && advanced;
   const visibleSections = useMemo(
-    () => (showSearch ? filterSections(sections, query) : sections),
-    [sections, query, showSearch]
+    () => (searchVisible ? filterSections(sections, query) : sections),
+    [sections, query, searchVisible]
   );
-  const queryActive = showSearch && query.trim().length > 0;
+  const queryActive = searchVisible && query.trim().length > 0;
   const isSheet = variant === 'sheet';
 
   return (
@@ -121,33 +174,52 @@ export function Palette({
         isSheet ? 'w-full flex-1 bg-background' : 'w-72 shrink-0 border-r bg-muted/20'
       )}
     >
-      {showSearch ? (
+      {offersSimple || searchVisible ? (
         <div
           className={cn(
-            'sticky top-0 z-10 border-b px-3 pt-3 pb-2 backdrop-blur',
+            'sticky top-0 z-10 flex flex-col gap-2 border-b px-3 pt-3 pb-2 backdrop-blur',
             isSheet ? 'bg-background' : 'bg-muted/20'
           )}
         >
-          <div className="relative">
-            <Search
-              className={cn(
-                'pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground',
-                isSheet ? 'h-4 w-4' : 'h-3.5 w-3.5'
-              )}
+          {offersSimple ? (
+            <ModeLink
+              advanced={advanced}
+              isSheet={isSheet}
+              onToggle={() => {
+                // Leaving advanced drops the query with it: it filters a list
+                // that's no longer on screen, and coming back to a palette
+                // pre-filtered by something typed minutes ago reads as a bug.
+                setQuery('');
+                setAdvancedOpen((v) => !v);
+              }}
             />
-            <Input
-              type="search"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder={searchPlaceholder}
-              aria-label={searchPlaceholder}
-              className={cn(isSheet ? 'h-10 pl-8 text-base' : 'h-8 pl-7 text-sm')}
-            />
-          </div>
+          ) : null}
+          {searchVisible ? (
+            <div className="relative">
+              <Search
+                className={cn(
+                  'pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground',
+                  isSheet ? 'h-4 w-4' : 'h-3.5 w-3.5'
+                )}
+              />
+              <Input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder={searchPlaceholder}
+                aria-label={searchPlaceholder}
+                className={cn(isSheet ? 'h-10 pl-8 text-base' : 'h-8 pl-7 text-sm')}
+              />
+            </div>
+          ) : null}
         </div>
       ) : null}
       <div className={cn('flex flex-col', isSheet ? 'px-2 pb-6' : 'p-3')}>
-        {visibleSections.length === 0 ? (
+        {!advanced ? (
+          // Simple mode: a flat list, no section headings — with this few
+          // rows the headings would outnumber the blocks under them.
+          basics.map((v) => <PaletteItem key={v.id} variant={v} onAdd={() => onAddBlock(v.factory())} mode={variant} />)
+        ) : visibleSections.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">No blocks match.</p>
         ) : (
           visibleSections.map((section) => (
@@ -163,6 +235,52 @@ export function Palette({
         )}
       </div>
     </aside>
+  );
+}
+
+/**
+ * The simple/advanced switch: a text link at the top of the palette, with
+ * the explanation of what's on the other side hung off it as a tooltip
+ * (which Radix also wires up as the link's accessible description, so it
+ * reaches keyboard and screen-reader users, not just a hovering mouse).
+ *
+ * Carries its own `TooltipProvider` so the palette works standalone — inside
+ * the builder it just nests harmlessly under the one `BlockKitchen` mounts.
+ * @param props - link props
+ * @param props.advanced - whether the full palette is currently showing
+ * @param props.isSheet - whether the palette is rendering in the mobile sheet
+ * @param props.onToggle - flips between simple and advanced
+ * @returns the rendered mode link
+ */
+function ModeLink({ advanced, isSheet, onToggle }: { advanced: boolean; isSheet: boolean; onToggle: () => void }) {
+  return (
+    <TooltipProvider delayDuration={200}>
+      <div className="flex items-center justify-end">
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              onClick={onToggle}
+              // Named for what it switches to, not just "Advanced": on its own
+              // that word says nothing out of context, and palette variants
+              // ("Basic" under Video) are `role="button"` too via dnd-kit, so a
+              // bare label wouldn't even be unique. The visible text leads the
+              // accessible name, so voice control still matches what's on screen.
+              aria-label={advanced ? 'Basic block palette' : 'Advanced block palette'}
+              className={cn(
+                'cursor-pointer appearance-none rounded border-0 bg-transparent p-0 font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                isSheet ? 'min-h-8 text-sm' : 'text-xs'
+              )}
+            >
+              {advanced ? 'Basic' : 'Advanced'}
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" align="end">
+            {advanced ? BASIC_HELP : ADVANCED_HELP}
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </TooltipProvider>
   );
 }
 

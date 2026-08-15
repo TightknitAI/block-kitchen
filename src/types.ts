@@ -845,6 +845,22 @@ export type PreviewTheme = 'light' | 'dark';
 export type PreviewSurface = 'message' | 'modal' | 'app_home';
 
 /**
+ * How much of the block palette the user meets first.
+ * - `'advanced'` (default) — the full sectioned palette with its search
+ *   input, exactly as it has always rendered.
+ * - `'simple'` — opens on a flat list of the variants whose
+ *   `PaletteVariant.basic` flag is set (in the built-in palette, just
+ *   **Rich Text Section**) with no search, behind an "Advanced" link that
+ *   swaps in the full palette. Nothing is removed — it's a smaller first
+ *   screen for people writing an ordinary message, not a reduced feature
+ *   set.
+ *
+ * A palette whose variants flag none of themselves `basic` has no simple
+ * list to show, so it renders as `'advanced'` regardless.
+ */
+export type PaletteMode = 'advanced' | 'simple';
+
+/**
  * A reusable block layout the user can apply as a starting point.
  * Consumed by the standalone `<TemplatePicker>` component, which renders
  * a categorized grid of template cards (modeled on Slack's own Block
@@ -992,10 +1008,24 @@ export interface BlockKitchenBaseProps {
    */
   disabledBlockTypes?: readonly SupportedBlockType[];
   /**
+   * How much of the palette the user meets first. Defaults to
+   * `'advanced'` — the full sectioned palette, unchanged. Pass
+   * `'simple'` to open on a one-block starter list (**Rich Text
+   * Section**) with an "Advanced" link that swaps in the full palette;
+   * see {@link PaletteMode}.
+   *
+   * Which variants the simple list holds is a property of the palette,
+   * not of this flag: a custom `palette` opts its own variants in by
+   * setting `basic: true` on them, and one that opts none in renders as
+   * `'advanced'`.
+   */
+  paletteMode?: PaletteMode;
+  /**
    * Whether the palette renders a quick-search input above the section
    * list. Defaults to `true`. Set `false` for compact palettes (e.g.
    * when you've passed a small custom `palette`) where scanning by eye
-   * is faster than typing.
+   * is faster than typing. Simple mode has no search either way — the
+   * search appears with the rest of the palette behind "Advanced".
    */
   showPaletteSearch?: boolean;
   /**

@@ -50,6 +50,7 @@ export type {
   LoadMessageInput,
   LoadResult,
   MarkdownBlock,
+  PaletteMode,
   PieChart,
   PieChartSegment,
   PlanBlock,

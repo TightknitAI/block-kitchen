@@ -101,6 +101,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
     confirmUpdateLabel,
     palette,
     disabledBlockTypes,
+    paletteMode,
     showPaletteSearch,
     paletteSearchPlaceholder,
     defaultOpenSections,
@@ -558,6 +559,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                   <Palette
                     onAddBlock={(block) => addBlock(block)}
                     sections={paletteSections}
+                    mode={paletteMode}
                     showSearch={showPaletteSearch}
                     searchPlaceholder={paletteSearchPlaceholder}
                     defaultOpenSections={defaultOpenSections}
@@ -613,6 +615,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                       setPaletteOpen(false);
                     }}
                     sections={paletteSections}
+                    mode={paletteMode}
                     showSearch={showPaletteSearch}
                     searchPlaceholder={paletteSearchPlaceholder}
                     defaultOpenSections={defaultOpenSections}
