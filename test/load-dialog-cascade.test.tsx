@@ -19,20 +19,13 @@
  *    pairs mutually exclusive `max-lg:` / `lg:` variants instead of relying on
  *    such an override; this checks both halves land.
  */
-import { execFileSync } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { type Browser, chromium } from 'playwright';
+import type { Browser } from 'playwright';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { LoadMessageDialog } from '../src/components/load-message-dialog';
 import { TooltipProvider } from '../src/lib/ui/tooltip';
 import type { LoadResult, RecentMessage, SupportedBlock } from '../src/types';
-
-// Vitest runs from the package root, and `import.meta.url` is a dev-server URL
-// under the jsdom environment rather than a file one.
-const REPO_ROOT = process.cwd();
+import { buildStylesheet, launchChromium } from './built-stylesheet';
 
 /** Two-column layout: at or above Tailwind's `lg` breakpoint (64rem). */
 const WIDE = { width: 1280, height: 800 };
@@ -58,26 +51,6 @@ const RECENT: RecentMessage[] = Array.from({ length: 40 }, (_, i) => ({
 }));
 
 const noopLoad = async (): Promise<LoadResult> => ({ ok: false, reason: 'nope' });
-
-/**
- * Compile the package stylesheet exactly as `pnpm build:css` does, into a temp
- * file so a stale (or missing) `dist/` can neither mask a regression nor be
- * clobbered by the test run.
- * @returns the built, scoped stylesheet
- */
-function buildStylesheet(): string {
-  const out = join(mkdtempSync(join(tmpdir(), 'bk-styles-')), 'styles.css');
-  execFileSync(
-    join(REPO_ROOT, 'node_modules/.bin/tailwindcss'),
-    ['-i', './src/styles.src.css', '-o', out, '--minify'],
-    {
-      cwd: REPO_ROOT,
-      stdio: 'pipe'
-    }
-  );
-  execFileSync(process.execPath, ['./scripts/scope-utilities.mjs', out], { cwd: REPO_ROOT, stdio: 'pipe' });
-  return readFileSync(out, 'utf8');
-}
 
 /**
  * Render the real dialog in jsdom, drive it to the state under test (a channel
@@ -134,10 +107,7 @@ describe('load dialog cascade (built stylesheet, real browser)', () => {
       <div id="builder-root" class="bk-root flex flex-col overflow-hidden">builder shell</div>
       <div id="outside" class="flex max-h-[85svh] flex-col">not inside any package root</div>
     </body></html>`;
-    // `BK_CHROMIUM_EXECUTABLE` lets a pre-provisioned image point at its own
-    // Chromium; CI uses `playwright install chromium` and needs no override.
-    const executablePath = process.env.BK_CHROMIUM_EXECUTABLE;
-    browser = await chromium.launch(executablePath ? { executablePath } : {});
+    browser = await launchChromium();
   }, 180_000);
 
   afterAll(async () => {

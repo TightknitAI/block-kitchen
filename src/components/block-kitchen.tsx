@@ -470,9 +470,15 @@ export function BlockKitchen(props: BlockKitchenProps) {
             {/* The builder shell doubles as the keydown scope for undo/redo
               shortcuts: the handler only augments already-focusable children
               (toolbar buttons, block rows, fields) and never acts as a
-              control itself, so it needs no role or tabindex. */}
+              control itself, so it needs no role or tabindex.
+
+              `h-full` computes to `auto` in ordinary document flow, so the
+              shell grew to its tallest child — the palette — instead of
+              scrolling it. The `max-h` bounds that case and stays inert when
+              the host's own height is smaller. Override with
+              `--bk-max-height` on any ancestor (`none` opts out). */}
             <div
-              className="bk-root flex h-full w-full flex-col overflow-hidden rounded-md border bg-background text-foreground"
+              className="bk-root flex h-full max-h-[var(--bk-max-height,100svh)] w-full flex-col overflow-hidden rounded-md border bg-background text-foreground"
               onKeyDown={handleKeyDown}
             >
               <Toolbar
