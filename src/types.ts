@@ -755,12 +755,14 @@ export interface LoadingConfig {
   onLoadMessage: (input: LoadMessageInput) => Promise<LoadResult>;
   /**
    * Optional. When provided (together with a channel source — see
-   * {@link LoadingConfig.loadChannels}), the load dialog adds a "recent
-   * messages from this app" picker alongside the paste-a-link input. The user
-   * first picks a channel; only then is this called with the chosen
+   * {@link LoadingConfig.loadChannels}), the load dialog gains a "Pick from
+   * Recent" tab beside "Direct Link", listing recent messages from this app.
+   * The user first picks a channel; only then is this called with the chosen
    * `channelId`, scoping the lookup to that single channel. Returns messages
-   * the app authored in that channel (editable-by-construction); picking one
-   * loads it directly. Omit to offer the paste-link entry only.
+   * the app authored in that channel (editable-by-construction); selecting one
+   * previews it, and the dialog's button loads it directly. Omit to offer the
+   * paste-link entry only — with no second tab, the dialog drops the tab strip
+   * entirely.
    */
   loadRecentMessages?: (channelId: string) => Promise<RecentMessage[]>;
   /**
@@ -768,7 +770,8 @@ export interface LoadingConfig {
    * {@link LoadingConfig.loadRecentMessages} is provided. In send mode this
    * defaults to the send integration's
    * {@link BlockKitchenSendProps.loadChannels}; in compose-only mode there is
-   * no send integration, so provide it here or the picker is hidden.
+   * no send integration, so provide it here or the "Pick from Recent" tab is
+   * hidden.
    */
   loadChannels?: () => Promise<ChannelOption[]>;
   /**

@@ -305,6 +305,16 @@ permalink, or pick from a "recent messages from this app" list. Loading is a
 package stays integration-agnostic: it makes no Slack calls and computes
 nothing about who can edit; the host does both.
 
+The **Find an existing message** dialog is two panes on wide viewports
+(stacked on narrow ones): on the left, a **Pick from Recent** tab (channel
+picker + recent messages) and a **Direct Link** tab (paste a permalink); on
+the right, a live Slack-style preview of whichever message is selected,
+rendered by the same preview pipeline as the builder — so users see the
+message before committing to it. The tab strip only appears when the recent
+picker is configured; otherwise the link pane stands alone. Pasted links are
+debounced before `onLoadMessage` runs, so typing never fires a lookup per
+keystroke.
+
 ```tsx
 <BlockKitchen
   /* …send trio, or nothing (compose-only)… */
@@ -326,11 +336,11 @@ nothing about who can edit; the host does both.
         return { ok: true, channelId: msg.channel, channelName: msg.channelName, ts: msg.ts, blocks: msg.blocks, editableVia: 'user', ...author };
       return { ok: false, reason: 'Only messages your app or you posted can be edited.', blocks: msg.blocks };
     },
-    // Optional: adds a "recent messages from this app" picker beside the paste
-    // input. The user first picks a channel, then this is called with that
-    // `channelId` so the lookup scans only one channel. These are
-    // editable-by-construction (the app authored them), so picking one loads
-    // it directly (no verdict needed).
+    // Optional: adds the "Pick from Recent" tab beside "Direct Link". The user
+    // first picks a channel, then this is called with that `channelId` so the
+    // lookup scans only one channel. These are editable-by-construction (the
+    // app authored them), so selecting one previews it and loads it directly
+    // (no verdict needed).
     loadRecentMessages: async (channelId) => {
       const msgs = await fetchRecentAppMessages(channelId); // your code
       return msgs.map((m) => ({
@@ -352,9 +362,12 @@ nothing about who can edit; the host does both.
 - On `ok`, the builder hydrates with `blocks` and shows a loaded banner
   ("References an existing message in #channel"), with the author's
   name/avatar in the preview header.
-- On `{ ok: false, reason }`, the load dialog renders the reason inline and
+- On `{ ok: false, reason }`, the dialog's preview pane renders the reason and
   offers **Open as a new message instead**. Pass `blocks` on the failure
-  result to hydrate the draft for that fallback.
+  result to hydrate the draft for that fallback — they're previewed under the
+  reason too.
+- On `{ ok: false, oauthUrl }`, the preview pane shows a **Sign in with Slack**
+  button that opens the URL and re-checks the load once sign-in completes.
 - `loading.onLoadedMessageChange` reports the loaded target — and `null`
   when the user exits it — so host state stays in sync (most useful in
   compose-only mode, where your app owns what happens next). It can
