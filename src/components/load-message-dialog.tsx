@@ -132,9 +132,11 @@ type PreviewState =
  * can see rather than a link they can't.
  *
  * On a successful load the parent flips into edit mode (`onLoaded`); on a
- * not-editable verdict the preview pane renders the host's `reason` and, when
- * that verdict carries blocks, previews them alongside "Open as a new message
- * instead" (a no-match verdict has none, so only the reason shows).
+ * not-editable verdict a callout under the preview header renders the host's
+ * `reason` and, when that verdict carries blocks, previews them alongside
+ * "Open as a new message instead" (a no-match verdict has none, so only the
+ * reason shows). Whenever that callout carries an action of its own, the
+ * footer's load button goes disabled — the callout is the way forward.
  *
  * The package never parses the permalink — the host extracts `channel + ts`.
  * @param props - dialog props
@@ -452,7 +454,16 @@ export function LoadMessageDialog({
           ? { kind: 'ready', target: linkStatus.result }
           : linkStatus;
 
-  const canLoad = activeTab === 'recent' ? !!selectedRecent : !!link.trim();
+  // A not-editable verdict that carries its own next step — "Sign in with
+  // Slack", or "Open as a new message instead" — owns the flow from here: the
+  // host has already said this message can't be loaded, so the footer button
+  // goes disabled and the callout's button is the only way forward. A bare
+  // "no match" verdict keeps it enabled; there's nothing else to click, and
+  // re-submitting the same link is a legitimate retry.
+  const verdictOwnsAction =
+    linkStatus.kind === 'not-editable' && (isSafeHref(linkStatus.oauthUrl) || (linkStatus.blocks?.length ?? 0) > 0);
+
+  const canLoad = activeTab === 'recent' ? !!selectedRecent : !!link.trim() && !verdictOwnsAction;
 
   // Only offer the tabpanel wiring when there is a tab strip to label it.
   const panelProps = (id: TabId) =>
@@ -767,7 +778,8 @@ function TabStrip({
  * Right-hand pane: a full render of the selected message, scrolling on its
  * own so a long message can't move the dialog's footer. Loading, empty, and
  * failure states are handled here and here only — the left pane's controls
- * stay usable whatever the preview is showing.
+ * stay usable whatever the preview is showing. A not-editable verdict's
+ * callout sits above the scrolling card, directly under the pane header.
  * @param props - pane props
  * @param props.state - what to render for the active tab
  * @param props.hooks - directive hooks forwarded to the block renderer
@@ -816,6 +828,34 @@ function PreviewPane({
         ) : null}
       </div>
 
+      {/* The verdict callout sits between the header and the preview card
+          rather than inside it: it's a statement about the message and the
+          user's way out of it, not part of the message being previewed, so it
+          stays put while the card below scrolls. */}
+      {state.kind === 'not-editable' && (
+        <div className="flex shrink-0 flex-col gap-2 rounded-md border border-amber-200! bg-amber-50 p-3 text-xs text-amber-800">
+          <div className="flex items-start gap-2">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span className="flex-1">{state.reason}</span>
+          </div>
+          {/* Sign-in verdict: open OAuth and re-check the load on completion. */}
+          {signInUrl && <SlackSignInButton onClick={() => onSignIn(signInUrl)} polling={signInPolling} />}
+          {/* Only offer "open as new" when there are blocks to carry over.
+              A no-match verdict has none, so there's nothing to open. */}
+          {verdictBlocks && verdictBlocks.length > 0 && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="self-start"
+              onClick={() => onOpenAsNew(verdictBlocks)}
+            >
+              Open as a new message instead
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Focusable so the pane is scrollable by keyboard: a plain message
           preview holds no controls, so without this there'd be nothing to tab
           to inside it and its overflow would be unreachable. */}
@@ -826,30 +866,6 @@ function PreviewPane({
         tabIndex={0}
         className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-md border bg-muted/40 p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-lg:max-h-72 max-lg:min-h-32 lg:min-h-0"
       >
-        {state.kind === 'not-editable' && (
-          <div className="flex shrink-0 flex-col gap-2 rounded-md border border-amber-200! bg-amber-50 p-3 text-xs text-amber-800">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span className="flex-1">{state.reason}</span>
-            </div>
-            {/* Sign-in verdict: open OAuth and re-check the load on completion. */}
-            {signInUrl && <SlackSignInButton onClick={() => onSignIn(signInUrl)} polling={signInPolling} />}
-            {/* Only offer "open as new" when there are blocks to carry over.
-                A no-match verdict has none, so there's nothing to open. */}
-            {verdictBlocks && verdictBlocks.length > 0 && (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="self-start"
-                onClick={() => onOpenAsNew(verdictBlocks)}
-              >
-                Open as a new message instead
-              </Button>
-            )}
-          </div>
-        )}
-
         {state.kind === 'error' && (
           <p className="shrink-0 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
             {state.error}
@@ -864,6 +880,13 @@ function PreviewPane({
         )}
 
         {state.kind === 'empty' && <p className="m-auto px-4 text-center text-sm text-muted-foreground">{emptyHint}</p>}
+
+        {/* A verdict with no blocks (no message matched the link) leaves the
+            card with nothing to render, and the callout above already carries
+            the reason — so say why it's blank rather than showing an empty box. */}
+        {state.kind === 'not-editable' && !(verdictBlocks && verdictBlocks.length > 0) && (
+          <p className="m-auto px-4 text-center text-sm text-muted-foreground">Nothing to preview.</p>
+        )}
 
         {/* `shrink-0` on the renders below is load-bearing: the message frame
             clips its own overflow (for the rounded corners), so as a shrinkable

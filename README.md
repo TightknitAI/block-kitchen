@@ -120,8 +120,9 @@ export function MyBuilderPage() {
 | `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
 | `disabledBlockTypes` | `SupportedBlockType[]` | no | Block types to hide from the palette without rebuilding it. Filters at the variant level — a section keeps any variants whose block types aren't disabled; sections that end up empty are dropped. Convenient when you want the default palette minus a few types (e.g. `['image', 'table']` for a text-only builder). |
+| `paletteMode` | `'advanced' \| 'simple'` | no | How much of the palette the user meets first. `'advanced'` (default) renders the full sectioned palette with its search input. `'simple'` opens on a flat list of the variants flagged `basic` — in the built-in palette, just **Rich Text Section** — with no search and an "Advanced" link at the top that swaps in the full palette. Nothing is removed; it's a smaller first screen. See [Simple vs advanced palette](#simple-vs-advanced-palette). |
 | `defaultOpenSections` | `boolean \| string[]` | no | Which palette section headers are expanded on first paint. `true` (default) opens all sections; `false` collapses all (Slack-style); an array opens only sections whose `name` is in the list (e.g. `['Section', 'Actions']`). The palette also has a built-in search input that expands matching sections on demand. |
-| `showPaletteSearch` | `boolean` | no | Whether the palette renders the quick-search input above the section list. Defaults to `true`. Set `false` for compact palettes (e.g. when you've passed a small custom `palette`) where scanning by eye is faster than typing. |
+| `showPaletteSearch` | `boolean` | no | Whether the palette renders the quick-search input above the section list. Defaults to `true`. Set `false` for compact palettes (e.g. when you've passed a small custom `palette`) where scanning by eye is faster than typing. Simple mode has no search either way — it appears with the rest of the palette behind "Advanced". |
 | `paletteSearchPlaceholder` | `string` | no | Placeholder text for the palette search input. Defaults to `'Search blocks…'`. Useful for localization. |
 | `allowedSurfaces` | `PreviewSurface[]` | no | Allowlist of preview surfaces (`'message'`, `'modal'`, `'app_home'`). Defaults to `['message']` — surface dropdown is hidden when only one surface is allowed. The first entry is the initial selection. |
 | `showThemeControl` | `boolean` | no | Defaults to `true`. When `false`, the toolbar's light/dark toggle is hidden and the theme stays at `defaultPreviewTheme`. Ignored when `previewTheme` is set (a controlled theme always hides the toggle). |
@@ -452,6 +453,107 @@ const PALETTE: readonly PaletteSection[] = [
 
 Variant `id`s must be unique across the array — the drag-drop lookup keys by id.
 
+### Simple vs advanced palette
+
+By default the palette opens on everything it has: every section, plus the search input. For consumers whose users are writing ordinary messages rather than building interactive apps, `paletteMode="simple"` opens on a one-block starter list instead — no sections, no search — behind an **Advanced** link that swaps in the full palette (and back).
+
+```tsx
+<BlockKitchen paletteMode="simple" {...rest} />
+```
+
+Which variants the simple list holds is a property of the palette, not the flag: a variant opts in with `basic: true`. The built-in palette flags exactly one — **Rich Text Section** — so a custom palette that wants its own starter block says so:
+
+```tsx
+const PALETTE: readonly PaletteSection[] = [
+  {
+    name: "Company presets",
+    icon: AlignLeft,
+    variants: [
+      { id: "help_footer", label: "Help footer", basic: true, factory: () => ({ ... }) },
+      { id: "company_divider", label: "Company divider", factory: () => ({ ... }) },
+    ],
+  },
+];
+```
+
+A palette that flags none of its variants `basic` has no simple list to show, so it renders as `'advanced'` regardless — the link is withheld rather than leading to an empty rail.
+
+## Templates (`TemplatePicker`)
+
+`TemplatePicker` is a standalone, page-sized picker that renders `Template`s as a grid of cards with live block previews, grouped into category sections — modeled on Slack's own Block Kit Builder templates page. It's pure UI: it owns no dialog and no layout, so you decide whether it's a route, a modal, a slide-over, or a sidebar next to the builder.
+
+```tsx
+import {
+  BlockKitchen,
+  TemplatePicker,
+  type SupportedBlock,
+  type Template,
+} from "@tightknitai/block-kitchen";
+import { useState } from "react";
+
+const TEMPLATES: Template[] = [
+  {
+    id: "standup",
+    name: "Daily standup",
+    description: "Yesterday / today / blockers",
+    surface: "message",
+    category: "Team", // optional — groups cards into sections
+    blocks: [
+      /* SupportedBlock[] */
+    ],
+  },
+];
+
+function Builder() {
+  const [blocks, setBlocks] = useState<SupportedBlock[]>([]);
+  // `initialBlocks` is read once at mount, so bump a key to re-seed.
+  const [seedKey, setSeedKey] = useState(0);
+
+  return (
+    <div style={{ display: "flex", minHeight: 0 }}>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <BlockKitchen key={seedKey} initialBlocks={blocks} onChange={setBlocks} {...rest} />
+      </div>
+      {/* `.bk-root` is required — see below */}
+      <aside className="bk-root" style={{ width: 380, overflowY: "auto" }}>
+        <TemplatePicker
+          templates={TEMPLATES}
+          heading="Templates"
+          onSelect={(t) => {
+            setBlocks(t.blocks);
+            setSeedKey((n) => n + 1);
+          }}
+        />
+      </aside>
+    </div>
+  );
+}
+```
+
+| Prop | Type | Required | Description |
+| --- | --- | --- | --- |
+| `templates` | `Template[]` | yes | Templates to show. Order is preserved within each category section. |
+| `onSelect` | `(template: Template) => void` | yes | Called with the whole template when a card is clicked. Nothing is applied to the builder for you — see [Applying a selection](#applying-a-selection). |
+| `surface` | `'message' \| 'modal' \| 'app_home'` | no | Filter to templates whose `surface` matches. Omit to show all. |
+| `theme` | `'light' \| 'dark'` | no | Preview theme used inside the card thumbnails. Defaults to `'light'`; pass the builder's `previewTheme` to keep them in step. |
+| `heading` | `string` | no | Heading rendered above the grid. Omitted means no heading. |
+| `emptyLabel` | `string` | no | Shown when the `surface` filter matches nothing. Defaults to `'No templates available.'`. |
+| `className` | `string` | no | Merged onto the root element. |
+
+A `Template` is `{ id, name, surface, blocks }` plus optional `description` and `category`. Templates without a `category` fall into a trailing **Other** section when at least one other template has one; with no categories at all, the grid renders flat without section headers.
+
+### Bring your own templates
+
+The package ships **no** templates on purpose — they're use-case examples ("Expense approval" belongs to an approvals product, "Daily standup" to a team product), so they belong in your app's config rather than the library bundle. The live demo defines its own set in [`demo/src/templates.ts`](demo/src/templates.ts) if you want a starting point to crib from.
+
+### Applying a selection
+
+`onSelect` hands you the template and stops there — the picker never reaches into the builder. Because [`initialBlocks`](#props) is read once at mount, replacing the current draft means re-seeding with a changed `key`, as above. Selecting a template this way discards the draft and its undo history, so gate it behind a confirmation if that's a surprise in your app.
+
+### It needs a `.bk-root` ancestor
+
+Unlike `BlockKitchen`, the picker does not add the `bk-root` class itself. The stylesheet ships its utilities inside `@scope (.bk-root, .bk-portal-content)`, so a picker mounted outside both roots renders unstyled. Wrap it (or any ancestor) in `className="bk-root"`.
+
 ## Boundary
 
 The package is deliberately decoupled from any Slack SDK or backend. It does not import HTTP clients, OAuth libraries, or workspace-state systems. Everything I/O-shaped is brokered through props — and the send flow itself is optional: see [compose-only mode](#compose-only-mode-bring-your-own-send-flow) when your app owns the moment of commitment.
@@ -465,6 +567,7 @@ import {
   decodeBlocksFromString,
   defaultPalette,          // the built-in palette — spread to customize
   SendDialog,              // the built-in send dialog, standalone (bespoke send flows)
+  TemplatePicker,          // the standalone templates grid — see Templates above
   useSlackSignIn,          // the OAuth sign-in state machine behind the identity picker
   SlackSignInButton,       // the "Sign in with Slack" button + polling spinner
 } from "@tightknitai/block-kitchen";
@@ -480,6 +583,7 @@ import type {
   BlockKitchenComposeOnlyProps, // the trio explicitly absent + `primaryAction`
   PaletteSection,
   PaletteVariant,
+  PaletteMode,                  // 'advanced' (default) | 'simple'
   SendPayload,
   SendResult,
   SendDialogProps,
@@ -488,6 +592,7 @@ import type {
   PrimaryActionContext,
   ChannelOption,
   SendAsUserStatus,
+  Template,                     // one entry in a TemplatePicker gallery
   ValidationSummary,
   PreviewHooks,
 } from "@tightknitai/block-kitchen";

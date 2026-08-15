@@ -4,6 +4,7 @@ import {
   type ChannelOption,
   type LoadMessageInput,
   type LoadResult,
+  type PaletteMode,
   type RecentMessage,
   type SendAsUserStatus,
   type SendPayload,
@@ -32,6 +33,18 @@ const PRESET_OPTIONS: { value: BrandPreset; label: string }[] = [
   { value: 'sunset', label: 'Sunset' },
   { value: 'mono', label: 'Mono' },
   { value: 'cyberpunk', label: 'Cyberpunk' }
+];
+
+type EditingMode = 'write-only' | 'read-write';
+
+const EDITING_MODE_OPTIONS: { value: EditingMode; label: string }[] = [
+  { value: 'write-only', label: 'Write-only' },
+  { value: 'read-write', label: 'Read & Write' }
+];
+
+const PALETTE_MODE_OPTIONS: { value: PaletteMode; label: string }[] = [
+  { value: 'advanced', label: 'Advanced' },
+  { value: 'simple', label: 'Simple' }
 ];
 
 const MOCK_CHANNELS: ChannelOption[] = [
@@ -473,6 +486,9 @@ const AUTO_COLLAPSE_BELOW = 960;
 export function App() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [preset, setPreset] = useState<BrandPreset>('default');
+  // Which palette the builder opens on. 'advanced' is the package default —
+  // 'simple' starts on the one-block list behind an "Advanced" link.
+  const [paletteMode, setPaletteMode] = useState<PaletteMode>('advanced');
 
   // Mirror `theme` onto <html> so the .dark CSS-variable rule reaches
   // Radix portals (sheets, dialogs, popovers, tooltips). They mount
@@ -773,14 +789,27 @@ export function App() {
             </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            <EditingMenu
+            <HeaderSelect
+              label="Mode"
+              ariaLabel="Editing mode"
+              value={editingEnabled ? 'read-write' : 'write-only'}
+              options={EDITING_MODE_OPTIONS}
+              onChange={(v: EditingMode) => setEditingEnabled(v === 'read-write')}
+            />
+            <SampleDataDialog
               editingEnabled={editingEnabled}
-              onEditingEnabledChange={setEditingEnabled}
               canSendAsUser={canSendAsUser}
               onCanSendAsUserChange={handleCanSendAsUserChange}
               includeOauthUrl={includeOauthUrl}
               onIncludeOauthUrlChange={setIncludeOauthUrl}
               store={store}
+            />
+            <HeaderSelect
+              label="Palette"
+              ariaLabel="Palette mode"
+              value={paletteMode}
+              options={PALETTE_MODE_OPTIONS}
+              onChange={setPaletteMode}
             />
             <HeaderSelect
               label="Theme"
@@ -825,6 +854,7 @@ export function App() {
               onSend={onSend}
               loading={editingEnabled ? { onLoadMessage, loadRecentMessages } : undefined}
               onUpdate={editingEnabled ? onUpdate : undefined}
+              paletteMode={paletteMode}
               previewTheme={theme}
               theme={preset}
               allowedSurfaces={['message', 'modal', 'app_home']}
@@ -968,9 +998,17 @@ const KIND_NOTE: Record<StoredMessage['kind'], string> = {
  * makes the load → update round-trip observable: copy a message's link, load
  * it in the builder, update, and watch the blocks change.
  */
-function EditingMenu({
+/**
+ * The demo's mock backend, on show: the user-token switches the send/edit
+ * dialogs read, and the message store "Find message" resolves links against.
+ *
+ * Reachable in either editing mode — the store is what a reader needs in
+ * order to *choose* a mode, so hiding it behind Read & Write meant you had
+ * to already be in the mode to see what it was for. Write-only just gets a
+ * line saying the load path is off.
+ */
+function SampleDataDialog({
   editingEnabled,
-  onEditingEnabledChange,
   canSendAsUser,
   onCanSendAsUserChange,
   includeOauthUrl,
@@ -978,7 +1016,6 @@ function EditingMenu({
   store
 }: {
   editingEnabled: boolean;
-  onEditingEnabledChange: (v: boolean) => void;
   canSendAsUser: boolean;
   onCanSendAsUserChange: (v: boolean) => void;
   includeOauthUrl: boolean;
@@ -1002,31 +1039,6 @@ function EditingMenu({
     setCopiedTs(msg.ts);
     window.setTimeout(() => setCopiedTs((cur) => (cur === msg.ts ? null : cur)), 1200);
   };
-
-  // Segmented switcher: a muted track with the active segment raised on a
-  // solid background, so it reads as a button-style mode toggle.
-  const tab = (label: string, active: boolean, onSelect: () => void) => (
-    <button
-      type="button"
-      role="tab"
-      aria-selected={active}
-      onClick={onSelect}
-      style={{
-        flex: 1,
-        padding: '7px 12px',
-        fontSize: 13,
-        fontWeight: 600,
-        cursor: 'pointer',
-        borderRadius: 6,
-        border: `1px solid ${active ? 'hsl(var(--border))' : 'transparent'}`,
-        background: active ? 'hsl(var(--background))' : 'transparent',
-        color: active ? 'hsl(var(--foreground))' : 'hsl(var(--muted-foreground))',
-        boxShadow: active ? '0 1px 2px rgba(0,0,0,0.08)' : 'none'
-      }}
-    >
-      {label}
-    </button>
-  );
 
   const checkbox = (label: string, checked: boolean, onChange: (v: boolean) => void, disabled?: boolean) => (
     <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, opacity: disabled ? 0.5 : 1 }}>
@@ -1055,10 +1067,7 @@ function EditingMenu({
           gap: 6
         }}
       >
-        <span className="hidden md:inline" style={{ opacity: 0.7 }}>
-          Mode:
-        </span>
-        {editingEnabled ? 'Read & Write' : 'Write-only'}
+        Sample Data
       </button>
       {open &&
         createPortal(
@@ -1079,7 +1088,7 @@ function EditingMenu({
             <div
               role="dialog"
               aria-modal="true"
-              aria-label="Edit-mode demo"
+              aria-label="Sample Data"
               className="bk-root"
               onMouseDown={(e) => e.stopPropagation()}
               style={{
@@ -1098,9 +1107,10 @@ function EditingMenu({
             >
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 15 }}>Edit-mode demo</div>
+                  <div style={{ fontWeight: 600, fontSize: 15 }}>Sample Data</div>
                   <div style={{ opacity: 0.7, marginTop: 2 }}>
-                    Mocks the host side of the package's <code>loading</code> + <code>onUpdate</code> props.
+                    The mock host behind this demo: the <code>loading</code> + <code>onUpdate</code> props' message
+                    store, and the user-token switches the dialogs read.
                   </div>
                 </div>
                 <button
@@ -1122,107 +1132,88 @@ function EditingMenu({
                 </button>
               </div>
 
-              <div
-                role="tablist"
-                aria-label="Editing mode"
-                style={{
-                  display: 'flex',
-                  gap: 4,
-                  marginTop: 16,
-                  padding: 4,
-                  borderRadius: 8,
-                  background: 'hsl(var(--muted))'
-                }}
-              >
-                {tab('Write-only', !editingEnabled, () => onEditingEnabledChange(false))}
-                {tab('Read & Write', editingEnabled, () => onEditingEnabledChange(true))}
-              </div>
+              <div style={{ paddingTop: 16 }}>
+                {/* Mode lives in the header now, so the store below is shown
+                    whichever one is active — with a line saying what the
+                    current one does with it. */}
+                <div style={{ opacity: 0.7, marginBottom: 12 }}>
+                  {editingEnabled ? (
+                    'Copy a link below, then use “Find message” in the toolbar, or pick a recent message.'
+                  ) : (
+                    <>
+                      Write-only mode omits the <code>loading</code> + <code>onUpdate</code> props, so “Find message” is
+                      hidden and the primary action stays “Send”. Switch <strong>Mode</strong> to Read &amp; Write to
+                      load any of these messages.
+                    </>
+                  )}
+                </div>
 
-              <div role="tabpanel" style={{ paddingTop: 16 }}>
-                {editingEnabled ? (
-                  <>
-                    <div style={{ opacity: 0.7, marginBottom: 12 }}>
-                      Copy a link below, then use “Find message” in the toolbar, or pick a recent message.
-                    </div>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>User-token settings</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                  {checkbox('User can edit their own messages (canSendAsUser)', canSendAsUser, onCanSendAsUserChange)}
+                  {checkbox('Offer Slack sign-in link (oauthUrl)', includeOauthUrl, onIncludeOauthUrlChange, canSendAsUser)}
+                </div>
+                <div style={{ opacity: 0.7, fontSize: 12, marginTop: -10, marginBottom: 18 }}>
+                  Uncheck the first box, then open the Send or Edit dialog to try “Sign in with Slack”. It opens a mock
+                  OAuth page; the dialog polls in the background and unlocks once that page loads.
+                </div>
 
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>User-token settings</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
-                      {checkbox('User can edit their own messages (canSendAsUser)', canSendAsUser, onCanSendAsUserChange)}
-                      {checkbox(
-                        'Offer Slack sign-in link (oauthUrl)',
-                        includeOauthUrl,
-                        onIncludeOauthUrlChange,
-                        canSendAsUser
-                      )}
-                    </div>
-                    <div style={{ opacity: 0.7, fontSize: 12, marginTop: -10, marginBottom: 18 }}>
-                      Uncheck the first box, then open the Send or Edit dialog to try “Sign in with Slack”. It opens a
-                      mock OAuth page; the dialog polls in the background and unlocks once that page loads.
-                    </div>
-
-                    <div style={{ fontWeight: 600, marginBottom: 8 }}>Message store</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                      {store.map((m) => (
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Message store</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {store.map((m) => (
+                    <div
+                      key={m.ts}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        padding: '8px 10px',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: 6
+                      }}
+                    >
+                      <img
+                        src={AUTHOR_IDENTITY[m.author].iconUrl}
+                        alt=""
+                        style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0, objectFit: 'cover' }}
+                      />
+                      <div style={{ flex: 1, minWidth: 0 }}>
                         <div
-                          key={m.ts}
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 10,
-                            padding: '8px 10px',
-                            border: '1px solid hsl(var(--border))',
-                            borderRadius: 6
+                            fontWeight: 600,
+                            fontSize: 12,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
                           }}
                         >
-                          <img
-                            src={AUTHOR_IDENTITY[m.author].iconUrl}
-                            alt=""
-                            style={{ width: 28, height: 28, borderRadius: 6, flexShrink: 0, objectFit: 'cover' }}
-                          />
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div
-                              style={{
-                                fontWeight: 600,
-                                fontSize: 12,
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                              }}
-                            >
-                              {AUTHOR_IDENTITY[m.author].username}{' '}
-                              <span style={{ fontWeight: 400, opacity: 0.7 }}>#{m.channelName}</span>
-                            </div>
-                            <div style={{ opacity: 0.7, fontSize: 11 }}>
-                              <span style={{ fontFamily: 'monospace' }}>{m.ts}</span> · {AUTHOR_LABEL[m.author]}
-                              {KIND_NOTE[m.kind]} · {m.blocks.length} block{m.blocks.length === 1 ? '' : 's'}
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => copyLink(m)}
-                            style={{
-                              fontSize: 12,
-                              padding: '6px 10px',
-                              borderRadius: 6,
-                              border: '1px solid hsl(var(--border))',
-                              background: 'hsl(var(--background))',
-                              color: 'hsl(var(--foreground))',
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap'
-                            }}
-                          >
-                            {copiedTs === m.ts ? 'Copied!' : 'Copy link'}
-                          </button>
+                          {AUTHOR_IDENTITY[m.author].username}{' '}
+                          <span style={{ fontWeight: 400, opacity: 0.7 }}>#{m.channelName}</span>
                         </div>
-                      ))}
+                        <div style={{ opacity: 0.7, fontSize: 11 }}>
+                          <span style={{ fontFamily: 'monospace' }}>{m.ts}</span> · {AUTHOR_LABEL[m.author]}
+                          {KIND_NOTE[m.kind]} · {m.blocks.length} block{m.blocks.length === 1 ? '' : 's'}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => copyLink(m)}
+                        style={{
+                          fontSize: 12,
+                          padding: '6px 10px',
+                          borderRadius: 6,
+                          border: '1px solid hsl(var(--border))',
+                          background: 'hsl(var(--background))',
+                          color: 'hsl(var(--foreground))',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {copiedTs === m.ts ? 'Copied!' : 'Copy link'}
+                      </button>
                     </div>
-                  </>
-                ) : (
-                  <div style={{ opacity: 0.7 }}>
-                    The <code>loading</code> + <code>onUpdate</code> props are omitted, so the builder is a plain
-                    composer. “Find message” is hidden and the primary action stays “Send”.
-                  </div>
-                )}
+                  ))}
+                </div>
               </div>
             </div>
           </div>,

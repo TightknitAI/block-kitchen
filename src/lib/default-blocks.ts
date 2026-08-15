@@ -29,6 +29,16 @@ export interface PaletteVariant {
   label: string;
   /** Builds a fresh block payload when this variant is dropped. */
   factory: () => SupportedBlock;
+  /**
+   * Whether this variant belongs to the palette's simple mode — the short,
+   * flat starter list shown before the user opens "Advanced" (see
+   * `paletteMode` on `BlockKitchen`). Defaults to `false`: a variant is
+   * advanced-only unless it opts in.
+   *
+   * Only consulted when simple mode is enabled. A palette with no `basic`
+   * variants at all can't offer one, so it stays in advanced mode.
+   */
+  basic?: boolean;
 }
 
 /**
@@ -793,7 +803,10 @@ export const defaultPalette: readonly PaletteSection[] = [
     variants: [
       {
         id: 'rich_text_section',
-        label: 'Section',
+        label: 'Rich Text Section',
+        // The one variant simple mode offers, where it's listed without its
+        // section heading — hence the self-describing label.
+        basic: true,
         factory: () => ({
           type: 'rich_text',
           elements: [

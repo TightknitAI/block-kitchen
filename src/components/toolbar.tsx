@@ -7,7 +7,6 @@ import {
   Code2,
   ExternalLink,
   Home,
-  MailSearch,
   MessageSquare,
   Moon,
   Pencil,
@@ -24,6 +23,7 @@ import { useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
+import { SlackMark } from '../lib/ui/slack-mark';
 import type { PreviewSurface, PreviewTheme } from '../types';
 
 const THEME_OPTIONS: {
@@ -211,7 +211,10 @@ export function Toolbar({
         <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-2">
           {loadEnabled ? (
             <Button type="button" size="sm" onClick={onOpenLoad} aria-label={loadButtonLabel}>
-              <MailSearch className="h-3.5 w-3.5" />
+              {/* Slack's own mark rather than a monochrome lucide glyph: this
+                  is the one button that reaches out into Slack, and the brand
+                  colours say so at a glance. Same box as the icons beside it. */}
+              <SlackMark className="h-3.5 w-3.5" />
               <span className="hidden md:inline">{loadButtonLabel}</span>
             </Button>
           ) : null}
