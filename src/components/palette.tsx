@@ -194,56 +194,67 @@ export function Palette({
       )}
     >
       {offersSimple || searchVisible ? (
-        <div
-          className={cn(
-            'sticky top-0 z-10 flex flex-col gap-2 border-b px-3 pt-3 pb-2 backdrop-blur',
-            isSheet ? 'bg-background' : 'bg-muted/20'
-          )}
-        >
-          {offersSimple ? (
-            // Titled row: with the sections gone, simple mode's header would
-            // otherwise be a lone right-aligned link over empty space, and
-            // nothing would name what the rail below it holds.
-            <div className="flex items-center justify-between gap-2">
-              <span
-                className={cn(
-                  'min-w-0 truncate font-medium uppercase tracking-wide text-muted-foreground',
-                  isSheet ? 'text-xs' : 'text-[11px]'
-                )}
-              >
-                {PALETTE_TITLE}
-              </span>
-              <ModeLink
-                advanced={advanced}
-                isSheet={isSheet}
-                onToggle={() => {
-                  // Leaving advanced drops the query with it: it filters a list
-                  // that's no longer on screen, and coming back to a palette
-                  // pre-filtered by something typed minutes ago reads as a bug.
-                  setQuery('');
-                  setAdvancedOpen((v) => !v);
-                }}
-              />
-            </div>
-          ) : null}
-          {searchVisible ? (
-            <div className="relative">
-              <Search
-                className={cn(
-                  'pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground',
-                  isSheet ? 'h-4 w-4' : 'h-3.5 w-3.5'
-                )}
-              />
-              <Input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder={searchPlaceholder}
-                aria-label={searchPlaceholder}
-                className={cn(isSheet ? 'h-10 pl-8 text-base' : 'h-8 pl-7 text-sm')}
-              />
-            </div>
-          ) : null}
+        // Two elements so the header can be opaque *and* the exact color of
+        // the rail behind it. The rail's tint is `bg-muted/20` composited
+        // over the shell's `bg-background`; a sticky header painted with
+        // that same 20% tint composites over whatever has scrolled beneath
+        // it instead, and section headings read straight through the search
+        // box. So the outer element restores the opaque `bg-background` base
+        // and the inner one lays the tint back on top of it — the same two
+        // layers the rail itself is made of, which keeps the match exact
+        // under any theme rather than only where `--muted` happens to sit
+        // near `--background`. The sheet variant has no tint to reproduce.
+        //
+        // This replaces a `backdrop-blur` that was standing in for opacity:
+        // blurring what shows through is not the same as not showing it, and
+        // at 20% the headings stayed legible through the blur.
+        <div className="sticky top-0 z-10 shrink-0 bg-background">
+          <div className={cn('flex flex-col gap-2 border-b px-3 pt-3 pb-2', isSheet ? 'bg-background' : 'bg-muted/20')}>
+            {offersSimple ? (
+              // Titled row: with the sections gone, simple mode's header would
+              // otherwise be a lone right-aligned link over empty space, and
+              // nothing would name what the rail below it holds.
+              <div className="flex items-center justify-between gap-2">
+                <span
+                  className={cn(
+                    'min-w-0 truncate font-medium uppercase tracking-wide text-muted-foreground',
+                    isSheet ? 'text-xs' : 'text-[11px]'
+                  )}
+                >
+                  {PALETTE_TITLE}
+                </span>
+                <ModeLink
+                  advanced={advanced}
+                  isSheet={isSheet}
+                  onToggle={() => {
+                    // Leaving advanced drops the query with it: it filters a list
+                    // that's no longer on screen, and coming back to a palette
+                    // pre-filtered by something typed minutes ago reads as a bug.
+                    setQuery('');
+                    setAdvancedOpen((v) => !v);
+                  }}
+                />
+              </div>
+            ) : null}
+            {searchVisible ? (
+              <div className="relative">
+                <Search
+                  className={cn(
+                    'pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground',
+                    isSheet ? 'h-4 w-4' : 'h-3.5 w-3.5'
+                  )}
+                />
+                <Input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
+                  className={cn(isSheet ? 'h-10 pl-8 text-base' : 'h-8 pl-7 text-sm')}
+                />
+              </div>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <div className={cn('flex flex-col', isSheet ? 'px-2 pb-6' : 'p-3')}>

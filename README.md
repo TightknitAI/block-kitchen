@@ -98,6 +98,27 @@ export function MyBuilderPage() {
 }
 ```
 
+### Sizing
+
+The builder is an app shell: a fixed toolbar over a palette rail and a preview pane that scroll independently. It fills its container, so the height you give that container is the height it takes.
+
+```tsx
+// Give it a definite height and it fills exactly that.
+<div style={{ height: "100%" }}>
+  <BlockKitchen {...props} />
+</div>
+```
+
+Given no height to work with — a plain `<div>` in ordinary document flow — it bounds itself to `100svh` rather than growing to fit the palette's full block list, which would run a couple of thousand pixels down the page. Override that bound with `--bk-max-height` on any ancestor:
+
+```css
+/* Room for a 4rem page header above the builder. */
+.builder-host { --bk-max-height: calc(100svh - 4rem); }
+
+/* Or opt out entirely and let it grow with its content. */
+.builder-host { --bk-max-height: none; }
+```
+
 ## Props
 
 | Prop | Type | Required | Description |
