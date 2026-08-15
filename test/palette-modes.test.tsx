@@ -72,6 +72,23 @@ it('drops a stale search query when leaving advanced mode', () => {
   expect(screen.getByRole('button', { name: 'Add Divider to preview' })).toBeTruthy();
 });
 
+it('starts the new mode from the top when the host flips paletteMode', () => {
+  const { rerender } = render(<BlockKitchen paletteMode="simple" />);
+
+  // Open the full palette, then have the host switch modes underneath it.
+  fireEvent.click(screen.getByRole('button', { name: 'Advanced block palette' }));
+  expect(screen.getByRole('button', { name: 'Add Divider to preview' })).toBeTruthy();
+
+  rerender(<BlockKitchen paletteMode="advanced" />);
+  expect(screen.queryByRole('button', { name: 'Basic block palette' })).toBeNull();
+
+  // Back to simple: the earlier expansion doesn't carry over.
+  rerender(<BlockKitchen paletteMode="simple" />);
+  expect(screen.queryByRole('searchbox')).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Add Divider to preview' })).toBeNull();
+  expect(screen.getByRole('button', { name: 'Advanced block palette' })).toBeTruthy();
+});
+
 it('stays advanced when the palette flags no basic variants', () => {
   // A fully custom palette has no `basic` opt-ins, so simple mode has
   // nothing to show — better to render everything than an empty rail.

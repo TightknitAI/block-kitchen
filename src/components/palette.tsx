@@ -152,6 +152,18 @@ export function Palette({
   // advanced, so the initial `false` never surfaces there.
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
+  // A host that flips `mode` at runtime means it: start that mode from the
+  // top rather than carrying the old one's expansion (and search) across, or
+  // a palette switched back to simple would come up showing everything.
+  // Adjusted during render — the alternative effect would paint the stale
+  // list first, then correct it.
+  const [prevMode, setPrevMode] = useState(mode);
+  if (prevMode !== mode) {
+    setPrevMode(mode);
+    setAdvancedOpen(false);
+    setQuery('');
+  }
+
   const basics = useMemo(() => (mode === 'simple' ? basicVariants(sections) : []), [mode, sections]);
   // A simple mode with nothing in it would render an empty rail, so a palette
   // that flags no `basic` variants (a fully custom one, say) stays advanced —
