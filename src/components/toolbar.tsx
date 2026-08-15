@@ -18,7 +18,7 @@ import {
   Undo2,
   X
 } from 'lucide-react';
-import type { ComponentType, KeyboardEvent } from 'react';
+import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
@@ -346,15 +346,22 @@ export function Toolbar({
             size="sm"
             onClick={onClear}
             disabled={!canClear}
-            className="hover:bg-destructive/10 hover:text-destructive"
+            className="group gap-0 hover:bg-destructive/10 hover:text-destructive"
             aria-label="Clear all blocks"
           >
             <Trash2 className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">Clear</span>
+            <ExpandingLabel>Clear</ExpandingLabel>
           </Button>
-          <Button type="button" variant="ghost" size="sm" onClick={onOpenJson} aria-label="View JSON">
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={onOpenJson}
+            className="group gap-0"
+            aria-label="View JSON"
+          >
             <Code2 className="h-3.5 w-3.5" />
-            <span className="hidden md:inline">View JSON</span>
+            <ExpandingLabel>View JSON</ExpandingLabel>
           </Button>
           {!showSend ? (
             primaryAction ? (
@@ -459,6 +466,48 @@ export function Toolbar({
         </div>
       ) : null}
     </>
+  );
+}
+
+/**
+ * A toolbar label that rides collapsed at zero width and slides open when
+ * its button is hovered or takes keyboard focus, leaving the icon as the
+ * button's resting state. Used for the secondary utilities (Clear, View
+ * JSON) so they read as a compact icon cluster without becoming a guessing
+ * game — the name is one hover or one Tab away.
+ *
+ * The width animation is the `0fr` → `1fr` grid-track trick: a lone
+ * flexible column in an intrinsically-sized grid resolves to its item's
+ * max-content width, and the flex factor between the two interpolates,
+ * which `width: auto` on its own can't do. Three elements, each load-
+ * bearing: the grid owns the animated track, the middle span is the grid
+ * item that gets sized to it and clips, and the inner block carries the
+ * gap to the icon as padding — padding on the clipped item itself would
+ * survive the collapse, since `border-box` sizing floors an element's
+ * width at its own padding. The buttons pass `gap-0` for the same reason:
+ * the button's usual flex gap would hold 8px open around a label that
+ * isn't there.
+ *
+ * The label stays in the DOM throughout, but every one of these buttons
+ * carries an `aria-label`, so it was never the accessible name — assistive
+ * tech is unaffected by the collapse either way.
+ * @param props - label props
+ * @param props.children - the label text to reveal
+ * @returns the rendered expanding label
+ */
+function ExpandingLabel({ children }: { children: ReactNode }) {
+  return (
+    <span
+      className={cn(
+        'grid grid-cols-[0fr] transition-[grid-template-columns] duration-200 ease-out',
+        'group-hover:grid-cols-[1fr] group-focus-visible:grid-cols-[1fr]',
+        'motion-reduce:transition-none'
+      )}
+    >
+      <span className="overflow-hidden">
+        <span className="block whitespace-nowrap pl-1.5">{children}</span>
+      </span>
+    </span>
   );
 }
 

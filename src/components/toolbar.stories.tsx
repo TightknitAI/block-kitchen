@@ -95,6 +95,22 @@ export const HistoryAvailable: Story = {
   }
 };
 
+// Clear and View JSON rest as bare icons and grow their label on hover or
+// keyboard focus. There's no play function because there's nothing here this
+// runner can drive: the effect is pure CSS, and `userEvent`'s synthetic
+// pointer events never set `:hover`. It's measured for real in
+// test/toolbar-expanding-labels.test.tsx; this story is the visual reference.
+export const UtilityLabelsCollapsed: Story = {
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // Whatever the labels are doing visually, the names stay addressable —
+    // that's what keeps the icons from being a guessing game for anyone not
+    // using a mouse.
+    await expect(await canvas.findByRole('button', { name: 'View JSON' })).toBeInTheDocument();
+    await expect(await canvas.findByRole('button', { name: 'Clear all blocks' })).toBeInTheDocument();
+  }
+};
+
 export const DocsLinkHidden: Story = {
   args: { docsLink: false }
 };
