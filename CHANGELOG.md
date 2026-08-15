@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.5](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.4...block-kitchen-v0.10.5) (2026-08-15)
+
+
+### Features
+
+* **load-dialog:** move the "Copy Link" hint into an info bubble ([b6666eb](https://github.com/TightknitAI/block-kitchen/commit/b6666eb792c2bc6dc5e825be54e5f0d1d238b871))
+
+
+### Bug Fixes
+
+* **load-dialog:** keep the two-pane layout across cascade layers ([dbbf788](https://github.com/TightknitAI/block-kitchen/commit/dbbf788bf7bb3cae4f4c9fa8591d17320bb12155))
+* **styles:** apply scoped utilities to their scoping roots ([845f356](https://github.com/TightknitAI/block-kitchen/commit/845f3563295c2df57c50bd20afbef84f8bd4a168))
+* **styles:** apply scoped utilities to their scoping roots ([0eca881](https://github.com/TightknitAI/block-kitchen/commit/0eca8818d2e42a35df3cf78b62243200664d89a3))
+* **styles:** restore border-box sizing for the builder chrome ([92dd3de](https://github.com/TightknitAI/block-kitchen/commit/92dd3deef90f548b48550ba9d609b0a83223ab36))
+
 ## [0.10.4](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.3...block-kitchen-v0.10.4) (2026-08-15)
 
 
