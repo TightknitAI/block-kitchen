@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.10.7](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.6...block-kitchen-v0.10.7) (2026-08-15)
+
+
+### Features
+
+* **toolbar:** collapse Clear and View JSON to icons that expand on hover ([2dfeade](https://github.com/TightknitAI/block-kitchen/commit/2dfeadef1be1e50cbf1c34189091fa614334a8f1))
+
+
+### Bug Fixes
+
+* **layout:** scroll the palette instead of stretching the host page ([0298118](https://github.com/TightknitAI/block-kitchen/commit/0298118f71115d1c4844b9b1f3766489aeedab90))
+* **layout:** scroll the palette on overflow instead of stretching the host page ([48403e3](https://github.com/TightknitAI/block-kitchen/commit/48403e373a76cc0c65522e9f0341540ad52bb6d4))
+
 ## [0.10.6](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.5...block-kitchen-v0.10.6) (2026-08-15)
 
 
