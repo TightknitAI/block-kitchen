@@ -3,10 +3,10 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { LayoutGrid, Plus, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
-import { isSafeImageSrc } from '../lib/url-safety';
 import type { BuilderBlock, PreviewHooks, PreviewSurface, PreviewTheme, SupportedBlock } from '../types';
 import { BlockRow } from './block-row';
 import { ContainerRow } from './container-row';
+import { SlackMessageFrame } from './preview/slack-message-preview';
 
 /**
  * Stable id of the drop target that represents "end of the list".
@@ -161,71 +161,17 @@ export function Surface({
             {blocksList}
           </AppHomeFrame>
         ) : (
-          <MessageFrame workspaceName={workspaceName} authorName={authorName} authorIcon={authorIcon} isDark={isDark}>
+          <SlackMessageFrame
+            workspaceName={workspaceName}
+            authorName={authorName}
+            authorIcon={authorIcon}
+            isDark={isDark}
+          >
             {blocksList}
-          </MessageFrame>
+          </SlackMessageFrame>
         )}
       </div>
     </main>
-  );
-}
-
-/**
- * Slack message chrome: avatar + author name + timestamp
- * across the top, blocks below. Mimics the library's `<Message>` wrapper
- * without wiring each block through its own library wrapper (so per-block
- * editing affordances still work).
- * @param props - frame props
- * @param props.workspaceName - cosmetic app name shown in the header
- * @param props.isDark - whether to apply the dark Slack canvas colors
- * @param props.children - the blocks list to render inside the frame
- * @returns the rendered message frame
- */
-function MessageFrame({
-  workspaceName,
-  authorName,
-  authorIcon,
-  isDark,
-  children
-}: {
-  workspaceName?: string;
-  authorName?: string;
-  authorIcon?: string;
-  isDark: boolean;
-  children: ReactNode;
-}) {
-  const displayName = authorName ?? workspaceName ?? 'Your app';
-  const initial = displayName.slice(0, 1).toUpperCase();
-  // Only render the author image when it's a safe http(s) URL — it flows into
-  // an <img src> just like block image URLs do.
-  const safeIcon = authorIcon && isSafeImageSrc(authorIcon) ? authorIcon : null;
-  return (
-    <div
-      className={cn(
-        'flex flex-col overflow-hidden rounded-md border',
-        isDark ? 'border-[#2c2d30] bg-[#1a1d21]' : 'border-[#e8e8e8] bg-white'
-      )}
-    >
-      <div
-        className={cn('flex items-center gap-2 px-5 pt-3 pb-1 text-xs', isDark ? 'text-white/60' : 'text-[#616061]')}
-      >
-        {safeIcon ? (
-          <img src={safeIcon} alt="" className="h-7 w-7 shrink-0 rounded object-cover" />
-        ) : (
-          <span
-            className={cn(
-              'inline-flex h-7 w-7 items-center justify-center rounded text-[12px] font-semibold',
-              isDark ? 'bg-white/10 text-white' : 'bg-[#4a154b]/10 text-[#1d1c1d]'
-            )}
-          >
-            {initial}
-          </span>
-        )}
-        <span className={cn('font-bold text-sm', isDark ? 'text-white' : 'text-[#1d1c1d]')}>{displayName}</span>
-        <span>10:37 AM</span>
-      </div>
-      {children}
-    </div>
   );
 }
 

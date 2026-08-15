@@ -671,6 +671,12 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 // component's job is just resolving the channel source.
                 loadRecentMessages={loading.loadRecentMessages}
                 loadChannels={recentChannelSource}
+                // The dialog's preview pane renders through the same pipeline
+                // as the builder's surface, so a message looks the same before
+                // and after it loads (custom emoji ride along in the merged
+                // hooks).
+                previewHooks={mergedPreviewHooks}
+                previewTheme={previewTheme}
                 onLoaded={(result) => {
                   // A newly loaded message is a fresh document: reset history
                   // so undo starts from the loaded blocks and can't step back
