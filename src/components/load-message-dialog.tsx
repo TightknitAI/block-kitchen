@@ -453,7 +453,14 @@ export function LoadMessageDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="flex max-h-[85svh] w-[calc(100vw-1.5rem)] flex-col rounded-lg lg:max-w-4xl"
+        // Responsive layout here is written as mutually exclusive `max-lg:` /
+        // `lg:` pairs rather than a base utility a `lg:` one overrides. The
+        // package's utilities ship in the named `bk-utilities` layer, which a
+        // consumer's own Tailwind build usually outranks (see styles.src.css);
+        // a host that emits the base class but not our `lg:` variant would win
+        // the base and the override would never land. Two variants that can't
+        // both match resolve the same way in every host.
+        className="flex max-h-[85svh] w-[calc(100vw-1.5rem)] max-w-4xl flex-col rounded-lg max-lg:max-w-lg"
         // With no tab strip the link input is the entry point, so focus it
         // directly instead of leaving focus on the dialog chrome.
         onOpenAutoFocus={(e) => {
@@ -482,7 +489,7 @@ export function LoadMessageDialog({
             border box, so without that gutter the clip edge shaves the ring off
             the full-width input and channel picker. The negative margin cancels
             the padding, so nothing shifts. */}
-        <div className="-mx-1 flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto px-1 lg:flex-row lg:gap-5 lg:overflow-hidden">
+        <div className="-mx-1 flex min-h-0 min-w-0 flex-1 px-1 max-lg:flex-col max-lg:gap-4 max-lg:overflow-y-auto lg:flex-row lg:gap-5 lg:overflow-hidden">
           <div className="flex min-w-0 shrink-0 flex-col gap-3 lg:min-h-0 lg:w-[19rem]">
             {hasRecent && (
               <TabStrip activeTab={activeTab} onSelect={setTab} tabDomId={tabDomId} panelDomId={panelDomId} />
@@ -538,7 +545,7 @@ export function LoadMessageDialog({
                     viewports, and on wide ones it takes whatever height the
                     channel picker leaves and scrolls inside that. */}
                 {channelId && recent && recent.length > 0 && (
-                  <div className="flex max-h-60 min-h-0 min-w-0 flex-col gap-1 overflow-y-auto lg:max-h-none lg:flex-1">
+                  <div className="flex min-h-0 min-w-0 flex-col gap-1 overflow-y-auto max-lg:max-h-60 lg:flex-1">
                     {recent.map((m) => {
                       // Which identity the message was posted as — drives both
                       // this badge and (on load) the token the update uses.
@@ -793,7 +800,7 @@ function PreviewPane({
         aria-label="Message preview"
         // biome-ignore lint/a11y/noNoninteractiveTabindex: axe's scrollable-region-focusable rule wants the opposite — a scroll container whose content isn't focusable must itself be focusable, or keyboard users can't scroll it.
         tabIndex={0}
-        className="flex max-h-72 min-h-32 flex-1 flex-col gap-3 overflow-y-auto rounded-md border bg-muted/40 p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring lg:max-h-none lg:min-h-0"
+        className="flex flex-1 flex-col gap-3 overflow-y-auto rounded-md border bg-muted/40 p-3 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring max-lg:max-h-72 max-lg:min-h-32 lg:min-h-0"
       >
         {state.kind === 'not-editable' && (
           <div className="flex shrink-0 flex-col gap-2 rounded-md border border-amber-200! bg-amber-50 p-3 text-xs text-amber-800">
