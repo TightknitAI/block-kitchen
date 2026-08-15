@@ -165,6 +165,7 @@ export const SimpleMode: Story = {
     const canvas = within(canvasElement);
     // One block, flat — no section headings, no search.
     await canvas.findByRole('button', { name: /^add rich text section to preview$/i });
+    await canvas.findByText('Message Elements');
     expect(canvas.queryByRole('searchbox')).toBeNull();
     expect(canvas.queryByRole('button', { name: /^add divider to preview$/i })).toBeNull();
     expect(canvas.queryByRole('button', { name: /^structure$/i })).toBeNull();

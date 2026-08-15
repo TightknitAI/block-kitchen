@@ -47,6 +47,13 @@ function isDefaultOpen(sectionName: string, config: DefaultOpenSections): boolea
 }
 
 /**
+ * Heading for the rail, shown beside the mode link. Only rendered when the
+ * simple/advanced switch is — a palette that opens straight onto its named
+ * sections is already self-describing and keeps its untitled header.
+ */
+const PALETTE_TITLE = 'Message Elements';
+
+/**
  * Copy for the mode link's tooltip. The simple palette is deliberately a
  * dead end — one block, no search — so the link has to say what's behind it.
  */
@@ -194,17 +201,30 @@ export function Palette({
           )}
         >
           {offersSimple ? (
-            <ModeLink
-              advanced={advanced}
-              isSheet={isSheet}
-              onToggle={() => {
-                // Leaving advanced drops the query with it: it filters a list
-                // that's no longer on screen, and coming back to a palette
-                // pre-filtered by something typed minutes ago reads as a bug.
-                setQuery('');
-                setAdvancedOpen((v) => !v);
-              }}
-            />
+            // Titled row: with the sections gone, simple mode's header would
+            // otherwise be a lone right-aligned link over empty space, and
+            // nothing would name what the rail below it holds.
+            <div className="flex items-center justify-between gap-2">
+              <span
+                className={cn(
+                  'min-w-0 truncate font-medium uppercase tracking-wide text-muted-foreground',
+                  isSheet ? 'text-xs' : 'text-[11px]'
+                )}
+              >
+                {PALETTE_TITLE}
+              </span>
+              <ModeLink
+                advanced={advanced}
+                isSheet={isSheet}
+                onToggle={() => {
+                  // Leaving advanced drops the query with it: it filters a list
+                  // that's no longer on screen, and coming back to a palette
+                  // pre-filtered by something typed minutes ago reads as a bug.
+                  setQuery('');
+                  setAdvancedOpen((v) => !v);
+                }}
+              />
+            </div>
           ) : null}
           {searchVisible ? (
             <div className="relative">
@@ -251,7 +271,7 @@ export function Palette({
 }
 
 /**
- * The simple/advanced switch: a text link at the top of the palette, with
+ * The simple/advanced switch: a text link in the palette's title row, with
  * the explanation of what's on the other side hung off it as a tooltip
  * (which Radix also wires up as the link's accessible description, so it
  * reaches keyboard and screen-reader users, not just a hovering mouse).
@@ -267,31 +287,29 @@ export function Palette({
 function ModeLink({ advanced, isSheet, onToggle }: { advanced: boolean; isSheet: boolean; onToggle: () => void }) {
   return (
     <TooltipProvider delayDuration={200}>
-      <div className="flex items-center justify-end">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <button
-              type="button"
-              onClick={onToggle}
-              // Named for what it switches to, not just "Advanced": on its own
-              // that word says nothing out of context, and palette variants
-              // ("Basic" under Video) are `role="button"` too via dnd-kit, so a
-              // bare label wouldn't even be unique. The visible text leads the
-              // accessible name, so voice control still matches what's on screen.
-              aria-label={advanced ? 'Basic block palette' : 'Advanced block palette'}
-              className={cn(
-                'cursor-pointer appearance-none rounded border-0 bg-transparent p-0 font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
-                isSheet ? 'min-h-8 text-sm' : 'text-xs'
-              )}
-            >
-              {advanced ? 'Basic' : 'Advanced'}
-            </button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" align="end">
-            {advanced ? BASIC_HELP : ADVANCED_HELP}
-          </TooltipContent>
-        </Tooltip>
-      </div>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button
+            type="button"
+            onClick={onToggle}
+            // Named for what it switches to, not just "Advanced": on its own
+            // that word says nothing out of context, and palette variants
+            // ("Basic" under Video) are `role="button"` too via dnd-kit, so a
+            // bare label wouldn't even be unique. The visible text leads the
+            // accessible name, so voice control still matches what's on screen.
+            aria-label={advanced ? 'Basic block palette' : 'Advanced block palette'}
+            className={cn(
+              'shrink-0 cursor-pointer appearance-none rounded border-0 bg-transparent p-0 font-medium text-primary underline underline-offset-2 transition-colors hover:text-primary/80 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+              isSheet ? 'min-h-8 text-sm' : 'text-xs'
+            )}
+          >
+            {advanced ? 'Basic' : 'Advanced'}
+          </button>
+        </TooltipTrigger>
+        <TooltipContent side="bottom" align="end">
+          {advanced ? BASIC_HELP : ADVANCED_HELP}
+        </TooltipContent>
+      </Tooltip>
     </TooltipProvider>
   );
 }

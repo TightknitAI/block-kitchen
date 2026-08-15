@@ -21,8 +21,10 @@ it('renders the full palette with its search box by default', () => {
   render(<BlockKitchen />);
   expect(screen.getByRole('searchbox')).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Add Divider to preview' })).toBeTruthy();
-  // No switch to offer: this palette is already showing everything.
+  // No switch to offer: this palette is already showing everything, and its
+  // named sections say what it holds — so no title row either.
   expect(screen.queryByRole('button', { name: 'Advanced block palette' })).toBeNull();
+  expect(screen.queryByText('Message Elements')).toBeNull();
 });
 
 it('offers only the basic block, with no search, in simple mode', () => {
@@ -34,6 +36,8 @@ it('offers only the basic block, with no search, in simple mode', () => {
   expect(screen.queryByRole('button', { name: 'Add Divider to preview' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Rich Text' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Advanced block palette' })).toBeTruthy();
+  // The header names the rail rather than floating the link over blank space.
+  expect(screen.getByText('Message Elements')).toBeTruthy();
 });
 
 it('adds the basic block from simple mode', () => {
