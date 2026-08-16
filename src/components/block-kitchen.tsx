@@ -14,7 +14,8 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { GripVertical } from 'lucide-react';
-import { type KeyboardEvent, useCallback, useMemo, useState } from 'react';
+import { type KeyboardEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { cn } from '../lib/cn';
 import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
 import { buildVariantById, defaultPalette, type PaletteSection } from '../lib/default-blocks';
@@ -275,6 +276,24 @@ export function BlockKitchen(props: BlockKitchenProps) {
   useNotifyOnChange(activeEditTarget, loadedMessageKey, loading?.onLoadedMessageChange);
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  // Desktop only: the rail is hidden (not unmounted) while collapsed, and
+  // the toolbar's Blocks toggle brings it back. Mobile has no rail to
+  // collapse — the palette is the sheet `paletteOpen` above governs.
+  const [paletteCollapsed, setPaletteCollapsed] = useState(false);
+  // Which side of the palette's simple/advanced switch the user last chose.
+  // The rail keeps its own state while it's up, but the mobile sheet is torn
+  // down on every close, so without a memory out here every re-open would
+  // land back on the basic list.
+  const [paletteAdvanced, setPaletteAdvanced] = useState(false);
+  // A host that flips `paletteMode` mid-session starts the new mode from the
+  // top (the palette does the same internally), so the remembered side goes
+  // with it. Adjusted during render rather than in an effect, which would
+  // hand the stale choice to a sheet opened in between.
+  const [prevPaletteMode, setPrevPaletteMode] = useState(paletteMode);
+  if (prevPaletteMode !== paletteMode) {
+    setPrevPaletteMode(paletteMode);
+    setPaletteAdvanced(false);
+  }
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
   // Preview theme is controlled when the host passes `previewTheme`, and
   // uncontrolled (seeded from `defaultPreviewTheme`) otherwise. The
@@ -285,6 +304,9 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const previewTheme = controlledPreviewTheme ?? uncontrolledPreviewTheme;
   const [previewSurface, setPreviewSurface] = useState<PreviewSurface>(allowedSurfaces[0]);
   const [activePaletteVariantId, setActivePaletteVariantId] = useState<string | null>(null);
+  // The mobile palette sheet's own element, so opening it can land focus
+  // there instead of on the first control the palette happens to render.
+  const paletteSheetRef = useRef<HTMLDivElement>(null);
 
   const isMobile = useIsMobile();
 
@@ -491,6 +513,8 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 onOpenIssues={() => setIssuesOpen(true)}
                 onOpenSend={() => setSendOpen(true)}
                 onOpenPalette={() => setPaletteOpen(true)}
+                onTogglePalette={() => setPaletteCollapsed((v) => !v)}
+                paletteCollapsed={paletteCollapsed}
                 canSend={blocks.length > 0}
                 canClear={blocks.length > 0}
                 errorCount={validation.total}
@@ -559,9 +583,21 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 updateButtonLabel={updateButtonLabel}
               />
               <div className="flex min-h-0 flex-1 items-stretch">
-                {/* Desktop: persistent left aside. Mobile: collapsed to the
-                  palette sheet trigger in the toolbar. */}
-                <div className="hidden min-h-0 md:flex">
+                {/* Desktop: persistent left aside, hidden by the toolbar's
+                  Blocks toggle. Mobile: collapsed to the palette sheet
+                  trigger in the toolbar. Collapsing hides the rail rather
+                  than unmounting it, so it comes back with its open sections
+                  and search exactly as they were left. */}
+                {paletteCollapsed ? (
+                  // In a host that hands the builder no height of its own,
+                  // the rail is what the shell takes its height from (see
+                  // the shell's `max-h` note above) — so hiding it would
+                  // shrink the whole frame to the height of the message and
+                  // grow it back on the way out. This stands in for the rail
+                  // at no width. Inert to everything but layout.
+                  <div aria-hidden className="hidden w-0 shrink-0 md:block md:h-[var(--bk-max-height,100svh)]" />
+                ) : null}
+                <div hidden={paletteCollapsed} className={cn('hidden min-h-0', !paletteCollapsed && 'md:flex')}>
                   <Palette
                     onAddBlock={(block) => addBlock(block)}
                     sections={paletteSections}
@@ -569,6 +605,8 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     showSearch={showPaletteSearch}
                     searchPlaceholder={paletteSearchPlaceholder}
                     defaultOpenSections={defaultOpenSections}
+                    defaultAdvanced={paletteAdvanced}
+                    onAdvancedChange={setPaletteAdvanced}
                   />
                 </div>
                 <Surface
@@ -607,8 +645,20 @@ export function BlockKitchen(props: BlockKitchenProps) {
               row land in the surface. */}
             <Sheet open={paletteOpen && isMobile} onOpenChange={setPaletteOpen}>
               <SheetContent
+                ref={paletteSheetRef}
                 side="bottom"
                 className="bk-portal-content flex h-[85svh] max-h-[85svh] flex-col gap-3 p-0 sm:max-w-none"
+                // Radix moves focus to the first tabbable node on open, which
+                // here is whatever the palette leads with — the Advanced link
+                // (whose tooltip then pops unbidden) or the search box (which
+                // raises the on-screen keyboard over the list the user came to
+                // read). Neither is what a tap on "Blocks" asked for, so focus
+                // the sheet itself: the trap, Escape and the reading order all
+                // still start at the top of the sheet.
+                onOpenAutoFocus={(e) => {
+                  e.preventDefault();
+                  paletteSheetRef.current?.focus();
+                }}
               >
                 <div className="flex flex-col gap-1 px-4 pt-5">
                   <SheetTitle>Add a block</SheetTitle>
@@ -625,6 +675,8 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     showSearch={showPaletteSearch}
                     searchPlaceholder={paletteSearchPlaceholder}
                     defaultOpenSections={defaultOpenSections}
+                    defaultAdvanced={paletteAdvanced}
+                    onAdvancedChange={setPaletteAdvanced}
                     variant="sheet"
                   />
                 </div>

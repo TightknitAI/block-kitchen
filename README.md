@@ -442,6 +442,8 @@ update against the target from `loadedMessage` / `onLoadedMessageChange`.
 
 ## Customizing the palette
 
+On desktop the palette is a rail down the left-hand side, which the toolbar's **Blocks** toggle hides and restores — collapsed, the preview gets the full width, and the rail comes back with its open sections and search exactly as they were. Below the `md` breakpoint there's no rail: the same **Blocks** button opens the palette as a bottom sheet instead, and picking a block closes it.
+
 The default palette ships with curated presets for every supported block type. To narrow what's available, or add your own pre-configured variants (e.g. a "Help footer" section), pass a `palette` array. Define it at module scope (or wrap in `useMemo`) so it stays referentially stable across renders.
 
 ```tsx
@@ -498,6 +500,8 @@ const PALETTE: readonly PaletteSection[] = [
 ```
 
 A palette that flags none of its variants `basic` has no simple list to show, so it renders as `'advanced'` regardless — the link is withheld rather than leading to an empty rail.
+
+The builder remembers which side of that switch the user is on, so the mobile sheet — which is torn down every time it closes — reopens on the full palette rather than sending them back through the **Advanced** link on every block.
 
 ## Templates (`TemplatePicker`)
 

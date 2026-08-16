@@ -57,8 +57,7 @@ const PALETTE_TITLE = 'Message Elements';
  * Copy for the mode link's tooltip. The simple palette is deliberately a
  * dead end — one block, no search — so the link has to say what's behind it.
  */
-const ADVANCED_HELP =
-  'Browse every Slack block type — sections, images, buttons, inputs, tables and more — plus a search box.';
+const ADVANCED_HELP = 'Browse every Slack block type — sections, images, buttons, inputs, tables and more.';
 
 /** Counterpart for the link once the full palette is showing. */
 const BASIC_HELP = 'Go back to the short list: just the rich text block for writing a message.';
@@ -129,6 +128,10 @@ function filterSections(sections: readonly PaletteSectionDef[], query: string): 
  *   palette straight away. `'simple'` starts on a flat list of the
  *   variants flagged `basic`, with no search and an "Advanced" link at the
  *   top that swaps in the full palette. See {@link PaletteMode}.
+ * @param props.defaultAdvanced - which side of that switch the palette
+ *   opens on. Defaults to `false` (the simple list).
+ * @param props.onAdvancedChange - called with the new side whenever the
+ *   user flips the switch.
  * @returns the rendered palette aside
  */
 export function Palette({
@@ -138,6 +141,8 @@ export function Palette({
   showSearch = true,
   searchPlaceholder = 'Search blocks…',
   mode = 'advanced',
+  defaultAdvanced = false,
+  onAdvancedChange,
   variant = 'aside'
 }: {
   onAddBlock: (block: SupportedBlock) => void;
@@ -146,6 +151,17 @@ export function Palette({
   showSearch?: boolean;
   searchPlaceholder?: string;
   mode?: PaletteMode;
+  /**
+   * Seeds the simple/advanced switch on mount — it isn't a controlled
+   * value, so flipping it later doesn't move a palette that's already up.
+   * Paired with `onAdvancedChange` it lets a host that unmounts the
+   * palette between uses (the mobile sheet closes on every add) hand the
+   * user's last choice back on the way in. Ignored by a palette that
+   * doesn't offer the switch. Defaults to `false`.
+   */
+  defaultAdvanced?: boolean;
+  /** Called with the newly shown side each time the user flips the switch. */
+  onAdvancedChange?: (advanced: boolean) => void;
   /**
    * `'aside'` — persistent left rail (default). Fixed width with right border.
    * `'sheet'` — full-width content for mobile bottom-sheet hosting. No
@@ -156,8 +172,8 @@ export function Palette({
   const [query, setQuery] = useState('');
   // Which side of the simple/advanced switch we're on. Only consulted when
   // the palette offers the switch at all; a mode-less palette is always
-  // advanced, so the initial `false` never surfaces there.
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  // advanced, so the seed never surfaces there.
+  const [advancedOpen, setAdvancedOpen] = useState(defaultAdvanced);
 
   // A host that flips `mode` at runtime means it: start that mode from the
   // top rather than carrying the old one's expansion (and search) across, or
@@ -190,7 +206,7 @@ export function Palette({
     <aside
       className={cn(
         'flex min-h-0 flex-col overflow-x-hidden overflow-y-auto',
-        isSheet ? 'w-full flex-1 bg-background' : 'w-72 shrink-0 border-r bg-muted/20'
+        isSheet ? 'w-full flex-1 bg-background' : 'w-56 shrink-0 border-r bg-muted/20'
       )}
     >
       {offersSimple || searchVisible ? (
@@ -223,7 +239,9 @@ export function Palette({
                     // that's no longer on screen, and coming back to a palette
                     // pre-filtered by something typed minutes ago reads as a bug.
                     setQuery('');
-                    setAdvancedOpen((v) => !v);
+                    const next = !advancedOpen;
+                    setAdvancedOpen(next);
+                    onAdvancedChange?.(next);
                   }}
                 />
               </div>
@@ -422,13 +440,15 @@ function PaletteItem({
     <div
       ref={setNodeRef}
       className={cn(
-        'group flex items-center gap-2 rounded px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground has-[:focus-visible]:bg-accent has-[:focus-visible]:text-foreground',
+        'group flex items-center gap-2 rounded px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground has-[:focus-visible]:bg-accent has-[:focus-visible]:text-foreground',
         isDragging && 'opacity-50'
       )}
     >
       <div
         ref={setActivatorNodeRef}
-        className="-my-1.5 flex min-w-0 flex-1 cursor-grab items-center gap-2 rounded py-1.5 active:cursor-grabbing focus-visible:outline-none"
+        // Negative margin plus matching padding so the grab target still
+        // covers the row's full height after the row itself tightened up.
+        className="-my-1 flex min-w-0 flex-1 cursor-grab items-center gap-2 rounded py-1 active:cursor-grabbing focus-visible:outline-none"
         {...attributes}
         {...listeners}
       >
