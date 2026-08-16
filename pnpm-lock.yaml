@@ -46,8 +46,8 @@ importers:
         specifier: ^5.1.16
         version: 5.1.16
       slack-blocks-to-jsx:
-        specifier: ^1.1.1
-        version: 1.1.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
+        specifier: ^1.1.2
+        version: 1.1.2(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -3397,8 +3397,8 @@ packages:
     resolution: {integrity: sha512-kUMbT1oBJCpgrnKoSr0o6wPtvRWT9W9UKvGLwfJYO2WuahZRHOpEyL1ckyMGgMWh0UdpmaoFqKKD29WTomNEGA==}
     engines: {node: '>=8'}
 
-  slack-blocks-to-jsx@1.1.1:
-    resolution: {integrity: sha512-5zBjZ72feUV+7XtAoAhE2WzOfls0k+kAMU3B3t16Ka22cx/uCLJb6wJGHZNk2saBD8AspWZC+ZNyLWgFO/TPdw==}
+  slack-blocks-to-jsx@1.1.2:
+    resolution: {integrity: sha512-q6A/kPiLb7bWPAhBi2Av2N4owDpb79IqebnUxO0ydY25/4LOJoidoYG2d0Uo6MmVOOf17RzH/yKmItVuuQK1Hg==}
     peerDependencies:
       react: ^17 || ^18 || ^19
       react-dom: ^17 || ^18 || ^19
@@ -6958,7 +6958,7 @@ snapshots:
     dependencies:
       unicode-emoji-modifier-base: 1.0.0
 
-  slack-blocks-to-jsx@1.1.1(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
+  slack-blocks-to-jsx@1.1.2(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8):
     dependencies:
       node-emoji: 2.2.0
       react: 19.2.8

@@ -141,7 +141,7 @@ Given no height to work with — a plain `<div>` in ordinary document flow — i
 | `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
 | `disabledBlockTypes` | `SupportedBlockType[]` | no | Block types to hide from the palette without rebuilding it. Filters at the variant level — a section keeps any variants whose block types aren't disabled; sections that end up empty are dropped. Convenient when you want the default palette minus a few types (e.g. `['image', 'table']` for a text-only builder). |
-| `paletteMode` | `'advanced' \| 'simple'` | no | How much of the palette the user meets first. `'advanced'` (default) renders the full sectioned palette with its search input. `'simple'` opens on a flat list of the variants flagged `basic` — in the built-in palette, just **Rich Text Section** — with no search and an "Advanced" link at the top that swaps in the full palette. Nothing is removed; it's a smaller first screen. See [Simple vs advanced palette](#simple-vs-advanced-palette). |
+| `paletteMode` | `'advanced' \| 'simple'` | no | How much of the palette the user meets first. `'advanced'` (default) renders the full sectioned palette with its search input. `'simple'` opens on a flat list of the variants flagged `basic` — in the built-in palette: **Header**, **Divider**, **Rich Text Section** and **Image** — with no search and an "Advanced" link at the top that swaps in the full palette. Nothing is removed; it's a smaller first screen. See [Simple vs advanced palette](#simple-vs-advanced-palette). |
 | `defaultOpenSections` | `boolean \| string[]` | no | Which palette section headers are expanded on first paint. `true` (default) opens all sections; `false` collapses all (Slack-style); an array opens only sections whose `name` is in the list (e.g. `['Section', 'Actions']`). The palette also has a built-in search input that expands matching sections on demand. |
 | `showPaletteSearch` | `boolean` | no | Whether the palette renders the quick-search input above the section list. Defaults to `true`. Set `false` for compact palettes (e.g. when you've passed a small custom `palette`) where scanning by eye is faster than typing. Simple mode has no search either way — it appears with the rest of the palette behind "Advanced". |
 | `paletteSearchPlaceholder` | `string` | no | Placeholder text for the palette search input. Defaults to `'Search blocks…'`. Useful for localization. |
@@ -442,6 +442,8 @@ update against the target from `loadedMessage` / `onLoadedMessageChange`.
 
 ## Customizing the palette
 
+On desktop the palette is a rail down the left-hand side, with a chevron handle on its outer border that hides and restores it — collapsed, the preview gets the full width, and the rail comes back with its open sections and search exactly as they were. Below the `md` breakpoint there's no rail: the toolbar's **Blocks** button opens the palette as a bottom sheet instead, and picking a block closes it.
+
 The default palette ships with curated presets for every supported block type. To narrow what's available, or add your own pre-configured variants (e.g. a "Help footer" section), pass a `palette` array. Define it at module scope (or wrap in `useMemo`) so it stays referentially stable across renders.
 
 ```tsx
@@ -476,13 +478,13 @@ Variant `id`s must be unique across the array — the drag-drop lookup keys by i
 
 ### Simple vs advanced palette
 
-By default the palette opens on everything it has: every section, plus the search input. For consumers whose users are writing ordinary messages rather than building interactive apps, `paletteMode="simple"` opens on a one-block starter list instead — no sections, no search — behind an **Advanced** link that swaps in the full palette (and back).
+By default the palette opens on everything it has: every section, plus the search input. For consumers whose users are writing ordinary messages rather than building interactive apps, `paletteMode="simple"` opens on a short starter list instead — no sections, no search — behind an **Advanced** link that swaps in the full palette (and back).
 
 ```tsx
 <BlockKitchen paletteMode="simple" {...rest} />
 ```
 
-Which variants the simple list holds is a property of the palette, not the flag: a variant opts in with `basic: true`. The built-in palette flags exactly one — **Rich Text Section** — so a custom palette that wants its own starter block says so:
+Which variants the simple list holds is a property of the palette, not the flag: a variant opts in with `basic: true`. The built-in palette flags four — **Header**, **Divider**, **Rich Text Section** and **Image** — listed in palette order. A custom palette that wants its own starter blocks says so:
 
 ```tsx
 const PALETTE: readonly PaletteSection[] = [
@@ -497,7 +499,11 @@ const PALETTE: readonly PaletteSection[] = [
 ];
 ```
 
+The flat list has no section headings to lean on, so a variant whose label only reads in context can give simple mode a self-describing one with `basicLabel` — that's how the built-in image variant (**No title**, under **Image**) shows up as **Image** there.
+
 A palette that flags none of its variants `basic` has no simple list to show, so it renders as `'advanced'` regardless — the link is withheld rather than leading to an empty rail.
+
+The builder remembers which side of that switch the user is on, so the mobile sheet — which is torn down every time it closes — reopens on the full palette rather than sending them back through the **Advanced** link on every block.
 
 ## Templates (`TemplatePicker`)
 

@@ -224,7 +224,7 @@ export function Toolbar({
               variant="ghost"
               size="sm"
               onClick={onOpenPalette}
-              className="md:hidden"
+              className="gap-1 md:hidden"
               aria-label="Add a block"
             >
               <Plus className="h-4 w-4" />

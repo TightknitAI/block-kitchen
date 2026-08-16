@@ -849,9 +849,9 @@ export type PreviewSurface = 'message' | 'modal' | 'app_home';
  * - `'advanced'` (default) — the full sectioned palette with its search
  *   input, exactly as it has always rendered.
  * - `'simple'` — opens on a flat list of the variants whose
- *   `PaletteVariant.basic` flag is set (in the built-in palette, just
- *   **Rich Text Section**) with no search, behind an "Advanced" link that
- *   swaps in the full palette. Nothing is removed — it's a smaller first
+ *   `PaletteVariant.basic` flag is set (in the built-in palette: header,
+ *   divider, rich text section and image) with no search, behind an
+ *   "Advanced" link that swaps in the full palette. Nothing is removed — it's a smaller first
  *   screen for people writing an ordinary message, not a reduced feature
  *   set.
  *
@@ -1010,9 +1010,9 @@ export interface BlockKitchenBaseProps {
   /**
    * How much of the palette the user meets first. Defaults to
    * `'advanced'` — the full sectioned palette, unchanged. Pass
-   * `'simple'` to open on a one-block starter list (**Rich Text
-   * Section**) with an "Advanced" link that swaps in the full palette;
-   * see {@link PaletteMode}.
+   * `'simple'` to open on a short starter list (header, divider, rich
+   * text section and image) with an "Advanced" link that swaps in the
+   * full palette; see {@link PaletteMode}.
    *
    * Which variants the simple list holds is a property of the palette,
    * not of this flag: a custom `palette` opts its own variants in by
