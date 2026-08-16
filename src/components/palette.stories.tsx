@@ -43,7 +43,12 @@ export const AddBlockViaChevron: Story = {
 };
 
 const CUSTOM_PALETTE: readonly PaletteSection[] = [
-  ...defaultPalette.filter((s) => s.name === 'Section' || s.name === 'Structure'),
+  // 'Section' and 'Structure' verbatim, minus the `basic` opt-ins the built-in
+  // Structure section carries — SimpleModeWithoutBasicVariants leans on this
+  // palette having none at all.
+  ...defaultPalette
+    .filter((s) => s.name === 'Section' || s.name === 'Structure')
+    .map((s) => ({ ...s, variants: s.variants.map(({ basic, basicLabel, ...v }) => v) })),
   {
     name: 'Company presets',
     icon: AlignLeft,
@@ -163,11 +168,15 @@ export const SimpleMode: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // One block, flat — no section headings, no search.
+    // A handful of blocks, flat — no section headings, no search.
     await canvas.findByRole('button', { name: /^add rich text section to preview$/i });
+    await canvas.findByRole('button', { name: /^add header to preview$/i });
+    await canvas.findByRole('button', { name: /^add divider to preview$/i });
+    // The image variant under its simple-mode name, not its sectioned one.
+    await canvas.findByRole('button', { name: /^add image to preview$/i });
     await canvas.findByText('Message Elements');
     expect(canvas.queryByRole('searchbox')).toBeNull();
-    expect(canvas.queryByRole('button', { name: /^add divider to preview$/i })).toBeNull();
+    expect(canvas.queryByRole('button', { name: /^add mrkdwn to preview$/i })).toBeNull();
     expect(canvas.queryByRole('button', { name: /^structure$/i })).toBeNull();
   }
 };
@@ -190,7 +199,7 @@ export const SimpleModeAdvancedLink: Story = {
     // Clicking it swaps in the full palette, search and all.
     await userEvent.click(link);
     await canvas.findByRole('searchbox', { name: /search blocks/i });
-    await canvas.findByRole('button', { name: /^add divider to preview$/i });
+    await canvas.findByRole('button', { name: /^add mrkdwn to preview$/i });
 
     // ...and the same link leads back.
     await userEvent.click(await canvas.findByRole('button', { name: /^basic block palette$/i }));

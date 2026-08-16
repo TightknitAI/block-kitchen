@@ -101,20 +101,21 @@ it('re-opens the palette sheet on the side of the switch the user left it', () =
 
   fireEvent.click(screen.getByRole('button', { name: 'Add a block' }));
   fireEvent.click(within(sheet()).getByRole('button', { name: 'Advanced block palette' }));
-  expect(within(sheet()).getByRole('button', { name: 'Add Divider' })).toBeTruthy();
+  // Mrkdwn is advanced-only, so its presence is what marks the full palette.
+  expect(within(sheet()).getByRole('button', { name: 'Add Mrkdwn' })).toBeTruthy();
 
   // Adding a block closes the sheet, which unmounts the palette with it.
-  fireEvent.click(within(sheet()).getByRole('button', { name: 'Add Divider' }));
+  fireEvent.click(within(sheet()).getByRole('button', { name: 'Add Mrkdwn' }));
   expect(screen.queryByRole('dialog')).toBeNull();
 
   fireEvent.click(screen.getByRole('button', { name: 'Add a block' }));
-  expect(within(sheet()).getByRole('button', { name: 'Add Divider' })).toBeTruthy();
+  expect(within(sheet()).getByRole('button', { name: 'Add Mrkdwn' })).toBeTruthy();
   expect(within(sheet()).getByRole('button', { name: 'Basic block palette' })).toBeTruthy();
 
   // And back to basic is still a click away, sheet after sheet.
   fireEvent.click(within(sheet()).getByRole('button', { name: 'Basic block palette' }));
   fireEvent.keyDown(sheet(), { key: 'Escape' });
   fireEvent.click(screen.getByRole('button', { name: 'Add a block' }));
-  expect(within(sheet()).queryByRole('button', { name: 'Add Divider' })).toBeNull();
+  expect(within(sheet()).queryByRole('button', { name: 'Add Mrkdwn' })).toBeNull();
   expect(within(sheet()).getByRole('button', { name: 'Advanced block palette' })).toBeTruthy();
 });

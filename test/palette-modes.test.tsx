@@ -27,13 +27,21 @@ it('renders the full palette with its search box by default', () => {
   expect(screen.queryByText('Message Elements')).toBeNull();
 });
 
-it('offers only the basic block, with no search, in simple mode', () => {
+it('offers only the basic blocks, with no search, in simple mode', () => {
   render(<BlockKitchen paletteMode="simple" />);
 
+  // The four the built-in palette flags, in palette order.
+  expect(screen.getByRole('button', { name: 'Add Header to preview' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Add Divider to preview' })).toBeTruthy();
   expect(screen.getByRole('button', { name: 'Add Rich Text Section to preview' })).toBeTruthy();
+  // Listed under its own name out here, where the "Image" heading that
+  // makes sense of "No title" is gone.
+  expect(screen.getByRole('button', { name: 'Add Image to preview' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Add No title to preview' })).toBeNull();
+
   expect(screen.queryByRole('searchbox')).toBeNull();
   // Neither the other variants nor the section headings they sit under.
-  expect(screen.queryByRole('button', { name: 'Add Divider to preview' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Add Mrkdwn to preview' })).toBeNull();
   expect(screen.queryByRole('button', { name: 'Rich Text' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Advanced block palette' })).toBeTruthy();
   // The header names the rail rather than floating the link over blank space.
@@ -54,12 +62,14 @@ it('swaps in the full palette from the Advanced link, and back again', () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Advanced block palette' }));
   expect(screen.getByRole('searchbox')).toBeTruthy();
-  expect(screen.getByRole('button', { name: 'Add Divider to preview' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Add Mrkdwn to preview' })).toBeTruthy();
+  // The image variant is back under its heading, by its sectioned label.
+  expect(screen.getByRole('button', { name: 'Add No title to preview' })).toBeTruthy();
 
   // The link becomes the way back, so simple mode isn't a one-way door.
   fireEvent.click(screen.getByRole('button', { name: 'Basic block palette' }));
   expect(screen.queryByRole('searchbox')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Add Divider to preview' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Add Mrkdwn to preview' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Add Rich Text Section to preview' })).toBeTruthy();
 });
 
@@ -68,12 +78,12 @@ it('drops a stale search query when leaving advanced mode', () => {
 
   fireEvent.click(screen.getByRole('button', { name: 'Advanced block palette' }));
   fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'divider' } });
-  expect(screen.queryByRole('button', { name: 'Add Image to preview' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Add Mrkdwn to preview' })).toBeNull();
 
   fireEvent.click(screen.getByRole('button', { name: 'Basic block palette' }));
   fireEvent.click(screen.getByRole('button', { name: 'Advanced block palette' }));
   expect((screen.getByRole('searchbox') as HTMLInputElement).value).toBe('');
-  expect(screen.getByRole('button', { name: 'Add Divider to preview' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Add Mrkdwn to preview' })).toBeTruthy();
 });
 
 it('starts the new mode from the top when the host flips paletteMode', () => {
@@ -81,7 +91,7 @@ it('starts the new mode from the top when the host flips paletteMode', () => {
 
   // Open the full palette, then have the host switch modes underneath it.
   fireEvent.click(screen.getByRole('button', { name: 'Advanced block palette' }));
-  expect(screen.getByRole('button', { name: 'Add Divider to preview' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Add Mrkdwn to preview' })).toBeTruthy();
 
   rerender(<BlockKitchen paletteMode="advanced" />);
   expect(screen.queryByRole('button', { name: 'Basic block palette' })).toBeNull();
@@ -89,7 +99,7 @@ it('starts the new mode from the top when the host flips paletteMode', () => {
   // Back to simple: the earlier expansion doesn't carry over.
   rerender(<BlockKitchen paletteMode="simple" />);
   expect(screen.queryByRole('searchbox')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Add Divider to preview' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Add Mrkdwn to preview' })).toBeNull();
   expect(screen.getByRole('button', { name: 'Advanced block palette' })).toBeTruthy();
 });
 

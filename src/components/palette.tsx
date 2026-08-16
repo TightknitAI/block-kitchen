@@ -55,23 +55,27 @@ const PALETTE_TITLE = 'Message Elements';
 
 /**
  * Copy for the mode link's tooltip. The simple palette is deliberately a
- * dead end — one block, no search — so the link has to say what's behind it.
+ * dead end — a handful of blocks, no search — so the link has to say what's
+ * behind it.
  */
 const ADVANCED_HELP = 'Browse every Slack block type — sections, images, buttons, inputs, tables and more.';
 
 /** Counterpart for the link once the full palette is showing. */
-const BASIC_HELP = 'Go back to the short list: just the rich text block for writing a message.';
+const BASIC_HELP = 'Go back to the short list: the few blocks an ordinary message is made of.';
 
 /**
- * The variants simple mode offers, flattened out of their sections: it's a
- * short starter list, so section headings would be chrome around one row.
+ * The variants simple mode offers, flattened out of their sections in
+ * palette order: it's a short starter list, so section headings would be
+ * chrome around a handful of rows. A variant that leans on its heading to
+ * be read ("No title", under Image) swaps in its `basicLabel` here, since
+ * out on the flat list there's no heading left to lean on.
  */
 function basicVariants(sections: readonly PaletteSectionDef[]): PaletteVariant[] {
   const out: PaletteVariant[] = [];
   for (const section of sections) {
     for (const variant of section.variants) {
       if (variant.basic) {
-        out.push(variant);
+        out.push(variant.basicLabel ? { ...variant, label: variant.basicLabel } : variant);
       }
     }
   }
@@ -108,7 +112,7 @@ function filterSections(sections: readonly PaletteSectionDef[], query: string): 
  * With `mode="simple"` the palette instead opens on a flat list of the
  * variants flagged `basic` — no sections, no search — behind an "Advanced"
  * link that swaps in the full palette described above. That keeps the first
- * screen to the one block most messages are made of, without hiding the
+ * screen to the few blocks most messages are made of, without hiding the
  * rest from anyone who goes looking.
  * @param props - palette props
  * @param props.onAddBlock - called when a palette item is added via its

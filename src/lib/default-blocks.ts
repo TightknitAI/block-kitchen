@@ -39,6 +39,13 @@ export interface PaletteVariant {
    * variants at all can't offer one, so it stays in advanced mode.
    */
   basic?: boolean;
+  /**
+   * Label to use in simple mode, where the flat list drops the section
+   * headings that give the ordinary `label` its context — "No title" says
+   * nothing once "Image" is gone from above it. Ignored outside simple
+   * mode, and unnecessary for a variant whose label already stands alone.
+   */
+  basicLabel?: string;
 }
 
 /**
@@ -689,6 +696,7 @@ export const defaultPalette: readonly PaletteSection[] = [
       {
         id: 'structure_header',
         label: 'Header',
+        basic: true,
         factory: () => ({
           type: 'header',
           text: { type: 'plain_text', text: 'Heading text', emoji: true }
@@ -697,6 +705,7 @@ export const defaultPalette: readonly PaletteSection[] = [
       {
         id: 'structure_divider',
         label: 'Divider',
+        basic: true,
         factory: () => ({ type: 'divider' })
       },
       {
@@ -804,8 +813,9 @@ export const defaultPalette: readonly PaletteSection[] = [
       {
         id: 'rich_text_section',
         label: 'Rich Text Section',
-        // The one variant simple mode offers, where it's listed without its
-        // section heading — hence the self-describing label.
+        // The block a message is mostly made of, and so one of the handful
+        // simple mode offers — listed there without its section heading,
+        // hence the self-describing label.
         basic: true,
         factory: () => ({
           type: 'rich_text',
@@ -842,6 +852,11 @@ export const defaultPalette: readonly PaletteSection[] = [
       {
         id: 'image_no_title',
         label: 'No title',
+        // The plain image is the one an ordinary message reaches for, so it
+        // carries simple mode's image slot — under its own name there, with
+        // no "Image" heading overhead to lend "No title" its meaning.
+        basic: true,
+        basicLabel: 'Image',
         factory: () => ({
           type: 'image',
           image_url: 'https://placehold.co/600x300?text=Image',
