@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.10.8](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.7...block-kitchen-v0.10.8) (2026-08-16)
+
+
+### Features
+
+* **palette:** add header, divider and image to simple mode ([08dc19f](https://github.com/TightknitAI/block-kitchen/commit/08dc19f15136a171822faf8b9bccacb6070bb125))
+* **palette:** collapsible desktop rail, tighter rows, steadier mobile sheet ([4f2bc70](https://github.com/TightknitAI/block-kitchen/commit/4f2bc706cdb45a60ea39cac5151f589d2f39df6e))
+* **palette:** collapsible desktop rail, tighter rows, steadier mobile sheet ([4114e1d](https://github.com/TightknitAI/block-kitchen/commit/4114e1d560cb3f9521139d2a707c46a162c5501f))
+
+
+### Bug Fixes
+
+* **deps:** update slack-blocks-to-jsx to 1.1.2 ([01e742c](https://github.com/TightknitAI/block-kitchen/commit/01e742cc9599a47b393541c9a1dc6004956fc1ab))
+* **palette:** trail the sheet row's chevron instead of leading with it ([1af7ce4](https://github.com/TightknitAI/block-kitchen/commit/1af7ce476392c7837cf79005b85b35a77086347c))
+
 ## [0.10.7](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.6...block-kitchen-v0.10.7) (2026-08-15)
 
 
