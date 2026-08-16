@@ -620,10 +620,10 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     aria-label={paletteCollapsed ? 'Show block palette' : 'Hide block palette'}
                     title={paletteCollapsed ? 'Show block palette' : 'Hide block palette'}
                     className={cn(
-                      // No border or shadow of its own: the chevron sits on
-                      // the rail's border, and its own background is what
-                      // breaks the line cleanly behind it.
-                      'absolute top-1/2 z-10 flex h-10 w-4 -translate-y-1/2 cursor-pointer appearance-none items-center justify-center rounded-sm border-0 bg-background p-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                      // A hairline outline in the rail's own border color, so
+                      // the handle reads as part of the edge it rides rather
+                      // than a chevron floating loose over the border line.
+                      'absolute top-1/2 z-10 flex h-10 w-4 -translate-y-1/2 cursor-pointer appearance-none items-center justify-center rounded-sm border bg-background p-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
                       paletteCollapsed ? 'left-0' : 'right-0 translate-x-1/2'
                     )}
                   >
