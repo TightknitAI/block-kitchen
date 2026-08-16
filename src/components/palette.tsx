@@ -428,10 +428,13 @@ function PaletteItem({
           isDragging && 'opacity-50'
         )}
       >
+        <span className="min-w-0 flex-1 truncate">{variant.label}</span>
+        {/* Trailing, the way a nav row's disclosure chevron reads: the label
+          is what the eye scans down, and the chevron marks where the row
+          takes you. */}
         <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground transition-colors group-hover:bg-primary/10 group-hover:text-primary">
           <ChevronRight className="h-4 w-4" />
         </span>
-        <span className="min-w-0 flex-1 truncate">{variant.label}</span>
       </button>
     );
   }
