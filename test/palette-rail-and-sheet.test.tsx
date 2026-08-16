@@ -1,8 +1,8 @@
 /**
  * The two palette hosts either side of the `md` breakpoint: the desktop
- * rail (collapsible from the toolbar) and the mobile sheet (torn down on
- * every close). What's pinned here is the state that has to survive each
- * of those disappearances, plus where focus lands when the sheet opens.
+ * rail (collapsible from the handle on its edge) and the mobile sheet (torn
+ * down on every close). What's pinned here is the state that has to survive
+ * each of those disappearances, plus where focus lands when the sheet opens.
  */
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { afterEach, expect, it, vi } from 'vitest';
@@ -43,7 +43,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it('collapses and restores the desktop palette rail from the toolbar', () => {
+it('collapses and restores the desktop palette rail from its edge handle', () => {
   setViewport(false);
   render(<BlockKitchen />);
 

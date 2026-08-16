@@ -9,8 +9,6 @@ import {
   Home,
   MessageSquare,
   Moon,
-  PanelLeftClose,
-  PanelLeftOpen,
   Pencil,
   Plus,
   Redo2,
@@ -79,9 +77,6 @@ const SEND_MENU_ITEM =
  * @param props.onOpenIssues - opens the issues sheet
  * @param props.onOpenSend - opens the send dialog
  * @param props.onOpenPalette - opens the mobile palette sheet
- * @param props.onTogglePalette - hides/restores the desktop palette rail.
- *   The toggle only renders when this is wired.
- * @param props.paletteCollapsed - whether that rail is currently hidden
  * @param props.canSend - whether the Send button should be enabled
  * @param props.canClear - whether the Clear button should be enabled
  * @param props.previewTheme - current preview theme
@@ -113,8 +108,6 @@ export function Toolbar({
   onOpenIssues,
   onOpenSend,
   onOpenPalette,
-  onTogglePalette,
-  paletteCollapsed = false,
   canSend,
   canClear,
   previewTheme,
@@ -150,13 +143,6 @@ export function Toolbar({
   onOpenIssues: () => void;
   onOpenSend: () => void;
   onOpenPalette?: () => void;
-  /**
-   * Hides/restores the desktop palette rail. Omitted (as by a host that
-   * renders no rail) the toggle isn't rendered at all.
-   */
-  onTogglePalette?: () => void;
-  /** Whether the desktop palette rail is currently hidden. Defaults to `false`. */
-  paletteCollapsed?: boolean;
   canSend: boolean;
   canClear: boolean;
   previewTheme: PreviewTheme;
@@ -243,29 +229,6 @@ export function Toolbar({
             >
               <Plus className="h-4 w-4" />
               <span>Blocks</span>
-            </Button>
-          ) : null}
-          {onTogglePalette ? (
-            // Desktop counterpart to the Blocks button above: there the
-            // palette is a sheet that opens on demand, here it's a rail that
-            // is always up — so this one hides and restores it. Icon at rest,
-            // label on hover, like the Clear / View JSON pair opposite.
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onTogglePalette}
-              className="group hidden gap-0 md:inline-flex"
-              aria-expanded={!paletteCollapsed}
-              aria-label={paletteCollapsed ? 'Show block palette' : 'Hide block palette'}
-              title={paletteCollapsed ? 'Show block palette' : 'Hide block palette'}
-            >
-              {paletteCollapsed ? (
-                <PanelLeftOpen className="h-3.5 w-3.5" />
-              ) : (
-                <PanelLeftClose className="h-3.5 w-3.5" />
-              )}
-              <ExpandingLabel>Blocks</ExpandingLabel>
             </Button>
           ) : null}
           {showSurfaceControl ? (

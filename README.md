@@ -442,7 +442,7 @@ update against the target from `loadedMessage` / `onLoadedMessageChange`.
 
 ## Customizing the palette
 
-On desktop the palette is a rail down the left-hand side, which the toolbar's **Blocks** toggle hides and restores — collapsed, the preview gets the full width, and the rail comes back with its open sections and search exactly as they were. Below the `md` breakpoint there's no rail: the same **Blocks** button opens the palette as a bottom sheet instead, and picking a block closes it.
+On desktop the palette is a rail down the left-hand side, with a chevron handle on its outer border that hides and restores it — collapsed, the preview gets the full width, and the rail comes back with its open sections and search exactly as they were. Below the `md` breakpoint there's no rail: the toolbar's **Blocks** button opens the palette as a bottom sheet instead, and picking a block closes it.
 
 The default palette ships with curated presets for every supported block type. To narrow what's available, or add your own pre-configured variants (e.g. a "Help footer" section), pass a `palette` array. Define it at module scope (or wrap in `useMemo`) so it stays referentially stable across renders.
 

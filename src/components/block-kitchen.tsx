@@ -13,7 +13,7 @@ import {
   useSensors
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
-import { GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import { type KeyboardEvent, useCallback, useMemo, useRef, useState } from 'react';
 import { cn } from '../lib/cn';
 import { parseContainerBodyId } from '../lib/container-blocks';
@@ -277,8 +277,8 @@ export function BlockKitchen(props: BlockKitchenProps) {
   const [issuesOpen, setIssuesOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   // Desktop only: the rail is hidden (not unmounted) while collapsed, and
-  // the toolbar's Blocks toggle brings it back. Mobile has no rail to
-  // collapse — the palette is the sheet `paletteOpen` above governs.
+  // the handle on its edge brings it back. Mobile has no rail to collapse —
+  // the palette is the sheet `paletteOpen` above governs.
   const [paletteCollapsed, setPaletteCollapsed] = useState(false);
   // Which side of the palette's simple/advanced switch the user last chose.
   // The rail keeps its own state while it's up, but the mobile sheet is torn
@@ -513,8 +513,6 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 onOpenIssues={() => setIssuesOpen(true)}
                 onOpenSend={() => setSendOpen(true)}
                 onOpenPalette={() => setPaletteOpen(true)}
-                onTogglePalette={() => setPaletteCollapsed((v) => !v)}
-                paletteCollapsed={paletteCollapsed}
                 canSend={blocks.length > 0}
                 canClear={blocks.length > 0}
                 errorCount={validation.total}
@@ -583,31 +581,58 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 updateButtonLabel={updateButtonLabel}
               />
               <div className="flex min-h-0 flex-1 items-stretch">
-                {/* Desktop: persistent left aside, hidden by the toolbar's
-                  Blocks toggle. Mobile: collapsed to the palette sheet
-                  trigger in the toolbar. Collapsing hides the rail rather
-                  than unmounting it, so it comes back with its open sections
-                  and search exactly as they were left. */}
-                {paletteCollapsed ? (
-                  // In a host that hands the builder no height of its own,
-                  // the rail is what the shell takes its height from (see
-                  // the shell's `max-h` note above) — so hiding it would
-                  // shrink the whole frame to the height of the message and
-                  // grow it back on the way out. This stands in for the rail
-                  // at no width. Inert to everything but layout.
-                  <div aria-hidden className="hidden w-0 shrink-0 md:block md:h-[var(--bk-max-height,100svh)]" />
-                ) : null}
-                <div hidden={paletteCollapsed} className={cn('hidden min-h-0', !paletteCollapsed && 'md:flex')}>
-                  <Palette
-                    onAddBlock={(block) => addBlock(block)}
-                    sections={paletteSections}
-                    mode={paletteMode}
-                    showSearch={showPaletteSearch}
-                    searchPlaceholder={paletteSearchPlaceholder}
-                    defaultOpenSections={defaultOpenSections}
-                    defaultAdvanced={paletteAdvanced}
-                    onAdvancedChange={setPaletteAdvanced}
-                  />
+                {/* Desktop: persistent left aside, collapsed by the handle on
+                  its own edge. Mobile: no rail at all — the palette is the
+                  sheet the toolbar's Blocks button opens. Collapsing hides
+                  the rail rather than unmounting it, so it comes back with
+                  its open sections and search exactly as they were left. */}
+                <div className="relative hidden min-h-0 shrink-0 md:flex">
+                  <div hidden={paletteCollapsed} className={cn('min-h-0', !paletteCollapsed && 'flex')}>
+                    <Palette
+                      onAddBlock={(block) => addBlock(block)}
+                      sections={paletteSections}
+                      mode={paletteMode}
+                      showSearch={showPaletteSearch}
+                      searchPlaceholder={paletteSearchPlaceholder}
+                      defaultOpenSections={defaultOpenSections}
+                      defaultAdvanced={paletteAdvanced}
+                      onAdvancedChange={setPaletteAdvanced}
+                    />
+                  </div>
+                  {paletteCollapsed ? (
+                    // In a host that hands the builder no height of its own,
+                    // the rail is what the shell takes its height from (see
+                    // the shell's `max-h` note above) — so hiding it would
+                    // shrink the whole frame to the height of the message and
+                    // grow it back on the way out. This stands in for the rail
+                    // at no width. Inert to everything but layout.
+                    <div aria-hidden className="w-0 shrink-0 md:h-[var(--bk-max-height,100svh)]" />
+                  ) : null}
+                  {/* The collapse handle rides the rail's own edge, half over
+                    the border, rather than sitting in the toolbar away from
+                    what it acts on. With the rail hidden the column has no
+                    width, so the handle tucks against the shell's left edge
+                    instead of hanging half outside it. */}
+                  <button
+                    type="button"
+                    onClick={() => setPaletteCollapsed((v) => !v)}
+                    aria-expanded={!paletteCollapsed}
+                    aria-label={paletteCollapsed ? 'Show block palette' : 'Hide block palette'}
+                    title={paletteCollapsed ? 'Show block palette' : 'Hide block palette'}
+                    className={cn(
+                      // No border or shadow of its own: the chevron sits on
+                      // the rail's border, and its own background is what
+                      // breaks the line cleanly behind it.
+                      'absolute top-1/2 z-10 flex h-10 w-4 -translate-y-1/2 cursor-pointer appearance-none items-center justify-center rounded-sm border-0 bg-background p-0 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+                      paletteCollapsed ? 'left-0' : 'right-0 translate-x-1/2'
+                    )}
+                  >
+                    {paletteCollapsed ? (
+                      <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
+                    ) : (
+                      <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
+                    )}
+                  </button>
                 </div>
                 <Surface
                   blocks={blocks}
