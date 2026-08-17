@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.11](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.10...block-kitchen-v0.10.11) (2026-08-17)
+
+
+### Bug Fixes
+
+* close the block hover toolbar after a drag-reorder ([ccbd968](https://github.com/TightknitAI/block-kitchen/commit/ccbd9684b2e0fa3d3257e3f3861249966c9af70d))
+* close the block hover toolbar after a drag-reorder ([479ffcd](https://github.com/TightknitAI/block-kitchen/commit/479ffcdbf7e7f5a7f913474bebac4af40e09c0e2))
+
 ## [0.10.10](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.9...block-kitchen-v0.10.10) (2026-08-17)
 
 
