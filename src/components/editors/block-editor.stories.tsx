@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { validateBlockKit } from '@tightknitai/slack-block-kit-validator';
 import { TextCursorInput } from 'lucide-react';
+import { useState } from 'react';
 import { useArgs } from 'storybook/preview-api';
 import { expect, fn, userEvent, within } from 'storybook/test';
 import { buildVariantById, defaultPalette, extraAlertVariant, legacyInputVariants } from '../../lib/default-blocks';
@@ -156,6 +157,18 @@ export const Actions: Story = {
 
 export const Image: Story = {
   args: { block: variant('image_with_title') }
+};
+
+// Not a palette variant — slack_file images only enter the builder via a
+// loaded message — so the story passes the payload inline.
+export const ImageBackedBySlackFile: Story = {
+  args: {
+    block: {
+      type: 'image',
+      slack_file: { id: 'F0123456789' },
+      alt_text: 'Uploaded chart'
+    }
+  }
 };
 
 export const Markdown: Story = {
@@ -374,6 +387,45 @@ export const EditingImageUrlAndAltProducesValidBlock: Story = {
     await expect(args.onChange).toHaveBeenCalled();
     const latest = expectLastOnChangeIsValid(args.onChange as ReturnType<typeof fn>);
     expect(latest.type).toBe('image');
+  }
+};
+
+// A slack_file-backed image block (which the builder can't upload or
+// preview) is no longer stuck read-only: the "Image source" radio
+// converts it to a URL-backed image the rest of the editor can manage.
+// Overrides the meta render: switching the source *removes* the
+// `slack_file` key, and the useArgs-based render can't express that —
+// `updateArgs` deep-merges, so a removed key would silently come back.
+export const SwitchingImageSourceProducesValidBlock: Story = {
+  args: {
+    block: {
+      type: 'image',
+      slack_file: { id: 'F0123456789' },
+      alt_text: 'Uploaded chart'
+    }
+  },
+  render: function SwitchingImageSourceRender(args) {
+    const [block, setBlock] = useState<SupportedBlock>(args.block);
+    return (
+      <BlockEditor
+        block={block}
+        onChange={(next) => {
+          args.onChange?.(next);
+          setBlock(next);
+        }}
+      />
+    );
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('radio', { name: /public url/i }));
+    const url = await canvas.findByLabelText(/image url/i);
+    await userEvent.type(url, 'https://example.com/chart.png');
+    await expect(args.onChange).toHaveBeenCalled();
+    const latest = expectLastOnChangeIsValid(args.onChange as ReturnType<typeof fn>);
+    expect(latest.type).toBe('image');
+    expect(latest).not.toHaveProperty('slack_file');
+    expect(latest).toHaveProperty('image_url', 'https://example.com/chart.png');
   }
 };
 
