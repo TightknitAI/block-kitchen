@@ -31,7 +31,7 @@ it('boots straight into edit mode when loading.initialTarget is provided', () =>
   render(<BlockKitchen {...baseProps} loading={loading} onUpdate={onUpdate} />);
   // The loaded banner only renders while a message is loaded.
   expect(screen.getByText(/References an existing message in/i)).toBeTruthy();
-  expect(screen.getByText('#general')).toBeTruthy();
+  expect(screen.getByText('# general')).toBeTruthy();
 });
 
 it('warns and prefers the target’s blocks when initialBlocks is also given', () => {

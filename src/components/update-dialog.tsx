@@ -1,5 +1,6 @@
 import { AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { channelLabel } from '../lib/channel-label';
 import { toSlackBlocks } from '../lib/to-slack-blocks';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
@@ -87,7 +88,7 @@ export function UpdateDialog({
     }
   };
 
-  const channelLabel = target.channelName ? `#${target.channelName}` : target.channelId;
+  const channelText = target.channelName ? channelLabel(target.channelName) : target.channelId;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,7 +104,7 @@ export function UpdateDialog({
           <div className="flex flex-col gap-1.5">
             <Label>Channel</Label>
             <p className="flex h-9 items-center rounded-md border border-input bg-muted px-3 text-sm text-muted-foreground">
-              {channelLabel}
+              {channelText}
             </p>
           </div>
 

@@ -63,7 +63,7 @@ it('loads a message into the editor in compose-only mode', async () => {
   await act(async () => {});
   // Draft hydrated with the loaded blocks; loaded banner shows.
   expect(screen.getByText(/References an existing message in/i)).toBeTruthy();
-  expect(screen.getByText('#general')).toBeTruthy();
+  expect(screen.getByText('# general')).toBeTruthy();
 });
 
 it('seeds from `loading.initialTarget` at mount in compose-only mode', () => {
@@ -200,8 +200,10 @@ it('populates the recent-messages picker when a channel source arrives while the
   );
   await act(async () => {});
   // The picker appears and the channel list is fetched without reopening.
-  expect(screen.getByLabelText('Channel')).toBeTruthy();
-  expect(screen.getByRole('option', { name: '#general' })).toBeTruthy();
+  const picker = screen.getByLabelText('Channel');
+  expect(picker).toBeTruthy();
+  fireEvent.click(picker);
+  expect(screen.getByRole('option', { name: '# general' })).toBeTruthy();
 });
 
 // ---------------------------------------------------------------------------

@@ -1,3 +1,21 @@
+// jsdom implements no `ResizeObserver`, and Radix's popper (under the channel
+// combobox's dropdown) constructs one on mount. Nothing in jsdom lays out, so
+// a no-op stub is all the observed elements would ever report anyway.
+if (!globalThis.ResizeObserver) {
+  globalThis.ResizeObserver = class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  } as unknown as typeof ResizeObserver;
+}
+
+// jsdom leaves `DOMRect.fromRect` off the constructor; floating-ui calls it
+// while positioning the popper.
+if (typeof globalThis.DOMRect?.fromRect !== 'function' && globalThis.DOMRect) {
+  globalThis.DOMRect.fromRect = (rect?: DOMRectInit): DOMRect =>
+    new DOMRect(rect?.x ?? 0, rect?.y ?? 0, rect?.width ?? 0, rect?.height ?? 0);
+}
+
 // Node.js 22 exposes an experimental `localStorage` global that is `undefined`
 // when `--localstorage-file` is not provided. This shadows jsdom's working
 // implementation and causes `globalThis.localStorage?.getItem(...)` to silently

@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Label } from '../lib/ui/label';
 import { isSafeHref } from '../lib/url-safety';
 import type { ChannelOption, SendAsUserStatus, SendExtrasContext, SendPayload, SupportedBlock } from '../types';
+import { ChannelCombobox } from './channel-combobox';
 import { SlackSignInButton, useSlackSignIn } from './slack-sign-in';
 
 type SendStatus = { kind: 'idle' } | { kind: 'sending' } | { kind: 'success' } | { kind: 'error'; error: string };
@@ -189,18 +190,7 @@ export function SendDialog({
               <p className="text-xs text-muted-foreground">No public channels available.</p>
             )}
             {channels && channels.length > 0 && (
-              <select
-                id="channel-picker"
-                value={channelId}
-                onChange={(e) => setChannelId(e.target.value)}
-                className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                {channels.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    #{c.name}
-                  </option>
-                ))}
-              </select>
+              <ChannelCombobox id="channel-picker" channels={channels} value={channelId} onChange={setChannelId} />
             )}
           </div>
 
