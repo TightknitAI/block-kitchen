@@ -26,6 +26,7 @@ import { LoadMessageDialog } from '../src/components/load-message-dialog';
 import { TooltipProvider } from '../src/lib/ui/tooltip';
 import type { LoadResult, RecentMessage, SupportedBlock } from '../src/types';
 import { buildStylesheet, launchChromium } from './built-stylesheet';
+import { pickChannel } from './pick-channel';
 
 /** Two-column layout: at or above Tailwind's `lg` breakpoint (64rem). */
 const WIDE = { width: 1280, height: 800 };
@@ -73,7 +74,7 @@ async function renderDialogMarkup(): Promise<string> {
     </TooltipProvider>
   );
 
-  fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+  await pickChannel('general');
   const row = (await screen.findByText('Release notes 0')).closest('button') as HTMLButtonElement;
   fireEvent.click(row);
   expect(row.getAttribute('aria-pressed')).toBe('true');

@@ -15,6 +15,7 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
 import { type KeyboardEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { channelLabel } from '../lib/channel-label';
 import { cn } from '../lib/cn';
 import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
@@ -550,7 +551,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                   activeEditTarget
                     ? {
                         channelLabel: activeEditTarget.channelName
-                          ? `#${activeEditTarget.channelName}`
+                          ? channelLabel(activeEditTarget.channelName)
                           : activeEditTarget.channelId,
                         ts: activeEditTarget.ts
                       }

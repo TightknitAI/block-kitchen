@@ -3,6 +3,7 @@ import { afterEach, vi } from 'vitest';
 import { LoadMessageDialog } from '../src/components/load-message-dialog';
 import { TooltipProvider } from '../src/lib/ui/tooltip';
 import type { LoadResult, RecentMessage, SupportedBlock } from '../src/types';
+import { pickChannel } from './pick-channel';
 
 const CHANNELS = [
   { id: 'C1', name: 'general' },
@@ -105,20 +106,20 @@ describe('LoadMessageDialog recent-messages picker', () => {
     expect(calls).toEqual([]);
 
     // Picking a channel scopes the lookup to it.
-    fireEvent.change(screen.getByLabelText('Channel'), { target: { value: 'C1' } });
+    await pickChannel('general');
     await screen.findByText('hi general');
     expect(calls).toEqual(['C1']);
     expect(screen.queryByText('hi random')).toBeNull();
 
     // Changing the channel re-fetches for the new channel only.
-    fireEvent.change(screen.getByLabelText('Channel'), { target: { value: 'C2' } });
+    await pickChannel('random');
     await screen.findByText('hi random');
     expect(calls).toEqual(['C1', 'C2']);
   });
 
   it('renders an empty state when the channel has no editable messages', async () => {
     renderDialog({ loadRecentMessages: async () => [] });
-    fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+    await pickChannel('general');
     await screen.findByText('No recent messages from this app in this channel.');
   });
 
@@ -128,7 +129,7 @@ describe('LoadMessageDialog recent-messages picker', () => {
         throw new Error('boom');
       }
     });
-    fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+    await pickChannel('general');
     await screen.findByText('boom');
   });
 
@@ -136,7 +137,7 @@ describe('LoadMessageDialog recent-messages picker', () => {
     const loaded: string[] = [];
     renderDialog({ onLoaded: (r) => loaded.push(r.ts) });
 
-    fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+    await pickChannel('general');
     const row = (await screen.findByText('hi general')).closest('button') as HTMLButtonElement;
 
     // Clicking a row only selects it — the load happens on the footer button.
@@ -215,7 +216,7 @@ describe('LoadMessageDialog tabs', () => {
 describe('LoadMessageDialog preview pane', () => {
   it('previews the highlighted recent message, sender and time included', async () => {
     renderDialog({ loadRecentMessages: async () => [RECENT_WITH_BLOCKS] });
-    fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+    await pickChannel('general');
 
     // Muted empty state until something is picked.
     expect(within(previewPane()).getByText('Select a recent message to preview it here.')).toBeTruthy();
@@ -265,7 +266,7 @@ describe('LoadMessageDialog preview pane', () => {
 
   it('resets the preview to the active tab’s own selection when tabs change', async () => {
     renderDialog({ loadRecentMessages: async () => [RECENT_WITH_BLOCKS], onLoadMessage: async () => LINK_RESULT });
-    fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+    await pickChannel('general');
     fireEvent.click((await screen.findByText('picked row')).closest('button') as HTMLButtonElement);
     expect(within(previewPane()).getByText('Deploy finished')).toBeTruthy();
 
@@ -290,7 +291,7 @@ describe('LoadMessageDialog preview pane', () => {
 
   it("renders the preview in the builder's theme", async () => {
     renderDialog({ loadRecentMessages: async () => [RECENT_WITH_BLOCKS], previewTheme: 'dark' });
-    fireEvent.change(await screen.findByLabelText('Channel'), { target: { value: 'C1' } });
+    await pickChannel('general');
     fireEvent.click((await screen.findByText('picked row')).closest('button') as HTMLButtonElement);
     // The block renderer is the builder's own, so the theme it was handed is
     // what `slack-blocks-to-jsx` styles against.

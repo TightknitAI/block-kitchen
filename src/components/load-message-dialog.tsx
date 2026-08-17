@@ -1,5 +1,6 @@
 import { AlertTriangle, Info, Loader2 } from 'lucide-react';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
+import { channelLabel } from '../lib/channel-label';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../lib/ui/dialog';
@@ -16,6 +17,7 @@ import type {
   RecentMessage,
   SupportedBlock
 } from '../types';
+import { ChannelCombobox } from './channel-combobox';
 import { SlackMessagePreview } from './preview/slack-message-preview';
 import { SlackSignInButton } from './slack-sign-in';
 
@@ -530,21 +532,13 @@ export function LoadMessageDialog({
                     <p className="text-xs text-muted-foreground">No public channels available.</p>
                   )}
                   {channels && channels.length > 0 && (
-                    <select
+                    <ChannelCombobox
                       id="recent-channel-picker"
+                      channels={channels}
                       value={channelId}
-                      onChange={(e) => setChannelId(e.target.value)}
-                      className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="" disabled>
-                        Select a channel…
-                      </option>
-                      {channels.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          #{c.name}
-                        </option>
-                      ))}
-                    </select>
+                      onChange={setChannelId}
+                      placeholder="Select a channel…"
+                    />
                   )}
                 </div>
 
@@ -818,7 +812,7 @@ function PreviewPane({
         <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Preview</span>
         {target?.channelName || target?.channelId ? (
           <span className="rounded border px-1.5 py-px text-[10px] font-medium text-muted-foreground">
-            {target.channelName ? `#${target.channelName}` : target.channelId}
+            {target.channelName ? channelLabel(target.channelName) : target.channelId}
           </span>
         ) : null}
         {target?.editableVia ? (
