@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.9](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.8...block-kitchen-v0.10.9) (2026-08-17)
+
+
+### Features
+
+* **editors:** let image blocks switch between URL and Slack file sources ([b86581e](https://github.com/TightknitAI/block-kitchen/commit/b86581e5b2680a11fa288b8bcc6b862db3b425d4))
+* **editors:** let image blocks switch between URL and Slack file sources ([882d55a](https://github.com/TightknitAI/block-kitchen/commit/882d55adc55f20d4a8ca37ec39223139ac23669c))
+
 ## [0.10.8](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.7...block-kitchen-v0.10.8) (2026-08-16)
 
 
