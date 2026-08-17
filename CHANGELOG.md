@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.10](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.9...block-kitchen-v0.10.10) (2026-08-17)
+
+
+### Features
+
+* make the Slack channel picker a type-to-filter combobox ([bd1f878](https://github.com/TightknitAI/block-kitchen/commit/bd1f8780f8b101da532f492e8267dac60910fabe))
+* make the Slack channel picker a type-to-filter combobox ([017eaef](https://github.com/TightknitAI/block-kitchen/commit/017eaefb56153be60ee07ba9937194b66dad791a))
+
 ## [0.10.9](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.8...block-kitchen-v0.10.9) (2026-08-17)
 
 
