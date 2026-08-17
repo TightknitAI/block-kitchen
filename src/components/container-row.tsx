@@ -168,7 +168,7 @@ export function ContainerRow({
           'absolute -top-3 right-2 z-10 hidden items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm transition-opacity md:flex',
           hasErrors
             ? 'opacity-100'
-            : 'opacity-0 group-hover/container:opacity-100 group-focus-within/container:opacity-100'
+            : 'opacity-0 group-hover/container:opacity-100 group-has-[:focus-visible]/container:opacity-100'
         )}
       >
         {hasErrors ? (

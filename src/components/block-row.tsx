@@ -197,11 +197,13 @@ export function BlockRow({
         <div
           className={cn(
             // Hidden on mobile in favor of the inline row below; on desktop
-            // reveal on hover, on focus inside the row (so Tab-stops on the
-            // floating buttons themselves keep them visible), and when there
+            // reveal on hover, on keyboard focus inside the row (so Tab-stops on
+            // the floating buttons themselves keep them visible), and when there
             // are validation errors worth surfacing immediately.
+            // :focus-visible, not :focus-within — a drag leaves pointer focus on
+            // the block, which would otherwise pin the toolbar open until a click.
             'absolute -top-3 right-2 z-10 hidden items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm transition-opacity md:flex',
-            hasErrors ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-within:opacity-100'
+            hasErrors ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100'
           )}
         >
           {hasErrors ? (
