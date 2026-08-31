@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.12](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.11...block-kitchen-v0.10.12) (2026-08-31)
+
+
+### Bug Fixes
+
+* **deps:** raise [@tiptap](https://github.com/tiptap) to ^3.30.5 for the mergeAttributes prototype fix ([9f378c8](https://github.com/TightknitAI/block-kitchen/commit/9f378c88625b64254232c2cda0d226c4521cfd76))
+* **deps:** raise [@tiptap](https://github.com/tiptap) to ^3.30.5 for the mergeAttributes prototype fix ([210125d](https://github.com/TightknitAI/block-kitchen/commit/210125dbbb0a56f274254fa236c63359ec526a1b))
+
 ## [0.10.11](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.10...block-kitchen-v0.10.11) (2026-08-17)
 
 
