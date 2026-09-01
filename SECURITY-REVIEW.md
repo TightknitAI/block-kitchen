@@ -143,6 +143,44 @@ Chromium.
 
 ---
 
+## Follow-up findings
+
+Reported after the review above, against the same code. Kept here so the
+URL-sanitization story reads in one place.
+
+### F-009 (High) — Video-block URL fields bypassed the F-001 sanitizer and reached an unsanitized `<iframe src>`
+
+- **Reported**: 2026-08-27, external report. **Fixed**: 2026-09-01.
+- **OWASP**: A03 Injection (DOM-XSS).
+- **Surfaces**: the same entry points as F-001 — JSON drawer, `decodeBlocksFromString` / the `?blocks=` URL state, `initialBlocks`, `onLoadMessage`, any consumer backend.
+- **Root cause**: all three F-001 layers were scoped to the URL fields that existed when they were written, and the video block's four are not among them.
+  1. The payload sanitizer keyed on exact-match sets `HREF_KEYS = {'url'}` / `IMAGE_KEYS = {'image_url'}`, so `video_url`, `title_url`, `thumbnail_url`, and `provider_icon_url` were returned verbatim — by `sanitizeBlock` at the preview boundary **and** by `toSlackBlocks`, the documented consumer hardening boundary.
+  2. `slack-blocks-to-jsx@1.1.2` renders `<iframe title={alt_text} src={video_url}>` with no scheme filter, the same gap F-001 documented for its anchors and images.
+  3. The post-render DOM scrub walked `a[href]` and `img[src]` only. `iframe[src]` was never inspected.
+- **Repro**: paste into the JSON drawer — the preview rendered `<iframe src="data:text/html,…">` with no `data-bk-blocked-*` marker, while the same block's `title_url` anchor *was* scrubbed to `href="#"` (the control proving layer 3 worked for anchors and not for frames).
+  ```jsonc
+  [
+    {
+      "type": "video",
+      "alt_text": "poc",
+      "title": { "type": "plain_text", "text": "PoC" },
+      "thumbnail_url": "https://example.com/t.png",
+      "video_url": "data:text/html,<script>top.__pwned=1</script>",
+      "block_id": "poc"
+    }
+  ]
+  ```
+- **Impact**: a `javascript:` `video_url` executes in the embedding app's origin on React 18 (an explicitly supported peer). React 19 blocks that one at `setAttribute` time, but `data:text/html` renders and executes on **every** React version — in an opaque origin, so phishing and UI-redress inside trusted chrome rather than token theft. Reproduced in jsdom: the frame navigation fires before any of our code runs.
+- **Fix**:
+  - `src/lib/url-safety.ts`: new `isSafeEmbedSrc` / `sanitizeEmbedSrc`. Tighter than both existing predicates — http(s) only. `data:` of any media type is rejected (a frame loads with no click, so `data:text/html` executes), as are scheme-less relative URLs (a relative frame source frames the embedding app itself) and the link-only schemes `mailto`/`tel`/`sms`/`xmpp`/`irc`.
+  - `src/lib/sanitize-blocks.ts`: the exact-match key sets are gone. Keys are classified by **name shape** — anything whose last `_`-delimited segment is `url`/`uri`/`link`/`href`/`src` is sanitized, image-ish names (`image`, `thumb`, `icon`, `avatar`, `logo`, `photo`, `picture`) get the image allowlist, `video_url` gets the embed allowlist, everything else gets the link allowlist. Over-matching is free: a URL-shaped key holding a non-URL string has no recognized scheme, so it is treated as relative and passed through. This is the structural half of the fix — a hand-maintained key set had by then missed a field twice.
+  - `src/components/preview/slack-block-preview.tsx`: a third scrub arm over `iframe[src], embed[src], object[data], source[src], video[src], audio[src], track[src]`, applying the embed allowlist and marking blocked elements `data-bk-blocked-src`.
+  - `src/components/editors/video-editor.tsx`: all four URL fields flag an unsafe value with `aria-invalid` and an inline note, matching the structured rich-text editor.
+- **Tests**: [test/preview-url-scrub.test.tsx](test/preview-url-scrub.test.tsx) is the one that would have caught this. It renders hostile payloads and then walks **every** element of the result, asserting that no URL-bearing attribute on any tag that navigates or auto-loads carries anything but an http(s) URL — rather than asserting on the fields we happen to know about today. A renderer upgrade that emits a new URL-bearing tag, or a Slack block that adds a new URL field, fails there. Field-level coverage in [test/sanitize-blocks.test.ts](test/sanitize-blocks.test.ts), [test/url-safety.test.ts](test/url-safety.test.ts), [test/public-api.test.ts](test/public-api.test.ts), and [test/video-editor.test.tsx](test/video-editor.test.tsx). All 14 new assertions fail against the pre-fix tree.
+- **Residual risk**: `slack-blocks-to-jsx` still has no scheme allowlist of its own; ours is applied on both sides of it. Pushing one upstream would close this class at the source for every consumer of that package.
+
+---
+
 ## Items checked and clean
 
 These were inspected, deemed safe as-shipped, and noted here so future reviewers can see what was covered:
@@ -155,7 +193,7 @@ These were inspected, deemed safe as-shipped, and noted here so future reviewers
 - **Clipboard reads**: none.
 - **Raw `fetch` / XHR**: not performed by the library; all I/O is brokered by consumer callbacks (`loadChannels`, `loadSendAsUserStatus`, `onSend`).
 - **File uploads / `FileReader` / `URL.createObjectURL`**: none.
-- **`<iframe>` elements**: none.
+- **`<iframe>` elements**: none constructed by `src/` itself — but `slack-blocks-to-jsx` renders one for the video block's `video_url`, which is what F-009 missed. The preview's DOM scrub now covers `iframe`/`embed`/`object`/`source`/`video`/`audio`/`track` sources, so "we don't write `<iframe>`" is not the same as "no `<iframe>` renders".
 - **`JSON.parse` of untrusted input**: two sites ([url-state.ts:42](src/lib/url-state.ts:42), [json-drawer.tsx:64](src/components/json-drawer.tsx:64)) — both wrapped in try/catch, top-level array check, and now size-capped. `__proto__` keys in JSON do not pollute `Object.prototype` in modern engines and the sanitizer was verified to be free of `Object.assign`-flavored merges that walk the prototype chain ([test/sanitize-blocks.test.ts](test/sanitize-blocks.test.ts) `prototype pollution shape`).
 - **Random IDs**: `nanoid@5.x` (CSPRNG-backed). Not used for security tokens; appropriate.
 - **Toolbar docs link**: [toolbar.tsx:158-166](src/components/toolbar.tsx:158) is a hardcoded `docs.slack.dev` URL with `rel="noreferrer noopener"`. Safe.
@@ -196,4 +234,18 @@ src/components/json-drawer.tsx                        (edit)  F-005
 test/url-safety.test.ts                               (new)   F-001
 test/sanitize-blocks.test.ts                          (new)   F-001
 test/public-api.test.ts                               (edit)  F-001, F-004
+```
+
+Follow-up:
+
+```
+src/lib/url-safety.ts                                 (edit)  F-009
+src/lib/sanitize-blocks.ts                            (edit)  F-009
+src/components/preview/slack-block-preview.tsx        (edit)  F-009
+src/components/editors/video-editor.tsx               (edit)  F-009
+test/preview-url-scrub.test.tsx                       (new)   F-009
+test/video-editor.test.tsx                            (new)   F-009
+test/url-safety.test.ts                               (edit)  F-009
+test/sanitize-blocks.test.ts                          (edit)  F-009
+test/public-api.test.ts                               (edit)  F-009
 ```

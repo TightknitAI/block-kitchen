@@ -1,12 +1,9 @@
-import type { SupportedBlock } from '../types';
-import { sanitizeHref, sanitizeImageSrc } from './url-safety';
-
 /**
- * Recursively walks an unknown value and rewrites string values at the
- * specified keys via the matching sanitizer. Used to strip dangerous
- * URI schemes (e.g. `javascript:`) from `url`, `image_url`, and
- * rich-text link `url` fields before a Block Kit payload reaches a
- * renderer or is handed back to the consumer.
+ * Recursively walks an unknown value and rewrites every URL-bearing
+ * string field via the matching sanitizer. Used to strip dangerous URI
+ * schemes (e.g. `javascript:`, `data:text/html`) from `url`,
+ * `image_url`, `video_url`, rich-text link `url` and friends before a
+ * Block Kit payload reaches a renderer or is handed back to the consumer.
  *
  * Allocates a new object whenever a child is rewritten; otherwise
  * returns the input unchanged so unaffected payloads are reference-stable.
@@ -15,8 +12,71 @@ import { sanitizeHref, sanitizeImageSrc } from './url-safety';
  * `Object.assign({}, ...)` over own enumerable keys returned by
  * `Object.keys`, which skips inherited properties.
  */
-const HREF_KEYS = new Set(['url']);
-const IMAGE_KEYS = new Set(['image_url']);
+
+import type { SupportedBlock } from '../types';
+import { sanitizeEmbedSrc, sanitizeHref, sanitizeImageSrc } from './url-safety';
+
+/**
+ * Which allowlist applies to a URL-bearing field, by where its value
+ * ends up in the DOM: an `<a href>`, an `<img src>`, or a frame /
+ * subresource source such as `<iframe src>`.
+ */
+type UrlKind = 'href' | 'image' | 'embed';
+
+/**
+ * Fields whose value the renderer puts in a nested browsing context.
+ * `slack-blocks-to-jsx` renders the video block's `video_url` into
+ * `<iframe src>`, which loads without a click — so these get the
+ * http(s)-only allowlist rather than the link one.
+ */
+const EMBED_KEYS = new Set(['video_url']);
+
+/**
+ * Key names whose value is a URL. Matched on the last `_`-delimited
+ * segment so a field added by Slack later (`title_url`,
+ * `provider_icon_url`, `author_link`, …) is covered on arrival.
+ *
+ * This is deliberately a name *shape* rather than an exact-match list:
+ * two rounds of URL-sanitizer hardening each shipped with a
+ * hand-maintained key set, and each silently missed a field Slack had
+ * added. Over-matching is cheap — a key that looks like a URL but holds
+ * something else keeps its value, because a string with no recognized
+ * scheme is treated as a relative URL and passed through untouched.
+ */
+const URL_KEY = /(^|_)(url|uri|link|href|src)$/;
+
+/** Cheap pre-filter so the classifier's regexes skip ordinary keys. */
+const MAYBE_URL_KEY = /url|uri|link|href|src/i;
+
+/**
+ * Name fragments that mark a URL field as an image source. Image
+ * sources are allowed to carry a `data:image/<safe-mime>` payload —
+ * Slack emits those for some emoji and file thumbnails — which the
+ * link allowlist rejects.
+ */
+const IMAGE_KEY_HINT = /image|thumb|icon|avatar|logo|photo|picture/;
+
+/**
+ * Classifies a payload key by the kind of URL it carries, or `null`
+ * when the key holds no URL at all.
+ * @param key - the payload object's key
+ * @returns which allowlist applies, or `null` to leave the value alone
+ */
+function classifyUrlKey(key: string): UrlKind | null {
+  if (!MAYBE_URL_KEY.test(key)) {
+    return null;
+  }
+  // Fold camelCase to snake_case first so a consumer payload that isn't
+  // strict Slack JSON (`videoUrl`, `iconUrl`) classifies the same way.
+  const normalized = key.replace(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
+  if (EMBED_KEYS.has(normalized)) {
+    return 'embed';
+  }
+  if (!URL_KEY.test(normalized)) {
+    return null;
+  }
+  return IMAGE_KEY_HINT.test(normalized) ? 'image' : 'href';
+}
 
 /**
  * Read-only metadata Slack attaches when a message is *retrieved* via the
@@ -35,11 +95,11 @@ const RETRIEVAL_ONLY_KEYS = new Map<string, Set<string>>([
 ]);
 
 /**
- * Recursively sanitize all known URL-bearing string fields inside a
- * Slack Block Kit payload fragment. Returns a value with the same
- * structural shape, where any field whose name matches an href or
- * image-src key has been replaced by the safe variant (`''` if the
- * original scheme was unsafe).
+ * Recursively sanitize every URL-bearing string field inside a Slack
+ * Block Kit payload fragment. Returns a value with the same structural
+ * shape, where any field whose name reads as a URL has been replaced by
+ * the safe variant (`''` if the original scheme was unsafe for the kind
+ * of URL that field carries — see {@link classifyUrlKey}).
  * @param value - any payload fragment (object, array, primitive)
  * @returns the sanitized payload fragment
  */
@@ -71,10 +131,13 @@ function sanitizeValue(value: unknown): unknown {
     const original = src[key];
     let next: unknown = original;
     if (typeof original === 'string') {
-      if (HREF_KEYS.has(key)) {
+      const kind = classifyUrlKey(key);
+      if (kind === 'href') {
         next = sanitizeHref(original);
-      } else if (IMAGE_KEYS.has(key)) {
+      } else if (kind === 'image') {
         next = sanitizeImageSrc(original);
+      } else if (kind === 'embed') {
+        next = sanitizeEmbedSrc(original);
       }
     } else if (typeof original === 'object' && original !== null) {
       next = sanitizeValue(original);
@@ -91,7 +154,8 @@ function sanitizeValue(value: unknown): unknown {
 
 /**
  * Sanitize a single Block Kit block, scrubbing dangerous URI schemes
- * from `url` and `image_url` fields anywhere in the payload tree.
+ * from every URL-bearing field anywhere in the payload tree (`url`,
+ * `image_url`, `video_url`, `thumbnail_url`, `title_url`, …).
  * @param block - the block payload to sanitize
  * @returns the sanitized block (same reference if nothing changed)
  */

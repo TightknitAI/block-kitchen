@@ -147,6 +147,46 @@ describe('toSlackBlocks URL sanitization', () => {
     const [out] = toSlackBlocks(input);
     expect((out as { image_url: string }).image_url).toBe('');
   });
+
+  // `toSlackBlocks` is the documented hardening boundary for consumers
+  // that render a payload outside the builder's preview, so every URL
+  // field on the video block has to be scrubbed here too — not just the
+  // ones the payload sanitizer knew about when it was written.
+  it('scrubs every unsafe URL field on a video block', () => {
+    const input = [
+      {
+        type: 'video',
+        alt_text: 'poc',
+        title: { type: 'plain_text', text: 'PoC' },
+        thumbnail_url: 'javascript:alert(1)',
+        video_url: 'data:text/html,<script>top.__pwned=1</script>',
+        title_url: 'javascript:alert(2)',
+        provider_icon_url: 'data:image/svg+xml,<svg onload=alert(3)>'
+      }
+    ] as unknown as SupportedBlock[];
+
+    const [out] = toSlackBlocks(input) as unknown as Record<string, string>[];
+    expect(out.video_url).toBe('');
+    expect(out.thumbnail_url).toBe('');
+    expect(out.title_url).toBe('');
+    expect(out.provider_icon_url).toBe('');
+  });
+
+  it('passes a legitimate https video block through unchanged', () => {
+    const input = [
+      {
+        type: 'video',
+        alt_text: 'Product demo',
+        title: { type: 'plain_text', text: 'Demo', emoji: true },
+        thumbnail_url: 'https://example.com/thumb.png',
+        video_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+        title_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ'
+      }
+    ] as unknown as SupportedBlock[];
+
+    expect(toSlackBlocks(input)).toEqual(input);
+    expect(validateBlockKit(toSlackBlocks(input), { target: 'blocks' }).valid).toBe(true);
+  });
 });
 
 describe('palette factories', () => {

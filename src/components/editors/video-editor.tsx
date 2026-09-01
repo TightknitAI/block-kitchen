@@ -1,8 +1,23 @@
+import type { ReactNode } from 'react';
 import { Input } from '../../lib/ui/input';
 import { Textarea } from '../../lib/ui/textarea';
+import { isSafeEmbedSrc, isSafeHref, isSafeImageSrc } from '../../lib/url-safety';
 import type { VideoBlock } from '../../types';
 import { EditorField } from './field';
 import type { BlockEditorProps } from './types';
+
+/**
+ * Inline warning shown under a URL field whose value will be stripped by
+ * the sanitizer before it reaches the preview or Slack. Mirrors the
+ * structured rich-text editor's URL field so an unsafe paste explains
+ * itself instead of silently disappearing from the preview.
+ * @param props - warning props
+ * @param props.children - the rule that was broken, in plain language
+ * @returns the rendered warning
+ */
+function UnsafeUrlNote({ children }: { children: ReactNode }) {
+  return <p className="mt-1 text-[11px] text-destructive">{children}</p>;
+}
 
 /**
  * Editor form for video blocks. Edits the title, alt text, thumbnail/video
@@ -16,6 +31,14 @@ import type { BlockEditorProps } from './types';
  * @returns the rendered video editor form
  */
 export function VideoEditor({ block, onChange }: BlockEditorProps<VideoBlock>) {
+  // The preview renders `video_url` into an `<iframe src>`, so it is held
+  // to http(s) only; the two image fields and the title link get the
+  // image / link allowlists that apply where they land in the DOM.
+  const videoUrlIsUnsafe = (block.video_url ?? '').length > 0 && !isSafeEmbedSrc(block.video_url);
+  const thumbnailIsUnsafe = (block.thumbnail_url ?? '').length > 0 && !isSafeImageSrc(block.thumbnail_url);
+  const titleUrlIsUnsafe = (block.title_url ?? '').length > 0 && !isSafeHref(block.title_url);
+  const providerIconIsUnsafe = (block.provider_icon_url ?? '').length > 0 && !isSafeImageSrc(block.provider_icon_url);
+
   return (
     <div className="flex flex-col gap-4">
       <EditorField label="Title" help="Up to 199 characters. Shown above the embedded player." htmlFor="video-title">
@@ -53,7 +76,13 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<VideoBlock>) {
           value={block.video_url ?? ''}
           placeholder="e.g. https://www.youtube.com/embed/dQw4w9WgXcQ"
           onChange={(e) => onChange({ ...block, video_url: e.target.value })}
+          aria-invalid={videoUrlIsUnsafe || undefined}
         />
+        {videoUrlIsUnsafe && (
+          <UnsafeUrlNote>
+            The embedded player only accepts a full http(s) URL. This URL will be stripped before send and preview.
+          </UnsafeUrlNote>
+        )}
       </EditorField>
 
       <EditorField label="Thumbnail URL" help="Preview image shown before the video loads." htmlFor="video-thumbnail">
@@ -63,7 +92,13 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<VideoBlock>) {
           value={block.thumbnail_url ?? ''}
           placeholder="e.g. https://example.com/thumb.png"
           onChange={(e) => onChange({ ...block, thumbnail_url: e.target.value })}
+          aria-invalid={thumbnailIsUnsafe || undefined}
         />
+        {thumbnailIsUnsafe && (
+          <UnsafeUrlNote>
+            Only http(s) image URLs are allowed. This URL will be stripped before send and preview.
+          </UnsafeUrlNote>
+        )}
       </EditorField>
 
       <EditorField
@@ -77,7 +112,14 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<VideoBlock>) {
           value={block.title_url ?? ''}
           placeholder="e.g. https://www.youtube.com/watch?v=dQw4w9WgXcQ"
           onChange={(e) => onChange({ ...block, title_url: e.target.value || undefined })}
+          aria-invalid={titleUrlIsUnsafe || undefined}
         />
+        {titleUrlIsUnsafe && (
+          <UnsafeUrlNote>
+            Only http(s), mailto, tel, sms, and xmpp links are allowed. This URL will be stripped before send and
+            preview.
+          </UnsafeUrlNote>
+        )}
       </EditorField>
 
       <EditorField label="Description" help="Optional. Up to 199 characters." htmlFor="video-description">
@@ -130,7 +172,13 @@ export function VideoEditor({ block, onChange }: BlockEditorProps<VideoBlock>) {
           value={block.provider_icon_url ?? ''}
           placeholder="e.g. https://example.com/youtube-favicon.png"
           onChange={(e) => onChange({ ...block, provider_icon_url: e.target.value || undefined })}
+          aria-invalid={providerIconIsUnsafe || undefined}
         />
+        {providerIconIsUnsafe && (
+          <UnsafeUrlNote>
+            Only http(s) image URLs are allowed. This URL will be stripped before send and preview.
+          </UnsafeUrlNote>
+        )}
       </EditorField>
     </div>
   );
