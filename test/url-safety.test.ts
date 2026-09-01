@@ -1,7 +1,9 @@
 import {
   hasExplicitSafeScheme,
+  isSafeEmbedSrc,
   isSafeHref,
   isSafeImageSrc,
+  sanitizeEmbedSrc,
   sanitizeHref,
   sanitizeImageSrc
 } from '../src/lib/url-safety';
@@ -76,6 +78,47 @@ describe('isSafeImageSrc', () => {
   });
 });
 
+describe('isSafeEmbedSrc (iframe / subresource sources)', () => {
+  it.each(['https://www.youtube.com/embed/abc', 'http://example.com/player?v=1', ''])(
+    'accepts safe embed src %p',
+    (input) => {
+      expect(isSafeEmbedSrc(input)).toBe(true);
+    }
+  );
+
+  it.each([
+    'javascript:alert(1)',
+    ' javascript:top.__pwned=1',
+    'JaVaScRiPt:alert(1)',
+    // The variant no React version blocks: renders and executes in an
+    // opaque origin.
+    'data:text/html,<script>alert(1)</script>',
+    'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+    // A `data:image/*` payload is fine in an `<img>` but has no business
+    // being framed, so the embed allowlist is tighter than the image one.
+    'data:image/png;base64,iVBORw0KGgo=',
+    'vbscript:msgbox(1)',
+    'file:///etc/passwd',
+    'about:blank',
+    'ftp://example.com/clip.mp4',
+    // Unlike hrefs and image sources, a relative URL is NOT safe here: it
+    // frames a page of the embedding app itself.
+    '/relative/page',
+    './sibling',
+    '//protocol-relative.example.com/x',
+    'relative-no-scheme',
+    // Link schemes that are harmless to click but meaningless to frame.
+    'mailto:foo@example.com',
+    'tel:+1234567890'
+  ])('rejects unsafe embed src %p', (input) => {
+    expect(isSafeEmbedSrc(input)).toBe(false);
+  });
+
+  it.each([null, undefined, 0, false, {}, [], 42])('rejects non-string %p', (input) => {
+    expect(isSafeEmbedSrc(input as unknown as string)).toBe(false);
+  });
+});
+
 describe('hasExplicitSafeScheme (autolink gate)', () => {
   it.each([
     'https://example.com',
@@ -139,6 +182,15 @@ describe('sanitize*', () => {
 
   it('sanitizeImageSrc returns empty string when unsafe', () => {
     expect(sanitizeImageSrc('data:image/svg+xml,<svg onload=alert(1)>')).toBe('');
+  });
+
+  it('sanitizeEmbedSrc returns the URL when safe', () => {
+    expect(sanitizeEmbedSrc('https://www.youtube.com/embed/abc')).toBe('https://www.youtube.com/embed/abc');
+  });
+
+  it('sanitizeEmbedSrc returns empty string when unsafe', () => {
+    expect(sanitizeEmbedSrc('data:text/html,<script>alert(1)</script>')).toBe('');
+    expect(sanitizeEmbedSrc('javascript:alert(1)')).toBe('');
   });
 
   it('sanitizeHref preserves an empty string', () => {

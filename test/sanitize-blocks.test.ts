@@ -88,6 +88,112 @@ describe('sanitizeBlock', () => {
   });
 });
 
+describe('video block URL fields', () => {
+  // Regression: the sanitizer keyed on an exact-match set of `url` /
+  // `image_url`, so every URL field on the video block passed through
+  // verbatim and `video_url` reached `<iframe src>` unfiltered.
+  const evilVideo = (overrides: Record<string, unknown> = {}): SupportedBlock =>
+    ({
+      type: 'video',
+      alt_text: 'poc',
+      title: { type: 'plain_text', text: 'PoC' },
+      thumbnail_url: 'javascript:alert(1)',
+      video_url: "javascript:top.__pwned='R18-same-origin-XSS'",
+      title_url: 'javascript:alert(2)',
+      provider_icon_url: 'data:text/html,<script>alert(3)</script>',
+      block_id: 'poc',
+      ...overrides
+    }) as unknown as SupportedBlock;
+
+  it('scrubs javascript: from every URL field on a video block', () => {
+    const out = sanitizeBlock(evilVideo()) as unknown as Record<string, string>;
+    expect(out.video_url).toBe('');
+    expect(out.thumbnail_url).toBe('');
+    expect(out.title_url).toBe('');
+    expect(out.provider_icon_url).toBe('');
+    // Non-URL fields are untouched.
+    expect(out.alt_text).toBe('poc');
+    expect(out.block_id).toBe('poc');
+  });
+
+  it('scrubs data:text/html from video_url — the variant no React version blocks', () => {
+    const out = sanitizeBlock(evilVideo({ video_url: 'data:text/html,<script>top.__pwned=1</script>' }));
+    expect((out as unknown as { video_url: string }).video_url).toBe('');
+  });
+
+  it('holds video_url to http(s) only, where an <a href> would allow more', () => {
+    for (const unsafe of ['mailto:a@b.com', 'tel:+15551234', '/relative/page', '//evil.example.com/x']) {
+      const out = sanitizeBlock(evilVideo({ video_url: unsafe }));
+      expect((out as unknown as { video_url: string }).video_url).toBe('');
+    }
+  });
+
+  it('leaves a legitimate https video block untouched', () => {
+    const block = {
+      type: 'video',
+      alt_text: 'Product demo',
+      title: { type: 'plain_text', text: 'Demo' },
+      thumbnail_url: 'https://example.com/thumb.png',
+      video_url: 'https://www.youtube.com/embed/dQw4w9WgXcQ',
+      title_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      provider_icon_url: 'https://example.com/favicon.png'
+    } as unknown as SupportedBlock;
+    expect(sanitizeBlock(block)).toBe(block);
+  });
+
+  it('still allows a data:image thumbnail, which the embed rule would reject', () => {
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    const block = {
+      type: 'video',
+      alt_text: 'ok',
+      title: { type: 'plain_text', text: 'ok' },
+      thumbnail_url: png,
+      video_url: 'https://www.youtube.com/embed/abc'
+    } as unknown as SupportedBlock;
+    expect((sanitizeBlock(block) as unknown as { thumbnail_url: string }).thumbnail_url).toBe(png);
+  });
+});
+
+describe('URL keys are matched by name shape, not an exact list', () => {
+  // The key set was hand-maintained twice and silently missed a field
+  // both times. Any key whose last `_`-delimited segment reads as a URL
+  // is sanitized, so a field Slack adds later is covered on arrival.
+  it.each(['url', 'image_url', 'thumbnail_url', 'title_url', 'provider_icon_url', 'author_link', 'author_icon_url'])(
+    'scrubs an unsafe value at key %p',
+    (key) => {
+      const block = { type: 'section', [key]: 'javascript:alert(1)' } as unknown as SupportedBlock;
+      expect((sanitizeBlock(block) as unknown as Record<string, string>)[key]).toBe('');
+    }
+  );
+
+  it('classifies a camelCase key the same way as its snake_case form', () => {
+    const block = {
+      type: 'section',
+      videoUrl: 'javascript:alert(1)',
+      iconUrl: 'data:text/html,x'
+    } as unknown as SupportedBlock;
+    const out = sanitizeBlock(block) as unknown as Record<string, string>;
+    expect(out.videoUrl).toBe('');
+    expect(out.iconUrl).toBe('');
+  });
+
+  it('leaves keys that merely contain a URL-ish word alone', () => {
+    const block = {
+      type: 'section',
+      url_label: 'javascript:not-a-url-field',
+      source_of_truth: 'javascript:also-not-one'
+    } as unknown as SupportedBlock;
+    const out = sanitizeBlock(block) as unknown as Record<string, string>;
+    expect(out.url_label).toBe('javascript:not-a-url-field');
+    expect(out.source_of_truth).toBe('javascript:also-not-one');
+  });
+
+  it('passes a non-URL string at a URL-shaped key through untouched', () => {
+    const block = { type: 'section', tracking_url: 'not actually a url' } as unknown as SupportedBlock;
+    expect(sanitizeBlock(block)).toBe(block);
+  });
+});
+
 describe('sanitizeBlocks', () => {
   it('returns the same array reference when nothing needs rewriting', () => {
     const blocks: SupportedBlock[] = [{ type: 'divider' }];

@@ -4,8 +4,17 @@ import { useEffect, useMemo, useRef } from 'react';
 import type { Block } from 'slack-blocks-to-jsx';
 import { Message } from 'slack-blocks-to-jsx';
 import { sanitizeBlock } from '../../lib/sanitize-blocks';
-import { isSafeHref, isSafeImageSrc } from '../../lib/url-safety';
+import { isSafeEmbedSrc, isSafeHref, isSafeImageSrc } from '../../lib/url-safety';
 import type { PreviewHooks, PreviewTheme, SupportedBlock } from '../../types';
+
+/**
+ * Elements whose source attribute makes the browser load a document or
+ * subresource on its own, with no click. `slack-blocks-to-jsx` renders a
+ * video block's `video_url` into `<iframe src>`; the rest are covered so
+ * a renderer upgrade that starts emitting one of them is scrubbed from
+ * day one rather than after the next report.
+ */
+const EMBED_SELECTOR = 'iframe[src], embed[src], object[data], source[src], video[src], audio[src], track[src]';
 
 /**
  * Renders a Slack block via the `slack-blocks-to-jsx` library's `<Message>`
@@ -47,16 +56,19 @@ export function SlackBlockPreview({
   // video blocks without an aria-label, which violates axe's `button-name`
   // rule and is unreachable to screen readers. Post-mount we add a label
   // to any such buttons we find under our wrapper. We also do a final
-  // pass to neutralize any `<a href>` or `<img src>` that carries a
-  // disallowed URI scheme — the block-payload sanitizer catches URLs
-  // that live in structured fields (`url`, `image_url`), but mrkdwn /
-  // rich-text content can encode link URLs inside text strings
-  // (`[label](javascript:...)` or `<javascript:...|label>`) that
-  // `slack-blocks-to-jsx`'s own parser hands straight to `<a href>`
-  // without filtering. React 19 also blocks `javascript:` URLs at
-  // setAttribute time, but we don't rely on that — this loop applies
-  // our allowlist (which is tighter and covers `data:`/`vbscript:`/`file:`
-  // as well) and replaces unsafe values with `#`.
+  // pass to neutralize any `<a href>`, `<img src>`, or frame/subresource
+  // source that carries a disallowed URI scheme — the block-payload
+  // sanitizer catches URLs that live in structured fields (`url`,
+  // `image_url`, `video_url`), but mrkdwn / rich-text content can encode
+  // link URLs inside text strings (`[label](javascript:...)` or
+  // `<javascript:...|label>`) that `slack-blocks-to-jsx`'s own parser
+  // hands straight to `<a href>` without filtering. React 19 also blocks
+  // `javascript:` URLs at setAttribute time, but we don't rely on that —
+  // this loop applies our allowlist (which is tighter and covers
+  // `data:`/`vbscript:`/`file:` as well) and replaces unsafe values with
+  // `#`. Frames get the strictest arm: an `<iframe src>` loads on render
+  // rather than on click, so `data:text/html` there executes script in an
+  // opaque origin on every React version and only http(s) is allowed.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -80,6 +92,13 @@ export function SlackBlockPreview({
       if (!isSafeImageSrc(src)) {
         img.removeAttribute('src');
         img.setAttribute('data-bk-blocked-src', '1');
+      }
+    }
+    for (const el of root.querySelectorAll<HTMLElement>(EMBED_SELECTOR)) {
+      const attr = el.tagName === 'OBJECT' ? 'data' : 'src';
+      if (!isSafeEmbedSrc(el.getAttribute(attr))) {
+        el.removeAttribute(attr);
+        el.setAttribute('data-bk-blocked-src', '1');
       }
     }
   });

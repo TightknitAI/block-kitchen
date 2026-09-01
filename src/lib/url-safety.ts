@@ -36,6 +36,22 @@ const SAFE_IMAGE_DATA_PREFIX =
   /^data:image\/(?:png|jpeg|jpg|gif|webp|avif|x-icon|vnd\.microsoft\.icon)(?:;[a-z0-9-]+(?:=[^,;]*)?)*,/i;
 
 /**
+ * Schemes safe to use as the source of a nested browsing context or an
+ * auto-loaded subresource — `<iframe src>` (the video block's
+ * `video_url`), `<embed src>`, `<object data>`, `<source src>`.
+ *
+ * Same schemes as {@link SAFE_IMAGE_PROTOCOLS}, but kept separate
+ * because the surrounding predicate is the narrowest of the three in
+ * this file and the two policies must be free to diverge: a frame
+ * source is fetched and rendered with no click, so it admits neither
+ * the `data:image/*` payloads an `<img>` may carry, the relative URLs
+ * both other predicates pass through, nor the `mailto`/`tel`/`sms`/
+ * `xmpp`/`irc` schemes that are harmless in a link the user chooses to
+ * follow.
+ */
+const SAFE_EMBED_PROTOCOLS = /^(https?)$/i;
+
+/**
  * Splits a URL into its scheme prefix and tail without invoking the
  * `URL` constructor (which throws on relative URLs and varies in how
  * it normalizes whitespace and unicode). Matches react-markdown's
@@ -147,6 +163,39 @@ export function isSafeImageSrc(value: string | null | undefined): boolean {
 }
 
 /**
+ * Returns true when `value` is safe to use as an `<iframe src>` or any
+ * other attribute that makes the browser load a document/subresource on
+ * its own (`<embed src>`, `<object data>`, `<source src>`).
+ *
+ * Accepts http(s) and the empty string (an empty `src` loads
+ * `about:blank` per the HTML spec, so the caller may leave it in place).
+ * Everything else is rejected, including two cases the link and image
+ * predicates accept:
+ *  - `data:` of any media type. `data:text/html,<script>…</script>` in a
+ *    frame renders and executes in an opaque origin on every React
+ *    version — the variant of this bug that no React runtime guard stops.
+ *  - scheme-less (relative) URLs. A relative frame source points at a
+ *    page of the embedding app itself, which is a UI-redress vector
+ *    rather than a legitimate embed; Slack requires `video_url` to be an
+ *    https URL on one of the app's configured unfurl domains.
+ * @param value - the candidate URL
+ * @returns true when the URL is safe to load as a frame or subresource
+ */
+export function isSafeEmbedSrc(value: string | null | undefined): boolean {
+  if (typeof value !== 'string') {
+    return false;
+  }
+  if (value.length === 0) {
+    return true;
+  }
+  const scheme = getScheme(value);
+  if (scheme === null) {
+    return false;
+  }
+  return SAFE_EMBED_PROTOCOLS.test(scheme);
+}
+
+/**
  * Returns `value` if it passes {@link isSafeHref}, otherwise an empty
  * string. Use at render time / payload boundaries so an unsafe URL
  * never reaches the DOM as an `href` attribute.
@@ -165,4 +214,15 @@ export function sanitizeHref(value: string | null | undefined): string {
  */
 export function sanitizeImageSrc(value: string | null | undefined): string {
   return isSafeImageSrc(value) ? (value ?? '') : '';
+}
+
+/**
+ * Returns `value` if it passes {@link isSafeEmbedSrc}, otherwise an
+ * empty string. Use at render time / payload boundaries so an unsafe URL
+ * never reaches the DOM as a frame or subresource source.
+ * @param value - the candidate URL
+ * @returns the URL if safe, or `''`
+ */
+export function sanitizeEmbedSrc(value: string | null | undefined): string {
+  return isSafeEmbedSrc(value) ? (value ?? '') : '';
 }
