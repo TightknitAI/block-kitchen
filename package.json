@@ -1,6 +1,6 @@
 {
   "name": "@tightknitai/block-kitchen",
-  "version": "0.10.12",
+  "version": "0.10.13",
   "description": "A drag-and-drop, no-code-friendly visual builder for Slack Block Kit messages. Integration-agnostic React component.",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.13](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.12...block-kitchen-v0.10.13) (2026-09-01)
+
+
+### Bug Fixes
+
+* sanitize video block URL fields and scrub iframe sources ([f2359d5](https://github.com/TightknitAI/block-kitchen/commit/f2359d526c81a8e40f2e48c4838889e57a2560a4))
+* sanitize video block URL fields and scrub iframe sources ([565ca8d](https://github.com/TightknitAI/block-kitchen/commit/565ca8d8bcc867bdc54383a7ea44019c2d0c0929))
+
 ## [0.10.12](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.11...block-kitchen-v0.10.12) (2026-08-31)
 
 
