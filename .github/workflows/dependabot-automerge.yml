@@ -17,53 +17,82 @@ jobs:
         with:
           github-token: "${{ secrets.GITHUB_TOKEN }}"
 
-      # Security-sensitive packages are excluded from auto-merge so a
-      # compromised upstream release cannot ship to consumers without a
-      # human eyeballing the diff. These are the packages whose code
-      # directly renders or sanitizes user-controlled content (links,
-      # markdown, block payloads) — a malicious minor release here is
-      # the worst case for our supply-chain posture.
-      - name: Check exclusion list
-        id: excluded
+      # Auto-merge policy. A Dependabot PR is merged without a human
+      # only when ALL of the following hold; otherwise it is held and a
+      # comment explains why.
+      #
+      #   1. It is not a major version update.
+      #
+      #   2. Every updated package is a direct devDependency
+      #      (`dependency-type == direct:development`). Production
+      #      dependencies are installed by every consumer of the package
+      #      release-please publishes to npm, and nothing between a merged
+      #      bump and that publish makes a human read the dependency diff.
+      #      A compromised minor/patch release of a production dependency
+      #      would reach every consumer unreviewed; a compromised devDependency
+      #      reaches CI and developer machines at worst. Dependabot also
+      #      reports the demo app's runtime deps and every GitHub Actions
+      #      bump as `direct:production`, and lockfile-only `indirect`
+      #      updates cannot be attributed to either side, so all of those
+      #      are held too. For grouped PRs fetch-metadata reports the most
+      #      sensitive type present, so a mixed group is held.
+      #
+      #   3. No updated package is on the security-sensitive exclusion
+      #      list below. These packages render or sanitize user-controlled
+      #      content (links, markdown, block payloads), so a malicious
+      #      release is the worst case for our supply-chain posture. They
+      #      are held even when they only appear as devDependencies.
+      - name: Evaluate auto-merge policy
+        id: policy
         env:
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          DEPENDENCY_TYPE: ${{ steps.metadata.outputs.dependency-type }}
           PACKAGE_NAMES: ${{ steps.metadata.outputs.dependency-names }}
         run: |
           set -euo pipefail
-          excluded=false
-          IFS=', ' read -r -a names <<< "$PACKAGE_NAMES"
-          for pkg in "${names[@]}"; do
-            case "$pkg" in
-              slack-blocks-to-jsx|react-markdown|remark-gfm|@tiptap/extension-link|@tiptap/starter-kit|@tiptap/core|@tiptap/react|@tiptap/pm|@tightknitai/slack-block-kit-validator|ajv|ajv-formats|slack-web-api-client)
-                excluded=true
-                ;;
-            esac
-          done
-          echo "excluded=$excluded" >> "$GITHUB_OUTPUT"
+          reason=""
+          if [[ "$UPDATE_TYPE" == "version-update:semver-major" ]]; then
+            reason="major version update"
+          elif [[ "$DEPENDENCY_TYPE" != "direct:development" ]]; then
+            reason="dependency type is \`${DEPENDENCY_TYPE}\`; only direct devDependencies are auto-merged because production dependencies ship to npm consumers"
+          else
+            IFS=', ' read -r -a names <<< "$PACKAGE_NAMES"
+            for pkg in "${names[@]}"; do
+              case "$pkg" in
+                slack-blocks-to-jsx|react-markdown|remark-gfm|@tiptap/extension-link|@tiptap/starter-kit|@tiptap/core|@tiptap/react|@tiptap/pm|@tightknitai/slack-block-kit-validator|ajv|ajv-formats|slack-web-api-client)
+                  reason="\`${pkg}\` is on the security-sensitive auto-merge exclusion list"
+                  break
+                  ;;
+              esac
+            done
+          fi
+          if [[ -z "$reason" ]]; then
+            echo "automerge=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "automerge=false" >> "$GITHUB_OUTPUT"
+          fi
+          echo "hold-reason=${reason}" >> "$GITHUB_OUTPUT"
 
-      - name: Enable auto-merge for minor/patch updates
-        if: |
-          steps.metadata.outputs.update-type != 'version-update:semver-major' &&
-          steps.excluded.outputs.excluded != 'true'
+      - name: Enable auto-merge
+        if: steps.policy.outputs.automerge == 'true'
         run: gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Approve PR
-        if: |
-          steps.metadata.outputs.update-type != 'version-update:semver-major' &&
-          steps.excluded.outputs.excluded != 'true'
+        if: steps.policy.outputs.automerge == 'true'
         run: gh pr review --approve "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Comment when held for manual review
-        if: |
-          steps.metadata.outputs.update-type != 'version-update:semver-major' &&
-          steps.excluded.outputs.excluded == 'true'
+        if: steps.policy.outputs.automerge != 'true'
         run: |
-          gh pr comment "$PR_URL" --body "Held for manual review: \`${{ steps.metadata.outputs.dependency-names }}\` is on the security-sensitive auto-merge exclusion list. Verify the changelog and source diff before merging."
+          gh pr comment "$PR_URL" --body "Held for manual review: ${HOLD_REASON}. Verify the changelog and source diff for \`${PACKAGE_NAMES}\` before merging."
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HOLD_REASON: ${{ steps.policy.outputs.hold-reason }}
+          PACKAGE_NAMES: ${{ steps.metadata.outputs.dependency-names }}

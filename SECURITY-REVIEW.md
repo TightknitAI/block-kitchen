@@ -126,6 +126,7 @@ Chromium.
 - **Location**: [.github/workflows/dependabot-automerge.yml](.github/workflows/dependabot-automerge.yml) (before fix).
 - **Root cause**: any non-major Dependabot PR auto-approved and auto-merged after CI passed, including direct deps that render user content (`slack-blocks-to-jsx`, `react-markdown`, `remark-gfm`, every `@tiptap/*`, `ajv`, the validator). A single compromised minor release ships to consumers within minutes (cf. `event-stream`, `colors.js`, `node-ipc`, `peacenotwar`).
 - **Fix**: an exclusion list checked from Dependabot metadata. Updates to any of the renderer / validator / Tiptap / markdown deps now post a "held for manual review" comment and require a human to merge.
+- **Update (2026-09)**: the gate was tightened further. Auto-merge is now limited to direct devDependencies (`dependency-type == direct:development`). Every production dependency is held for review regardless of semver level, because release-please publishes those to npm consumers with no further human checkpoint on the dependency diff. Dependabot reports GitHub Actions bumps as production and lockfile-only updates as `indirect`, so both are held as well. The exclusion list remains as defense in depth for packages that render user content even when they appear as devDependencies.
 
 ### F-007 (Low) — Publish workflow re-runs full test suite with Playwright
 
