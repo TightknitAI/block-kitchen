@@ -2,9 +2,11 @@ import type { SupportedBlock } from '../types';
 import { sanitizeBlock } from './sanitize-blocks';
 
 /**
- * Prepare blocks for the Slack API: scrub dangerous URI schemes from any
- * `url`/`image_url` fields and drop the read-only metadata Slack attaches
- * on retrieval but rejects on send. Every URL/image-url is routed through
+ * Prepare blocks for the Slack API: scrub dangerous URI schemes from
+ * every URL-bearing field, drop the read-only metadata Slack attaches on
+ * retrieval but rejects on send, and drop the renderer-only prop bags
+ * (`iframeProps`) that `slack-blocks-to-jsx` would spread onto the DOM
+ * and Slack rejects as unknown properties. Every URL is routed through
  * the allowlist in `lib/url-safety.ts` so a payload that round-trips
  * through the builder cannot carry `javascript:`/`data:text/html` URIs to
  * a downstream consumer or to the Slack API.

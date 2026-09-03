@@ -172,6 +172,28 @@ describe('toSlackBlocks URL sanitization', () => {
     expect(out.provider_icon_url).toBe('');
   });
 
+  // `iframeProps` is a `slack-blocks-to-jsx` extension the renderer
+  // spreads onto the `<iframe>`; Slack rejects it as an unknown property.
+  // Dropping it here keeps the bag out of any consumer-side renderer and
+  // makes a payload that was only ever previewed send-valid again.
+  it('drops the renderer-only iframeProps bag from a video block', () => {
+    const input = [
+      {
+        type: 'video',
+        alt_text: 'poc',
+        title: { type: 'plain_text', text: 'PoC' },
+        thumbnail_url: 'https://example.com/t.png',
+        video_url: 'https://www.youtube.com/embed/abc',
+        iframeProps: { srcdoc: '<script>top.__pwned=1</script>' }
+      }
+    ] as unknown as SupportedBlock[];
+    expect(validateBlockKit(input, { target: 'blocks' }).valid).toBe(false);
+
+    const [out] = toSlackBlocks(input);
+    expect(Object.hasOwn(out, 'iframeProps')).toBe(false);
+    expect(validateBlockKit([out], { target: 'blocks' }).valid).toBe(true);
+  });
+
   it('passes a legitimate https video block through unchanged', () => {
     const input = [
       {

@@ -118,6 +118,41 @@ describe('SlackBlockPreview renders no executable URL', () => {
     expect(unsafeUrlAttributes(container)).toEqual([]);
   });
 
+  // `slack-blocks-to-jsx` spreads a video block's `iframeProps` onto the
+  // `<iframe>` after its own `src`. It is not a Slack field, so nothing in
+  // it may reach the frame: not `srcdoc` (an inline document runs in the
+  // embedding app's origin), not a `src` override, not a loosened
+  // `sandbox` or `allow`. The legitimate `video_url` must survive, so the
+  // bag is discarded rather than clobbering the frame it was aimed at.
+  const LEGIT_EMBED = 'https://www.youtube.com/embed/dQw4w9WgXcQ';
+  const withIframeProps = (iframeProps: Record<string, unknown>): SupportedBlock =>
+    ({
+      type: 'video',
+      alt_text: 'poc',
+      title: { type: 'plain_text', text: 'PoC' },
+      thumbnail_url: 'https://example.com/thumb.png',
+      video_url: LEGIT_EMBED,
+      iframeProps
+    }) as unknown as SupportedBlock;
+
+  it.each([
+    { srcdoc: '<script>top.__pwned=1</script>' },
+    { srcDoc: '<script>top.__pwned=1</script>' },
+    { src: 'data:text/html,<script>top.__pwned=1</script>' },
+    { src: 'javascript:top.__pwned=1' },
+    { src: '/admin' },
+    { sandbox: 'allow-scripts allow-same-origin', allow: 'camera; microphone' }
+  ])('renders a video block carrying iframeProps %j as if the bag were absent', (iframeProps) => {
+    const { container } = render(<SlackBlockPreview block={withIframeProps(iframeProps)} />);
+    const iframe = container.querySelector('iframe');
+    expect(iframe).not.toBeNull();
+    expect(unsafeUrlAttributes(container)).toEqual([]);
+    expect(iframe?.getAttribute('src')).toBe(LEGIT_EMBED);
+    for (const attr of ['srcdoc', 'sandbox', 'allow']) {
+      expect(iframe?.hasAttribute(attr)).toBe(false);
+    }
+  });
+
   it.each(HOSTILE_URLS)('scrubs mrkdwn and rich-text links carrying %p', (url) => {
     const blocks: SupportedBlock[] = [
       { type: 'section', text: { type: 'mrkdwn', text: `[click](${url}) and <${url}|label>` } },

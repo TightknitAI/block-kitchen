@@ -69,6 +69,10 @@ export function SlackBlockPreview({
   // `#`. Frames get the strictest arm: an `<iframe src>` loads on render
   // rather than on click, so `data:text/html` there executes script in an
   // opaque origin on every React version and only http(s) is allowed.
+  // A frame also loses any `srcdoc`: the renderer never emits one itself
+  // — it could only arrive via the payload's `iframeProps` bag, which the
+  // sanitizer drops — and an inline document runs in the embedding app's
+  // own origin, with no scheme to allowlist.
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -100,6 +104,10 @@ export function SlackBlockPreview({
         el.removeAttribute(attr);
         el.setAttribute('data-bk-blocked-src', '1');
       }
+    }
+    for (const frame of root.querySelectorAll<HTMLIFrameElement>('iframe[srcdoc]')) {
+      frame.removeAttribute('srcdoc');
+      frame.setAttribute('data-bk-blocked-srcdoc', '1');
     }
   });
 
