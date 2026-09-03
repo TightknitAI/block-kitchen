@@ -198,7 +198,7 @@ These were inspected, deemed safe as-shipped, and noted here so future reviewers
 - **Random IDs**: `nanoid@5.x` (CSPRNG-backed). Not used for security tokens; appropriate.
 - **Toolbar docs link**: [toolbar.tsx:158-166](src/components/toolbar.tsx:158) is a hardcoded `docs.slack.dev` URL with `rel="noreferrer noopener"`. Safe.
 - **`.gitignore`**: `.env*` excluded. No `.env*` tracked.
-- **Action pinning**: `actions/checkout@v6`, `dependabot/fetch-metadata@v3`, `googleapis/release-please-action@v5`. Major-tag pins, GitHub's recommended practice for trusted publishers. SHA-pinning is the highest-rigor option (see Info-002).
+- **Action pinning**: `actions/checkout@v6`, `dependabot/fetch-metadata@v3`, `googleapis/release-please-action@v5`. Major-tag pins, GitHub's recommended practice for trusted publishers. SHA-pinning is the highest-rigor option (see Info-002). _Superseded 2026-09-03: every third-party action is now pinned to a full commit SHA with the release version in a trailing comment (Dependabot keeps both current), and the publish step pins the npm CLI to an exact version instead of `npm@latest`._
 - **CI trigger**: uses `pull_request` (NOT the footgun `pull_request_target`).
 - **`npm publish` provenance**: enabled via `--provenance` in the publish workflow.
 - **`prepublishOnly`**: runs `build:clean && test` — local `pnpm publish` is gated.
@@ -207,7 +207,7 @@ These were inspected, deemed safe as-shipped, and noted here so future reviewers
 ## Informational notes
 
 - **Info-001 — Validator scope.** `@tightknitai/slack-block-kit-validator@0.1.0-alpha.0` is a structural validator. Its `format: "uri"` rule accepts any RFC-3986 URI and is **not** a URI-scheme allowlist. Do not rely on it for sanitizing user URLs at any layer.
-- **Info-002 — Action SHA pinning.** Consider SHA-pinning all third-party actions in `.github/workflows/` (`dependabot/fetch-metadata`, `googleapis/release-please-action`) for the highest supply-chain rigor. Major-tag pinning is the current GitHub recommendation and is acceptable.
+- **Info-002 — Action SHA pinning.** Consider SHA-pinning all third-party actions in `.github/workflows/` (`dependabot/fetch-metadata`, `googleapis/release-please-action`) for the highest supply-chain rigor. Major-tag pinning is the current GitHub recommendation and is acceptable. _Done 2026-09-03, after an external report (CWE-829) pointed out that `release-please-action@v5` and `npx npm@latest` were both mutable refs executing inside the one job that holds `id-token: write`. Every `uses:` outside `./.github/actions/setup` is now a commit SHA, and the npm CLI is an exact version._
 - **Info-003 — CSP guidance for consumers.** This is a UI library; we cannot set HTTP response headers ourselves. Consumers should set a strict CSP (`script-src 'self'`, `style-src 'self' 'unsafe-inline'` to permit our scoped brand `<style>`, `img-src https: data:`, `connect-src 'self' slack.com`). Worth adding to `README.md` as a "Hardening guide".
 - **Info-004 — Consumer-trust contract for `loadSendAsUserStatus`.** The library now refuses to render an unsafe `oauthUrl`. Consumers should know that we will silently drop a `javascript:`-flavoured value rather than render it. Document in the prop's JSDoc on the next minor.
 
