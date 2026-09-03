@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.15](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.14...block-kitchen-v0.10.15) (2026-09-03)
+
+
+### Bug Fixes
+
+* **deps:** bump fast-uri to 3.1.7 to clear four high audit advisories ([d8f2f78](https://github.com/TightknitAI/block-kitchen/commit/d8f2f78278a114b5369c29dcdbff206698fbd6ce))
+* **deps:** bump fast-uri to 3.1.7 to clear four high audit advisories ([57d50a3](https://github.com/TightknitAI/block-kitchen/commit/57d50a3c21a677f356b6719670ee928d617d3877))
+
 ## [0.10.14](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.13...block-kitchen-v0.10.14) (2026-09-03)
 
 
