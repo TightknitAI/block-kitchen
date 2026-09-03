@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.14](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.13...block-kitchen-v0.10.14) (2026-09-03)
+
+
+### Bug Fixes
+
+* drop the renderer's iframeProps bag before a video block renders ([9fd618b](https://github.com/TightknitAI/block-kitchen/commit/9fd618b014b06a8ac8599fc7e69ecee263cf4e25))
+* drop the renderer's iframeProps bag before a video block renders ([f68c814](https://github.com/TightknitAI/block-kitchen/commit/f68c814368883116aa1d5d5e10d495ada88a168c))
+
 ## [0.10.13](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.12...block-kitchen-v0.10.13) (2026-09-01)
 
 
