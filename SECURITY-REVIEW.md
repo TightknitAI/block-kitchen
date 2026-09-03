@@ -178,6 +178,11 @@ URL-sanitization story reads in one place.
   - `src/components/preview/slack-block-preview.tsx`: a third scrub arm over `iframe[src], embed[src], object[data], source[src], video[src], audio[src], track[src]`, applying the embed allowlist and marking blocked elements `data-bk-blocked-src`.
   - `src/components/editors/video-editor.tsx`: all four URL fields flag an unsafe value with `aria-invalid` and an inline note, matching the structured rich-text editor.
 - **Tests**: [test/preview-url-scrub.test.tsx](test/preview-url-scrub.test.tsx) is the one that would have caught this. It renders hostile payloads and then walks **every** element of the result, asserting that no URL-bearing attribute on any tag that navigates or auto-loads carries anything but an http(s) URL — rather than asserting on the fields we happen to know about today. A renderer upgrade that emits a new URL-bearing tag, or a Slack block that adds a new URL field, fails there. Field-level coverage in [test/sanitize-blocks.test.ts](test/sanitize-blocks.test.ts), [test/url-safety.test.ts](test/url-safety.test.ts), [test/public-api.test.ts](test/public-api.test.ts), and [test/video-editor.test.tsx](test/video-editor.test.tsx). All 14 new assertions fail against the pre-fix tree.
+- **Follow-up (2026-09-03) — the renderer's `iframeProps` prop bag**: re-verifying the fix above turned up a fourth path into the same `<iframe>`. `slack-blocks-to-jsx` destructures `iframeProps` off the video block payload and spreads it onto the frame *after* its own `src`. It is a documented renderer extension, not a Slack field, so `sanitizeBlock` and `toSlackBlocks` both passed it through: the key-shape URL classifier sees a `src` inside it, but `srcdoc`, `sandbox`, and `allow` are not URLs. A payload of `{"type":"video","video_url":"https://…","iframeProps":{"srcdoc":"<script>…</script>"}}` rendered `<iframe srcdoc="<script>…">`, and an inline frame document runs with the embedding app's **own** origin on every React version — the same-origin outcome the `data:` variant above does not reach. Reproduced in jsdom against the fixed tree.
+  - `src/lib/sanitize-blocks.ts`: any key whose last `_`-delimited segment is `props` (`iframeProps`, `iframe_props`, a future `imgProps`) is dropped wherever it appears, at both boundaries. Same name-shape reasoning as the URL keys: Slack has no such field and rejects one on send, so over-matching costs nothing.
+  - `src/components/preview/slack-block-preview.tsx`: a backstop arm strips `srcdoc` from every frame, whatever its value, and marks it `data-bk-blocked-srcdoc`. The renderer never emits one itself.
+  - `toSlackBlocks` output for such a payload now passes the validator, which had been rejecting the bag as `unknown property 'iframeProps'`.
+  - Tests: prop-bag cases in [test/preview-url-scrub.test.tsx](test/preview-url-scrub.test.tsx) (payload layer, asserting the legitimate `video_url` survives and no `srcdoc`/`sandbox`/`allow` lands on the frame) and [test/preview-srcdoc-scrub.test.tsx](test/preview-srcdoc-scrub.test.tsx) (DOM layer, with the payload sanitizer mocked to a pass-through so the scrub has to do the work), plus [test/sanitize-blocks.test.ts](test/sanitize-blocks.test.ts) and [test/public-api.test.ts](test/public-api.test.ts).
 - **Residual risk**: `slack-blocks-to-jsx` still has no scheme allowlist of its own; ours is applied on both sides of it. Pushing one upstream would close this class at the source for every consumer of that package.
 
 ---
@@ -194,7 +199,7 @@ These were inspected, deemed safe as-shipped, and noted here so future reviewers
 - **Clipboard reads**: none.
 - **Raw `fetch` / XHR**: not performed by the library; all I/O is brokered by consumer callbacks (`loadChannels`, `loadSendAsUserStatus`, `onSend`).
 - **File uploads / `FileReader` / `URL.createObjectURL`**: none.
-- **`<iframe>` elements**: none constructed by `src/` itself — but `slack-blocks-to-jsx` renders one for the video block's `video_url`, which is what F-009 missed. The preview's DOM scrub now covers `iframe`/`embed`/`object`/`source`/`video`/`audio`/`track` sources, so "we don't write `<iframe>`" is not the same as "no `<iframe>` renders".
+- **`<iframe>` elements**: none constructed by `src/` itself — but `slack-blocks-to-jsx` renders one for the video block's `video_url`, which is what F-009 missed, and spreads the payload's `iframeProps` onto it, which the F-009 follow-up missed. The preview's DOM scrub now covers `iframe`/`embed`/`object`/`source`/`video`/`audio`/`track` sources and strips `srcdoc`, and the sanitizer drops the prop bag before render, so "we don't write `<iframe>`" is not the same as "no `<iframe>` renders".
 - **`JSON.parse` of untrusted input**: two sites ([url-state.ts:42](src/lib/url-state.ts:42), [json-drawer.tsx:64](src/components/json-drawer.tsx:64)) — both wrapped in try/catch, top-level array check, and now size-capped. `__proto__` keys in JSON do not pollute `Object.prototype` in modern engines and the sanitizer was verified to be free of `Object.assign`-flavored merges that walk the prototype chain ([test/sanitize-blocks.test.ts](test/sanitize-blocks.test.ts) `prototype pollution shape`).
 - **Random IDs**: `nanoid@5.x` (CSPRNG-backed). Not used for security tokens; appropriate.
 - **Toolbar docs link**: [toolbar.tsx:158-166](src/components/toolbar.tsx:158) is a hardcoded `docs.slack.dev` URL with `rel="noreferrer noopener"`. Safe.
@@ -247,6 +252,18 @@ src/components/editors/video-editor.tsx               (edit)  F-009
 test/preview-url-scrub.test.tsx                       (new)   F-009
 test/video-editor.test.tsx                            (new)   F-009
 test/url-safety.test.ts                               (edit)  F-009
+test/sanitize-blocks.test.ts                          (edit)  F-009
+test/public-api.test.ts                               (edit)  F-009
+```
+
+Follow-up (`iframeProps`):
+
+```
+src/lib/sanitize-blocks.ts                            (edit)  F-009
+src/lib/to-slack-blocks.ts                            (edit)  F-009
+src/components/preview/slack-block-preview.tsx        (edit)  F-009
+test/preview-srcdoc-scrub.test.tsx                    (new)   F-009
+test/preview-url-scrub.test.tsx                       (edit)  F-009
 test/sanitize-blocks.test.ts                          (edit)  F-009
 test/public-api.test.ts                               (edit)  F-009
 ```

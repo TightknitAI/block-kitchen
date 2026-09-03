@@ -589,7 +589,7 @@ Helpers and send-flow primitives also exported:
 
 ```ts
 import {
-  toSlackBlocks,           // scrubs unsafe URLs + retrieval-only fields before sending
+  toSlackBlocks,           // scrubs unsafe URLs + retrieval-only / renderer-only fields before sending
   encodeBlocksToString,    // base64url-encode a blocks array (for URL state)
   decodeBlocksFromString,
   defaultPalette,          // the built-in palette — spread to customize

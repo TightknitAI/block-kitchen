@@ -194,6 +194,55 @@ describe('URL keys are matched by name shape, not an exact list', () => {
   });
 });
 
+describe('renderer-only prop bags', () => {
+  // `slack-blocks-to-jsx` reads `iframeProps` off the video block and
+  // spreads it onto the `<iframe>` after its own `src`. It is not a Slack
+  // field, and a payload can use it to add `srcdoc`, override the frame
+  // source, or loosen `sandbox`, so the whole bag is dropped.
+  const video = (extra: Record<string, unknown>): SupportedBlock =>
+    ({
+      type: 'video',
+      alt_text: 'poc',
+      title: { type: 'plain_text', text: 'PoC' },
+      thumbnail_url: 'https://example.com/t.png',
+      video_url: 'https://www.youtube.com/embed/abc',
+      ...extra
+    }) as unknown as SupportedBlock;
+
+  it('drops iframeProps from a video block and keeps the rest intact', () => {
+    const out = sanitizeBlock(
+      video({ iframeProps: { srcdoc: '<script>top.__pwned=1</script>', sandbox: 'allow-scripts allow-same-origin' } })
+    ) as unknown as Record<string, unknown>;
+    expect(Object.hasOwn(out, 'iframeProps')).toBe(false);
+    expect(out.video_url).toBe('https://www.youtube.com/embed/abc');
+    expect(out.alt_text).toBe('poc');
+  });
+
+  it.each(['iframeProps', 'iframe_props', 'imgProps', 'link_props', 'props'])(
+    'drops a prop bag at key %p wherever it appears in the tree',
+    (key) => {
+      const block = {
+        type: 'section',
+        text: { type: 'mrkdwn', text: 'hi' },
+        accessory: { type: 'button', text: { type: 'plain_text', text: 'Go' }, [key]: { srcdoc: 'x' } }
+      } as unknown as SupportedBlock;
+      const out = sanitizeBlock(block) as unknown as { accessory: Record<string, unknown> };
+      expect(Object.hasOwn(out.accessory, key)).toBe(false);
+      expect(out.accessory.type).toBe('button');
+    }
+  );
+
+  it('drops the bag whatever its value', () => {
+    const out = sanitizeBlock(video({ iframeProps: 'srcdoc=1' })) as unknown as Record<string, unknown>;
+    expect(Object.hasOwn(out, 'iframeProps')).toBe(false);
+  });
+
+  it('leaves keys that merely contain "props" alone', () => {
+    const block = { type: 'section', props_count: 3, proposal: 'keep me' } as unknown as SupportedBlock;
+    expect(sanitizeBlock(block)).toBe(block);
+  });
+});
+
 describe('sanitizeBlocks', () => {
   it('returns the same array reference when nothing needs rewriting', () => {
     const blocks: SupportedBlock[] = [{ type: 'divider' }];
