@@ -351,7 +351,7 @@ export type ChartType = Chart['type'];
 
 /**
  * Slack `data_visualization` block payload. Renders a line, bar, area, or
- * pie chart from inline data. Valid on the message surface only.
+ * pie chart from inline data. Valid on message and App Home surfaces.
  * `slack-web-api-client` doesn't ship this type yet, so we declare it.
  * @see https://docs.slack.dev/reference/block-kit/blocks/data-visualization-block
  */
@@ -386,7 +386,7 @@ export type ContainerChildBlock =
 /**
  * Slack `container` block payload. A general-purpose wrapper that groups
  * 1-10 child blocks into a single, optionally collapsible unit with a
- * configurable width. Valid on the message surface only.
+ * configurable width. Valid on message and App Home surfaces.
  * `default_collapsed` only takes effect when `is_collapsible` is true.
  *
  * Note: despite what the API reference says, `title` and `subtitle` are
