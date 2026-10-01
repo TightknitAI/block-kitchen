@@ -387,22 +387,28 @@ export type ContainerChildBlock =
  * Slack `container` block payload. A general-purpose wrapper that groups
  * 1-10 child blocks into a single, optionally collapsible unit with a
  * configurable width. Valid on message and App Home surfaces.
- * `default_collapsed` only takes effect when `is_collapsible` is true.
+ * `default_collapsed` only takes effect when `is_collapsible` is true, and
+ * `has_header_divider` only when it is not.
+ *
+ * At least one of `title` or `rich_text_title` is required; when both are
+ * set Slack renders `rich_text_title`.
  *
  * Note: despite what the API reference says, `title` and `subtitle` are
- * `plain_text` text objects, not plain strings. `slack-web-api-client`
- * doesn't ship this type yet, so we declare it.
+ * text objects, not plain strings. `slack-web-api-client` doesn't ship
+ * this type yet, so we declare it.
  * @see https://docs.slack.dev/reference/block-kit/blocks/container-block
  */
 export interface ContainerBlock {
   type: 'container';
-  title: { type: 'plain_text'; text: string; emoji?: boolean };
+  title?: { type: 'plain_text'; text: string; emoji?: boolean };
+  rich_text_title?: RichTextBlock;
   child_blocks: ContainerChildBlock[];
-  subtitle?: { type: 'plain_text'; text: string; emoji?: boolean };
+  subtitle?: { type: 'plain_text' | 'mrkdwn'; text: string; emoji?: boolean; verbatim?: boolean };
   icon?: ImageElement;
   width?: 'narrow' | 'standard' | 'wide' | 'full';
   is_collapsible?: boolean;
   default_collapsed?: boolean;
+  has_header_divider?: boolean;
   block_id?: string;
 }
 

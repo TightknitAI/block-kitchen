@@ -1,4 +1,4 @@
-import type { SupportedBlockType } from '../types';
+import type { ContainerBlock, SupportedBlockType } from '../types';
 
 /**
  * Block types Slack allows inside a `container` block's `child_blocks`.
@@ -43,4 +43,55 @@ export function parseContainerBodyId(id: string | number): string | null {
     return null;
   }
   return id.slice(BODY_PREFIX.length);
+}
+
+/**
+ * Plain-text rendering of a single rich_text leaf element, for compact
+ * labels. Mentions keep their sigil so they still read as mentions.
+ */
+function richTextLeafText(el: Record<string, unknown>): string {
+  switch (el.type) {
+    case 'text':
+      return String(el.text ?? '');
+    case 'link':
+      return String(el.text || el.url || '');
+    case 'emoji':
+      return `:${el.name}:`;
+    case 'user':
+      return `@${el.user_id}`;
+    case 'usergroup':
+      return `@${el.usergroup_id}`;
+    case 'channel':
+      return `#${el.channel_id}`;
+    case 'broadcast':
+      return `@${el.range}`;
+    case 'date':
+      return String(el.fallback ?? '');
+    default:
+      return '';
+  }
+}
+
+/** Concatenate the visible text of a rich_text node and its descendants. */
+function richTextNodeText(node: unknown): string {
+  if (!node || typeof node !== 'object') {
+    return '';
+  }
+  const el = node as Record<string, unknown>;
+  if (Array.isArray(el.elements)) {
+    return el.elements.map(richTextNodeText).join(el.type === 'rich_text' || el.type === 'rich_text_list' ? ' ' : '');
+  }
+  return richTextLeafText(el);
+}
+
+/**
+ * The text a container's header shows: `rich_text_title` flattened to
+ * plain text when it has any, else `title`. Slack renders
+ * `rich_text_title` when both are set, so this follows the same order.
+ * @param block - the container block
+ * @returns the header text, or `''` when neither title has content
+ */
+export function containerTitleText(block: ContainerBlock): string {
+  const rich = richTextNodeText(block.rich_text_title).replace(/\s+/g, ' ').trim();
+  return rich || block.title?.text || '';
 }

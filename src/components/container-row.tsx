@@ -3,7 +3,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities';
 import { AlertTriangle, ArrowDown, ArrowUp, Copy, Pencil, Trash2 } from 'lucide-react';
 import { cn } from '../lib/cn';
-import { containerBodyId } from '../lib/container-blocks';
+import { containerBodyId, containerTitleText } from '../lib/container-blocks';
 import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
 import type { BuilderBlock, ContainerBlock, PreviewHooks, PreviewTheme, SupportedBlock } from '../types';
@@ -97,7 +97,7 @@ export function ContainerRow({
               ) : null}
               <span className="flex min-w-0 flex-col">
                 <span className="truncate text-xs font-semibold text-foreground">
-                  {block.title?.text || 'Container'}
+                  {containerTitleText(block) || 'Container'}
                 </span>
                 {block.subtitle?.text ? (
                   <span className="truncate text-[11px] text-muted-foreground">{block.subtitle.text}</span>

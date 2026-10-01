@@ -214,6 +214,31 @@ export const Container: Story = {
   args: { block: variant('container_collapsible') }
 };
 
+// The header fields the palette variant doesn't use: a rich_text_title in
+// place of the plain one, a mrkdwn subtitle, and the header divider.
+export const ContainerRichTitle: Story = {
+  args: {
+    block: {
+      type: 'container',
+      rich_text_title: {
+        type: 'rich_text',
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [
+              { type: 'text', text: 'Weekly ', style: { bold: true } },
+              { type: 'link', url: 'https://example.com/report', text: 'report' }
+            ]
+          }
+        ]
+      },
+      subtitle: { type: 'mrkdwn', text: '*3* updates' },
+      has_header_divider: true,
+      child_blocks: [{ type: 'section', text: { type: 'mrkdwn', text: 'All caught up' } }]
+    }
+  }
+};
+
 /* ----------------------------- Input variants ----------------------------- */
 
 // Input is the block with the widest sub-editor surface area: 20+ element
