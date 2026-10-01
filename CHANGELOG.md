@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.16](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.15...block-kitchen-v0.10.16) (2026-10-01)
+
+
+### Features
+
+* add rich text title and header divider to containers ([c15d321](https://github.com/TightknitAI/block-kitchen/commit/c15d3216fbef0d58d1ad2c8c534e724e41ad15b7))
+* **editors:** edit container rich_text_title, mrkdwn subtitle and header divider ([781b209](https://github.com/TightknitAI/block-kitchen/commit/781b209b526c1cc9d6c5122a13cfda30bb65d7e7))
+
+
+### Bug Fixes
+
+* **deps:** bump slack-block-kit-validator to 0.1.17 for App Home containers ([08a9755](https://github.com/TightknitAI/block-kitchen/commit/08a9755669edbe19bae172e3986a9d43434e9693))
+* **deps:** refresh fast-uri, undici and brace-expansion to clear audit advisories ([2a50704](https://github.com/TightknitAI/block-kitchen/commit/2a50704339e1927221a9d635c0ee448fdca91cf0))
+
 ## [0.10.15](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.14...block-kitchen-v0.10.15) (2026-09-03)
 
 
