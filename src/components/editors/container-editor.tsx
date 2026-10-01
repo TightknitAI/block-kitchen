@@ -3,15 +3,17 @@ import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import type { ContainerBlock } from '../../types';
 import { EditorField } from './field';
+import { RichTextField } from './rich-text-field';
 import type { BlockEditorProps } from './types';
 
 const WIDTHS = ['narrow', 'standard', 'wide', 'full'] as const;
 
 /**
  * Editor form for `container` blocks. Edits the container's own fields —
- * title, subtitle, width, collapse behavior, and icon. The child blocks it
- * groups are added, removed, reordered, and edited directly on the canvas
- * by dragging blocks into and out of the container.
+ * title (plain and/or rich text), subtitle, icon, width, collapse
+ * behavior, and header divider. The child blocks it groups are added,
+ * removed, reordered, and edited directly on the canvas by dragging blocks
+ * into and out of the container.
  * @param props - editor props
  * @param props.block - the container block to edit
  * @param props.onChange - called with the updated block payload
@@ -25,15 +27,45 @@ export function ContainerEditor({ block, onChange }: BlockEditorProps<ContainerB
 
   return (
     <div className="flex flex-col gap-4">
-      <EditorField label="Title" help="Heading shown at the top of the container." htmlFor="container-title">
+      <EditorField
+        label="Title"
+        help={
+          block.rich_text_title
+            ? 'Optional while a rich text title is set. Slack shows the rich text title instead.'
+            : 'Heading shown at the top of the container.'
+        }
+        htmlFor="container-title"
+      >
         <Input
           id="container-title"
           value={block.title?.text ?? ''}
           maxLength={150}
           placeholder="e.g. Bulk update: 2 records selected"
-          onChange={(e) => onChange({ ...block, title: { type: 'plain_text', text: e.target.value } })}
+          // With a rich text title the plain one is optional, so clearing it
+          // drops the field instead of sending an empty (invalid) text object.
+          onChange={(e) =>
+            onChange({
+              ...block,
+              title: e.target.value || !block.rich_text_title ? { type: 'plain_text', text: e.target.value } : undefined
+            })
+          }
         />
       </EditorField>
+
+      <RichTextField
+        label="Rich text title"
+        help="Formatted heading (bold, links, mentions, emoji). Replaces the plain title when set."
+        value={block.rich_text_title}
+        // Removing the rich title restores an empty plain title when there is
+        // none, since a container needs one or the other.
+        onChange={(next) =>
+          onChange({
+            ...block,
+            rich_text_title: next,
+            title: next || block.title ? block.title : { type: 'plain_text', text: '' }
+          })
+        }
+      />
 
       <EditorField label="Subtitle" help="Optional secondary line under the title." htmlFor="container-subtitle">
         <Input
@@ -44,11 +76,44 @@ export function ContainerEditor({ block, onChange }: BlockEditorProps<ContainerB
           onChange={(e) =>
             onChange({
               ...block,
-              subtitle: e.target.value ? { type: 'plain_text', text: e.target.value } : undefined
+              subtitle: e.target.value
+                ? { type: block.subtitle?.type ?? 'plain_text', text: e.target.value }
+                : undefined
             })
           }
         />
       </EditorField>
+
+      {block.subtitle ? (
+        <EditorField
+          label="Subtitle format"
+          help="Markdown enables *bold*, _italic_, links, mentions, etc. Plain text shows the characters as-is."
+        >
+          <RadioGroup
+            value={block.subtitle.type}
+            onValueChange={(v) =>
+              onChange({
+                ...block,
+                subtitle: { type: v === 'mrkdwn' ? 'mrkdwn' : 'plain_text', text: block.subtitle?.text ?? '' }
+              })
+            }
+            className="flex flex-row gap-3"
+          >
+            <div className="flex items-center gap-1.5">
+              <RadioGroupItem value="plain_text" id="container-subtitle-plain" />
+              <Label htmlFor="container-subtitle-plain" className="text-xs font-normal">
+                Plain text
+              </Label>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <RadioGroupItem value="mrkdwn" id="container-subtitle-mrkdwn" />
+              <Label htmlFor="container-subtitle-mrkdwn" className="text-xs font-normal">
+                Markdown
+              </Label>
+            </div>
+          </RadioGroup>
+        </EditorField>
+      ) : null}
 
       <EditorField label="Icon URL" help="Optional image shown left of the title." htmlFor="container-icon">
         <Input
@@ -91,11 +156,14 @@ export function ContainerEditor({ block, onChange }: BlockEditorProps<ContainerB
         checked={!!block.is_collapsible}
         // Clearing collapsible must also clear default_collapsed — Slack
         // rejects default_collapsed: true without is_collapsible: true.
+        // Setting it drops has_header_divider, which Slack ignores on a
+        // collapsible container.
         onChange={(checked) =>
           onChange({
             ...block,
             is_collapsible: checked || undefined,
-            default_collapsed: checked ? block.default_collapsed : undefined
+            default_collapsed: checked ? block.default_collapsed : undefined,
+            has_header_divider: checked ? undefined : block.has_header_divider
           })
         }
       />
@@ -107,6 +175,15 @@ export function ContainerEditor({ block, onChange }: BlockEditorProps<ContainerB
         checked={!!block.default_collapsed}
         disabled={!block.is_collapsible}
         onChange={(checked) => onChange({ ...block, default_collapsed: checked || undefined })}
+      />
+
+      <Checkbox
+        id="container-header-divider"
+        label="Header divider"
+        help="Draw a line between the header and the contents. Not available on collapsible containers."
+        checked={!!block.has_header_divider}
+        disabled={!!block.is_collapsible}
+        onChange={(checked) => onChange({ ...block, has_header_divider: checked || undefined })}
       />
 
       <p className="text-[11px] leading-snug text-muted-foreground">
