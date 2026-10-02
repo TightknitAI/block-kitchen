@@ -206,6 +206,21 @@
   white-space: normal !important;
 }
 
+/* TipTap rich text editor: style links the way the preview does (Slack's
+   link blue, always underlined) so they read as links while editing too.
+   Without this an `<a>` picks up whatever the host's reset gives it —
+   typically Tailwind preflight's `color: inherit; text-decoration: inherit`
+   — and looks like plain text. Hosts use class-based dark mode, where
+   Slack's lighter dark-theme link blue keeps the contrast up. */
+.bk-rich-editor a {
+  color: #1264a3;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.dark .bk-rich-editor a {
+  color: #1d9bd1;
+}
+
 /* TipTap rich text editor: nested-list marker cycle that matches
    slack-blocks-to-jsx's preview rendering (decimal → lower-alpha →
    lower-roman, repeating every three levels up to Slack's max indent
