@@ -157,7 +157,8 @@ describe('LoadMessageDialog tabs', () => {
     expect(tabs.map((t) => t.textContent)).toEqual(['Pick from Recent', 'Direct Link']);
     expect(tabs[0].getAttribute('aria-selected')).toBe('true');
     // The recent panel is the one showing; the link input lives behind the other tab.
-    expect(screen.getByLabelText('Channel')).toBeTruthy();
+    // The channel field only renders once the async channel list resolves.
+    expect(await screen.findByLabelText('Channel')).toBeTruthy();
     expect(screen.queryByLabelText('Message link')).toBeNull();
 
     await openLinkTab();
