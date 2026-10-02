@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.10.17](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.16...block-kitchen-v0.10.17) (2026-10-02)
+
+
+### Bug Fixes
+
+* **editors:** insert link text from the RTE link button and style links while editing ([574831c](https://github.com/TightknitAI/block-kitchen/commit/574831cc80c378f64a7bf3093b8aa1b6f244153d))
+* **editors:** insert linked text from the RTE link button with no selection ([20b3ad4](https://github.com/TightknitAI/block-kitchen/commit/20b3ad458879ba638d802646a62f1a13f819e0bc))
+* **editors:** show links as underlined Slack blue inside the RTE ([7d52b3d](https://github.com/TightknitAI/block-kitchen/commit/7d52b3dfaeeadae9a04c4d21830cd614a651fa05))
+
 ## [0.10.16](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.15...block-kitchen-v0.10.16) (2026-10-01)
 
 
