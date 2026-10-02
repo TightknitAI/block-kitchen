@@ -15,7 +15,7 @@ import {
   Underline,
   Undo2
 } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { RichTextBlock } from 'slack-web-api-client';
 import { cn } from '../../lib/cn';
 import { type EmojiIndex, loadEmojiIndex } from '../../lib/emoji-data';
@@ -366,27 +366,40 @@ function Divider() {
 
 /**
  * Toolbar control that opens a popover for setting or removing a link mark.
+ * With a collapsed cursor outside any link there is no text for the mark to
+ * wrap, so the popover also asks for the link text and inserts it.
  * @param props - popover props
  * @param props.editor - the TipTap editor instance to drive
  * @returns the rendered link popover trigger and content
  */
 function LinkPopover({ editor }: { editor: Editor }) {
   const active = editor.isActive('link');
-  const currentHref = (editor.getAttributes('link').href as string | undefined) ?? '';
   const [open, setOpen] = useState(false);
-  const [url, setUrl] = useState(currentHref);
+  const [url, setUrl] = useState('');
+  const [text, setText] = useState('');
+  // Captured when the popover opens so the form doesn't switch modes once
+  // the insertion lands (the cursor then sits on the new link).
+  const [inserting, setInserting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (open) {
-      setUrl(currentHref);
+  const handleOpenChange = (next: boolean) => {
+    if (next) {
+      const linkActive = editor.isActive('link');
+      setUrl((editor.getAttributes('link').href as string | undefined) ?? '');
+      setText('');
+      setInserting(editor.state.selection.empty && !linkActive);
       setError(null);
     }
-  }, [open, currentHref]);
+    setOpen(next);
+  };
 
   const apply = () => {
     const trimmed = url.trim();
     if (!trimmed) {
+      if (inserting) {
+        setError('Enter a URL.');
+        return;
+      }
       editor.chain().focus().unsetLink().run();
       setOpen(false);
       return;
@@ -395,12 +408,35 @@ function LinkPopover({ editor }: { editor: Editor }) {
       setError('Only http(s), mailto, tel, sms, and xmpp links are allowed.');
       return;
     }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run();
+    if (inserting) {
+      editor
+        .chain()
+        .focus()
+        .insertContent({
+          type: 'text',
+          text: text.trim() || trimmed,
+          marks: [{ type: 'link', attrs: { href: trimmed } }]
+        })
+        // The link mark is inclusive, so without this the next characters
+        // typed after the inserted link would extend it.
+        .unsetMark('link')
+        .setMeta('preventAutolink', true)
+        .run();
+    } else {
+      editor.chain().focus().extendMarkRange('link').setLink({ href: trimmed }).run();
+    }
     setOpen(false);
   };
 
+  const applyOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      apply();
+    }
+  };
+
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <button
           type="button"
@@ -416,6 +452,25 @@ function LinkPopover({ editor }: { editor: Editor }) {
       </PopoverTrigger>
       <PopoverContent align="start" className="w-72 p-3">
         <div className="flex flex-col gap-2">
+          {inserting && (
+            <>
+              <Label htmlFor="rt-link-text" className="text-xs">
+                Text
+              </Label>
+              <Input
+                id="rt-link-text"
+                value={text}
+                placeholder="Link text"
+                onChange={(e) => {
+                  setText(e.target.value);
+                  if (error) {
+                    setError(null);
+                  }
+                }}
+                onKeyDown={applyOnEnter}
+              />
+            </>
+          )}
           <Label htmlFor="rt-link-url" className="text-xs">
             URL
           </Label>
@@ -429,16 +484,11 @@ function LinkPopover({ editor }: { editor: Editor }) {
                 setError(null);
               }
             }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                apply();
-              }
-            }}
+            onKeyDown={applyOnEnter}
           />
           {error && <p className="text-[11px] text-destructive">{error}</p>}
           <div className="flex justify-between">
-            {active ? (
+            {active && !inserting ? (
               <Button
                 type="button"
                 size="sm"
@@ -454,7 +504,7 @@ function LinkPopover({ editor }: { editor: Editor }) {
               <span />
             )}
             <Button type="button" size="sm" onClick={apply}>
-              {active ? 'Update' : 'Add link'}
+              {active && !inserting ? 'Update' : 'Add link'}
             </Button>
           </div>
         </div>
