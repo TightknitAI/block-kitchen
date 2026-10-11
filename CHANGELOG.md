@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.18](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.17...block-kitchen-v0.10.18) (2026-10-11)
+
+
+### Bug Fixes
+
+* **deps:** require slack-block-kit-validator 0.1.18 so the builder runs under a strict CSP ([8ef5f18](https://github.com/TightknitAI/block-kitchen/commit/8ef5f18f094487e9e1410d7d18ea7c69254d46c7))
+* **deps:** require slack-block-kit-validator 0.1.18 so the builder runs under a strict CSP ([90492c2](https://github.com/TightknitAI/block-kitchen/commit/90492c27d9699aa877bc1911975e7b40e3afb78e))
+
 ## [0.10.17](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.16...block-kitchen-v0.10.17) (2026-10-02)
 
 
