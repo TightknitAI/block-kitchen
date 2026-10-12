@@ -36,7 +36,7 @@ describe('rich-text-tiptap user mentions', () => {
         }
       ]
     } as RichTextBlock;
-    expect(detectLossy(block)).toEqual([{ label: 'Mention in code block', where: 'elements[0].elements[1]' }]);
+    expect(detectLossy(block)).toEqual([{ label: 'In code block: user', where: 'elements[0].elements[1]' }]);
   });
 
   it('round-trips a mention, its style and the text around it', () => {
