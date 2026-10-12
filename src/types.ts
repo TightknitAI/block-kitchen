@@ -829,6 +829,44 @@ export interface CustomEmoji {
 }
 
 /**
+ * A person the rich text editor's `@` picker offers, returned by
+ * {@link MentionsConfig.searchUsers}.
+ */
+export interface MentionUser {
+  /** Slack user id (`U…` / `W…`), written to the rich text `user` element's `user_id`. */
+  id: string;
+  /** Name shown in the picker row and on the inserted mention. */
+  name: string;
+  /** Avatar shown in the picker row. Ignored unless a safe image URL; rows without one show an initial. */
+  avatarUrl?: string | null;
+}
+
+/**
+ * Opt-in `@` mentions for the rich text editor, passed as
+ * {@link BlockKitchenBaseProps.mentions}. Typing `@` (or the toolbar's
+ * mention button) opens a picker backed by the host's search; picking someone
+ * inserts a rich text `user` element (`{ type: 'user', user_id }`).
+ *
+ * Like every other I/O concern, the search is brokered by the host: the
+ * builder never looks people up itself.
+ */
+export interface MentionsConfig {
+  /**
+   * Searches the people the picker offers. Called with the text typed after
+   * `@` (empty right after it). Calls are debounced, and `signal` aborts once
+   * a newer query supersedes this one. A rejection shows an empty list.
+   */
+  searchUsers: (query: string, options: { signal: AbortSignal }) => Promise<MentionUser[]>;
+  /**
+   * Optional. Labels a mention in the editor by user id, including mentions
+   * that came with the draft or a loaded message. Called while rendering, so
+   * keep it synchronous. Return `undefined` to fall back to the name picked
+   * from the search, then the raw id.
+   */
+  getUserName?: (userId: string) => string | undefined;
+}
+
+/**
  * Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` so the consumer can
  * resolve user mentions, channel mentions, custom emojis, and links to
  * application-specific UI. See the upstream library for the full hook shape.
@@ -950,6 +988,13 @@ export interface BlockKitchenBaseProps {
    * is never serialized into the emitted Block Kit JSON.
    */
   customEmojis?: CustomEmoji[];
+  /**
+   * Opt-in `@` mentions in the rich text editor: an `@` trigger and a toolbar
+   * button that search people through the host. See {@link MentionsConfig}.
+   * Without it, mentions already in the draft still round-trip and display by
+   * raw id, but there is no picker.
+   */
+  mentions?: MentionsConfig;
   /**
    * Opt-in: load an existing Slack message into the editor. Adds a
    * "Find message" toolbar entry — the user pastes a permalink (or picks a

@@ -2,6 +2,7 @@ import Link from '@tiptap/extension-link';
 import { type Editor, EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import {
+  AtSign,
   Bold,
   Code,
   Code2,
@@ -28,20 +29,34 @@ import {
   richTextToProseMirror
 } from '../../lib/rich-text-tiptap';
 import { EmojiNode } from '../../lib/tiptap-emoji-node';
+import {
+  dismissMentionSuggestion,
+  insertMentionTrigger,
+  MentionSuggestion,
+  type MentionSuggestionOptions
+} from '../../lib/tiptap-mention-suggestion';
+import { UserMentionNode } from '../../lib/tiptap-user-mention-node';
 import { Button } from '../../lib/ui/button';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '../../lib/ui/popover';
 import { hasExplicitSafeScheme, isSafeHref } from '../../lib/url-safety';
 import { useCustomEmojis } from '../../state/custom-emoji-context';
+import { useMentions } from '../../state/mentions-context';
 import { EmojiPickerButton } from '../emoji/emoji-picker-button';
+import {
+  MentionPicker,
+  type MentionPickerKeyHandler,
+  type MentionPickerState,
+  nextMentionPickerState
+} from './mention-picker';
 import { RichTextStructuredEditor } from './rich-text-structured-editor';
 import type { BlockEditorProps } from './types';
 
 /**
  * WYSIWYG editor for rich_text blocks, backed by TipTap. Falls back to
  * the structured editor when the block uses features the WYSIWYG can't
- * round-trip (mentions, emoji, broadcasts, list indent, etc.). The user
+ * round-trip (channel mentions, broadcasts, list indent, etc.). The user
  * can also opt into the structured editor via a "More options" toggle.
  * @param props - editor props
  * @param props.block - the rich_text block to edit
@@ -100,9 +115,10 @@ export const RICH_TEXT_INPUT_RULE_ALLOWLIST = ['bold', 'italic', 'strike', 'code
  * Builds the TipTap extension set for the rich-text WYSIWYG editor. Kept as
  * a standalone factory (returning fresh instances per call) so the exact
  * production configuration can be exercised in tests.
+ * @param mentionSuggestion - the `@` picker's search and UI bridge; omit for no picker
  * @returns the configured TipTap extensions
  */
-export function buildRichTextExtensions() {
+export function buildRichTextExtensions(mentionSuggestion?: MentionSuggestionOptions) {
   return [
     StarterKit.configure({
       heading: false,
@@ -135,7 +151,11 @@ export function buildRichTextExtensions() {
       // via the link button.
       shouldAutoLink: hasExplicitSafeScheme,
       HTMLAttributes: { rel: 'noreferrer noopener', target: '_blank' }
-    })
+    }),
+    // Always registered, so mentions already in the content round-trip with
+    // or without the picker.
+    UserMentionNode,
+    ...(mentionSuggestion ? [MentionSuggestion.configure(mentionSuggestion)] : [])
   ];
 }
 
@@ -178,18 +198,46 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
     [onChange]
   );
 
-  const editor = useEditor({
-    extensions: buildRichTextExtensions(),
-    enableInputRules: RICH_TEXT_INPUT_RULE_ALLOWLIST,
-    content: richTextToProseMirror(block, resolveEmoji) as never,
-    editorProps: {
-      attributes: {
-        class:
-          'bk-rich-editor min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-ring [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:pl-5 [&_li]:my-0 [&_pre]:bg-muted [&_pre]:rounded [&_pre]:p-2 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground'
-      }
+  const mentions = useMentions();
+  const mentionsEnabled = mentions !== null;
+  // The suggestion plugin is built once with the editor, so it reads the
+  // host's current search through this ref.
+  const mentionsRef = useRef(mentions);
+  useEffect(() => {
+    mentionsRef.current = mentions;
+  }, [mentions]);
+  const [mentionPicker, setMentionPicker] = useState<MentionPickerState | null>(null);
+  const mentionKeyHandlerRef = useRef<MentionPickerKeyHandler>(() => false);
+
+  const editor = useEditor(
+    {
+      extensions: buildRichTextExtensions(
+        mentionsEnabled
+          ? {
+              search: async (query, signal) => (await mentionsRef.current?.searchUsers(query, { signal })) ?? [],
+              render: () => ({
+                onStart: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
+                onUpdate: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
+                onExit: () => setMentionPicker(null),
+                onKeyDown: ({ event }) => mentionKeyHandlerRef.current(event)
+              })
+            }
+          : undefined
+      ),
+      enableInputRules: RICH_TEXT_INPUT_RULE_ALLOWLIST,
+      content: richTextToProseMirror(block, resolveEmoji) as never,
+      editorProps: {
+        attributes: {
+          class:
+            'bk-rich-editor min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-ring [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:pl-5 [&_li]:my-0 [&_pre]:bg-muted [&_pre]:rounded [&_pre]:p-2 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground'
+        }
+      },
+      onUpdate: ({ editor: ed }) => handleUpdate(ed)
     },
-    onUpdate: ({ editor: ed }) => handleUpdate(ed)
-  });
+    // Rebuilt only when the picker is switched on or off; the search itself
+    // is read live through `mentionsRef`.
+    [mentionsEnabled]
+  );
 
   // Keep editor in sync if the parent swaps in a different block
   // (e.g. the user opens a different rich_text block in the popover).
@@ -211,8 +259,21 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
 
   return (
     <div className="flex flex-col gap-2">
-      <Toolbar editor={editor} />
+      <Toolbar
+        editor={editor}
+        mention={
+          mentionsEnabled ? { active: mentionPicker !== null, insert: () => insertMentionTrigger(editor) } : null
+        }
+      />
       <EditorContent editor={editor} />
+      {mentionPicker && (
+        <MentionPicker
+          editor={editor}
+          state={mentionPicker}
+          keyHandlerRef={mentionKeyHandlerRef}
+          onDismiss={() => dismissMentionSuggestion(editor)}
+        />
+      )}
     </div>
   );
 }
@@ -221,9 +282,10 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
  * Formatting toolbar for the WYSIWYG editor (marks, lists, blocks, undo/redo).
  * @param props - toolbar props
  * @param props.editor - the TipTap editor instance to drive
+ * @param props.mention - the `@` picker's button state and action, or null when mentions are off
  * @returns the rendered toolbar
  */
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, mention }: { editor: Editor; mention: { active: boolean; insert: () => void } | null }) {
   return (
     <div className="flex flex-wrap items-center gap-0.5 rounded-md border bg-muted/30 p-1">
       <ToolbarButton
@@ -271,6 +333,7 @@ function Toolbar({ editor }: { editor: Editor }) {
             .run()
         }
       />
+      {mention && <ToolbarButton label="Mention" active={mention.active} onClick={mention.insert} Icon={AtSign} />}
       <Divider />
       <ToolbarButton
         label="Bullet list"

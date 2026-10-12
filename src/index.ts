@@ -50,6 +50,8 @@ export type {
   LoadMessageInput,
   LoadResult,
   MarkdownBlock,
+  MentionsConfig,
+  MentionUser,
   PaletteMode,
   PieChart,
   PieChartSegment,
