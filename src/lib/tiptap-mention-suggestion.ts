@@ -11,6 +11,8 @@ export type MentionSuggestionRender = NonNullable<SuggestionOptions<MentionUser,
 
 /** Options for {@link MentionSuggestion}. */
 export interface MentionSuggestionOptions {
+  /** Whether `@` opens the picker; read on every keystroke, so it can change without a new editor. */
+  isEnabled: () => boolean;
   /** Runs the host's search; `signal` aborts once a newer query supersedes it. */
   search: (query: string, signal: AbortSignal) => Promise<MentionUser[]>;
   /** Bridges the suggestion lifecycle to the picker UI. */
@@ -77,18 +79,20 @@ export const MentionSuggestion = Extension.create<MentionSuggestionOptions>({
 
   addOptions() {
     return {
+      isEnabled: () => false,
       search: async () => [],
       render: () => ({})
     };
   },
 
   addProseMirrorPlugins() {
-    const { search, render } = this.options;
+    const { isEnabled, search, render } = this.options;
     return [
       Suggestion<MentionUser, MentionUser>({
         editor: this.editor,
         char: '@',
         debounce: MENTION_SEARCH_DEBOUNCE_MS,
+        allow: () => isEnabled(),
         items: ({ query, signal }) => search(query, signal),
         command: ({ editor, range, props }) => insertUserMention(editor, range, props),
         render

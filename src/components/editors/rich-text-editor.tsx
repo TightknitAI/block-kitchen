@@ -200,8 +200,8 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
 
   const mentions = useMentions();
   const mentionsEnabled = mentions !== null;
-  // The suggestion plugin is built once with the editor, so it reads the
-  // host's current search through this ref.
+  // The suggestion plugin is built once with the editor, so it reads whether
+  // mentions are on, and the host's current search, through this ref.
   const mentionsRef = useRef(mentions);
   useEffect(() => {
     mentionsRef.current = mentions;
@@ -209,40 +209,40 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
   const [mentionPicker, setMentionPicker] = useState<MentionPickerState | null>(null);
   const mentionKeyHandlerRef = useRef<MentionPickerKeyHandler>(() => false);
 
-  const editor = useEditor(
-    {
-      extensions: buildRichTextExtensions(
-        mentionsEnabled
-          ? {
-              search: async (query, signal) => (await mentionsRef.current?.searchUsers(query, { signal })) ?? [],
-              render: () => ({
-                onStart: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
-                onUpdate: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
-                onExit: () => setMentionPicker(null),
-                onKeyDown: ({ event }) => mentionKeyHandlerRef.current(event)
-              })
-            }
-          : undefined
-      ),
-      enableInputRules: RICH_TEXT_INPUT_RULE_ALLOWLIST,
-      content: richTextToProseMirror(block, resolveEmoji) as never,
-      editorProps: {
-        attributes: {
-          class:
-            'bk-rich-editor min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-ring [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:pl-5 [&_li]:my-0 [&_pre]:bg-muted [&_pre]:rounded [&_pre]:p-2 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground'
-        }
-      },
-      onUpdate: ({ editor: ed }) => handleUpdate(ed)
+  const editor = useEditor({
+    extensions: buildRichTextExtensions({
+      isEnabled: () => mentionsRef.current !== null,
+      search: async (query, signal) => (await mentionsRef.current?.searchUsers(query, { signal })) ?? [],
+      render: () => ({
+        onStart: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
+        onUpdate: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
+        onExit: () => setMentionPicker(null),
+        onKeyDown: ({ event }) => mentionKeyHandlerRef.current(event)
+      })
+    }),
+    enableInputRules: RICH_TEXT_INPUT_RULE_ALLOWLIST,
+    content: richTextToProseMirror(block, resolveEmoji) as never,
+    editorProps: {
+      attributes: {
+        class:
+          'bk-rich-editor min-h-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus-visible:ring-1 focus-visible:ring-ring [&_p]:my-1 [&_ul]:my-1 [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:my-1 [&_ol]:pl-5 [&_li]:my-0 [&_pre]:bg-muted [&_pre]:rounded [&_pre]:p-2 [&_code]:rounded [&_code]:bg-muted [&_code]:px-1 [&_blockquote]:border-l-2 [&_blockquote]:border-border [&_blockquote]:pl-3 [&_blockquote]:text-muted-foreground'
+      }
     },
-    // Rebuilt only when the picker is switched on or off; the search itself
-    // is read live through `mentionsRef`.
-    [mentionsEnabled]
-  );
+    onUpdate: ({ editor: ed }) => handleUpdate(ed)
+  });
 
   // Keep editor in sync if the parent swaps in a different block
   // (e.g. the user opens a different rich_text block in the popover).
+  const seenBlockRef = useRef(block);
   useEffect(() => {
     if (!editor) {
+      return;
+    }
+    const blockChanged = seenBlockRef.current !== block;
+    seenBlockRef.current = block;
+    // Only the emoji resolver changed. Once the user has edited, `block` here
+    // can predate their latest edit, so re-seeding from it would undo it.
+    if (!blockChanged && lastEmittedRef.current) {
       return;
     }
     if (lastEmittedRef.current && JSON.stringify(lastEmittedRef.current) === JSON.stringify(block)) {

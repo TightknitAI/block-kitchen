@@ -196,6 +196,29 @@ describe('RichTextEditor @ mentions', () => {
     expect(screen.getByText('@U0UNKNOWN')).toBeTruthy();
   });
 
+  it('turns the picker on when the host passes mentions after mount, on the same editor', async () => {
+    const searchUsers = vi.fn().mockResolvedValue([ADA]);
+    const onChange = vi.fn();
+    const { container, rerender } = render(
+      <MentionsProvider>
+        <RichTextEditor block={block()} onChange={onChange} />
+      </MentionsProvider>
+    );
+    const editor = await getEditor(container);
+    expect(screen.queryByLabelText('Mention')).toBeNull();
+
+    rerender(
+      <MentionsProvider mentions={{ searchUsers }}>
+        <RichTextEditor block={block()} onChange={onChange} />
+      </MentionsProvider>
+    );
+
+    expect(await getEditor(container)).toBe(editor);
+    expect(screen.getByLabelText('Mention')).toBeTruthy();
+    typeInto(editor, '@');
+    await findInPicker('Ada Lovelace');
+  });
+
   it('round-trips existing mentions without a picker when the host passes no mentions config', async () => {
     const { onChange, editor } = await renderEditor(block({ type: 'user', user_id: 'U0ADA' }));
 
