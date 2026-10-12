@@ -60,6 +60,7 @@
     "@tiptap/extension-link": "^3.30.5",
     "@tiptap/react": "^3.30.5",
     "@tiptap/starter-kit": "^3.30.5",
+    "@tiptap/suggestion": "^3.30.5",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "emoji-datasource": "^16.0.0",
@@ -131,9 +132,19 @@
   "pnpm": {
     "//esbuild": "Pin esbuild >=0.28.1 to clear GHSA-gv7w-rqvm-qjhr (high; missing binary integrity verification in Deno). esbuild is a transitive devDependency only and is not shipped to consumers, but `pnpm audit --audit-level=high` in CI fails on it. vite already asks for ^0.28.1 on its own; tsup still asks for ^0.27.0, so this override is what keeps it patched. Remove once tsup resolves a fixed esbuild on its own.",
     "//undici": "Pin undici ^7.29.0 to clear GHSA-vmh5-mc38-953g, GHSA-vxpw-j846-p89q, GHSA-hm92-r4w5-c3mj (high) plus GHSA-jr45-8vmc-qm54 and GHSA-v3r7-h72x-cjcm (moderate). undici is a transitive devDependency only (jsdom, used by the unit tests) and is not shipped to consumers, but `pnpm audit` in CI fails on it. Remove this override once jsdom pulls a fixed undici on its own.",
+    "//prosemirror-view": "Pin prosemirror-view ^1.42.3 to clear GHSA-c8x8-7fp4-3x9w (high; XSS via unvalidated clipboard slice context attributes on paste), fixed in 1.42.3. It reaches the editor through @tiptap/pm, whose range still admits the vulnerable versions, so this keeps the lockfile on a patched one. Consumers resolve their own copy: they need ^1.42.3 too. Remove once @tiptap/pm requires a fixed prosemirror-view.",
+    "//prosemirror-model": "Pin prosemirror-model ^1.25.12 alongside it: the patched prosemirror-view requires ^1.25.12 while @tiptap/pm was locked to 1.25.11, and two prosemirror-model copies in one bundle make list/quote commands throw (`Can not convert <> to a Fragment`). Keeps exactly one copy; remove with the prosemirror-view pin.",
     "overrides": {
       "esbuild": ">=0.28.1",
-      "undici": "^7.29.0"
+      "undici": "^7.29.0",
+      "prosemirror-view": "^1.42.3",
+      "prosemirror-model": "^1.25.12"
+    },
+    "//auditConfig": "GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, high; stack-exhaustion DoS on deeply nested patterns) has no patched release. braces is a build-time-only transitive dependency (@tailwindcss/cli > @parcel/watcher > micromatch > braces), runs only on the repo's own glob patterns, and is not shipped to consumers. Drop the ignore once a fixed braces ships or @parcel/watcher stops depending on it.",
+    "auditConfig": {
+      "ignoreGhsas": [
+        "GHSA-vfj7-8cjw-p6xm"
+      ]
     },
     "//ignoredBuiltDependencies": "None of these need their install scripts: esbuild and @parcel/watcher ship prebuilt platform packages, and lefthook's bin is a JS shim that resolves the binary at run time. Listing them here just silences pnpm's approve-builds prompt.",
     "ignoredBuiltDependencies": [

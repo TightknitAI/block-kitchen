@@ -63,6 +63,43 @@ export const WithStarterBlocks: Story = {
   }
 };
 
+const PEOPLE = [
+  { id: 'U0ADA', name: 'Ada Lovelace' },
+  { id: 'U0GRACE', name: 'Grace Hopper' },
+  { id: 'U0KATHERINE', name: 'Katherine Johnson' }
+];
+
+// Click the rich text block, then type `@` (or use the toolbar's Mention
+// button) to search these people.
+export const WithMentions: Story = {
+  args: {
+    initialBlocks: [
+      {
+        type: 'rich_text',
+        elements: [
+          {
+            type: 'rich_text_section',
+            elements: [
+              { type: 'text', text: 'Thanks ' },
+              { type: 'user', user_id: 'U0ADA' },
+              { type: 'text', text: ' for the release notes!' }
+            ]
+          }
+        ]
+      }
+    ],
+    mentions: {
+      searchUsers: fn(async (query: string) =>
+        PEOPLE.filter((person) => person.name.toLowerCase().includes(query.toLowerCase()))
+      ),
+      getUserName: (userId: string) => PEOPLE.find((person) => person.id === userId)?.name
+    },
+    previewHooks: {
+      user: ({ id }: { id: string }) => <span>@{PEOPLE.find((person) => person.id === id)?.name ?? id}</span>
+    }
+  }
+};
+
 export const MessageSurfaceLocked: Story = {
   args: {
     initialBlocks: STARTER_BLOCKS,

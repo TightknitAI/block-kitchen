@@ -24,6 +24,7 @@ import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/she
 import { TooltipProvider } from '../lib/ui/tooltip';
 import { useIsMobile } from '../lib/use-is-mobile';
 import { CustomEmojiProvider } from '../state/custom-emoji-context';
+import { MentionsProvider } from '../state/mentions-context';
 import { useBlockKitValidation } from '../state/use-block-kit-validation';
 import { type MoveTarget, useBlockKitchenState } from '../state/use-block-kitchen-state';
 import { useDevWarning } from '../state/use-dev-warning';
@@ -91,6 +92,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
     onValidationChange,
     previewHooks,
     customEmojis,
+    mentions,
     loadChannels,
     loadSendAsUserStatus,
     onSend,
@@ -635,26 +637,29 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     )}
                   </button>
                 </div>
-                <Surface
-                  blocks={blocks}
-                  workspaceName={workspaceName}
-                  // When a message is loaded for editing, show its author in
-                  // the preview header instead of the generic workspace name.
-                  authorName={activeEditTarget?.username}
-                  authorIcon={activeEditTarget?.iconUrl}
-                  previewHooks={mergedPreviewHooks}
-                  previewTheme={previewTheme}
-                  previewSurface={previewSurface}
-                  errorsByBlockId={validation.byBlockId}
-                  openBlockId={openBlockId}
-                  onOpenBlockChange={setOpenBlockId}
-                  onUpdate={updateBlock}
-                  onDuplicate={duplicateBlock}
-                  onDelete={removeBlock}
-                  onReorder={reorderBlock}
-                  isPaletteDrag={activePaletteVariant !== null}
-                  onOpenPalette={() => setPaletteOpen(true)}
-                />
+                {/* Every rich text editor renders inside the surface's block rows. */}
+                <MentionsProvider mentions={mentions}>
+                  <Surface
+                    blocks={blocks}
+                    workspaceName={workspaceName}
+                    // When a message is loaded for editing, show its author in
+                    // the preview header instead of the generic workspace name.
+                    authorName={activeEditTarget?.username}
+                    authorIcon={activeEditTarget?.iconUrl}
+                    previewHooks={mergedPreviewHooks}
+                    previewTheme={previewTheme}
+                    previewSurface={previewSurface}
+                    errorsByBlockId={validation.byBlockId}
+                    openBlockId={openBlockId}
+                    onOpenBlockChange={setOpenBlockId}
+                    onUpdate={updateBlock}
+                    onDuplicate={duplicateBlock}
+                    onDelete={removeBlock}
+                    onReorder={reorderBlock}
+                    isPaletteDrag={activePaletteVariant !== null}
+                    onOpenPalette={() => setPaletteOpen(true)}
+                  />
+                </MentionsProvider>
               </div>
             </div>
             <DragOverlay dropAnimation={null}>
