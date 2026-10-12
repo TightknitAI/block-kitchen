@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.10.19](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.18...block-kitchen-v0.10.19) (2026-10-12)
+
+
+### Features
+
+* @ mention picker in the rich text editor ([bbe9974](https://github.com/TightknitAI/block-kitchen/commit/bbe99749f0c0edb33ea6c8281c787e38b6da7829))
+* @ mention picker in the rich text editor ([00b3d5d](https://github.com/TightknitAI/block-kitchen/commit/00b3d5da122a327f5149750f9270c66b4e30c543))
+
+
+### Bug Fixes
+
+* **deps:** pin prosemirror-view 1.42.3+ and unblock the pnpm audit ([87cd840](https://github.com/TightknitAI/block-kitchen/commit/87cd840f83d8fd104d6a9a855e29bf0db3ff3add))
+* **editors:** flag anything but plain text in a code block ([acf10be](https://github.com/TightknitAI/block-kitchen/commit/acf10be7ca2741a0d0b7e1ee5ee5a06ee105640c))
+* **editors:** keep edits made while the emoji dataset loads ([ef2b58c](https://github.com/TightknitAI/block-kitchen/commit/ef2b58c6d213a6157a0fe4e173c48498b237ed90))
+* **editors:** keep links and emoji in rich text code blocks ([72e93fc](https://github.com/TightknitAI/block-kitchen/commit/72e93fc4681504d0461e15204889c2ebe4ce4ab6))
+* **editors:** keep links and emoji in rich text code blocks ([2f8560f](https://github.com/TightknitAI/block-kitchen/commit/2f8560f1502f8eaa48239de093b7c1083d3d4257))
+* **preview:** render with the host's latest previewHooks ([322d8ba](https://github.com/TightknitAI/block-kitchen/commit/322d8ba2dba82985f090f4447a60332d733d9034))
+
 ## [0.10.18](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.17...block-kitchen-v0.10.18) (2026-10-11)
 
 
