@@ -1,6 +1,6 @@
 import 'slack-blocks-to-jsx/dist/style.css';
 
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Block } from 'slack-blocks-to-jsx';
 import { Message } from 'slack-blocks-to-jsx';
 import { sanitizeBlock } from '../../lib/sanitize-blocks';
@@ -17,6 +17,32 @@ import type { PreviewHooks, PreviewTheme, SupportedBlock } from '../../types';
 const EMBED_SELECTOR = 'iframe[src], embed[src], object[data], source[src], video[src], audio[src], track[src]';
 
 /**
+ * `slack-blocks-to-jsx` copies `hooks` into state when `<Message>` mounts and
+ * never reads the prop again, so hooks the host changes later (a mention's
+ * name resolved after the first paint) would never reach the preview. Hands it
+ * one stable object that reads through to the latest hooks on every render.
+ * @param hooks - the host's current hooks
+ * @returns a stable stand-in for them
+ */
+function useLatestHooks(hooks: PreviewHooks | undefined): PreviewHooks {
+  const latest = useRef(hooks);
+  // Set during render, not in an effect: `<Message>` reads the hooks while
+  // rendering below, before any effect of this render runs.
+  latest.current = hooks;
+  const [live] = useState(
+    () =>
+      new Proxy<PreviewHooks>(
+        {},
+        {
+          get: (_target, key) => (typeof key === 'string' ? latest.current?.[key] : undefined),
+          has: (_target, key) => typeof key === 'string' && latest.current !== undefined && key in latest.current
+        }
+      )
+  );
+  return live;
+}
+
+/**
  * Renders a Slack block via the `slack-blocks-to-jsx` library's `<Message>`
  * component. We render exactly one block at a time so each row in the
  * surface owns its drag and edit affordances; the wrapper-less mode keeps
@@ -25,8 +51,9 @@ const EMBED_SELECTOR = 'iframe[src], embed[src], object[data], source[src], vide
  * The library handles: section, header, divider, context, actions, image,
  * rich_text, file, video, and most mrkdwn / rich-text formatting.
  *
- * `previewHooks` is forwarded as-is so the consumer can resolve user /
- * channel / emoji / link directives to its own UI when desired.
+ * `previewHooks` reach the library live (see {@link useLatestHooks}) so the
+ * consumer can resolve user / channel / emoji / link directives to its own
+ * UI, including names it only learns after the first paint.
  * @param props - preview props
  * @param props.block - the single block to render
  * @param props.hooks - optional directive replacement hooks
@@ -43,6 +70,7 @@ export function SlackBlockPreview({
   theme?: PreviewTheme;
 }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const liveHooks = useLatestHooks(hooks);
 
   // Strip dangerous URI schemes (`javascript:`, `data:text/html`, etc.)
   // from every `url`/`image_url` field in the block before handing it
@@ -126,7 +154,7 @@ export function SlackBlockPreview({
         withoutWrapper
         theme={theme}
         blocks={[safeBlock as unknown as Block]}
-        hooks={hooks as Record<string, unknown> | undefined}
+        hooks={liveHooks}
       />
     </div>
   );
