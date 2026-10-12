@@ -81,6 +81,18 @@ export function detectLossy(block: RichTextBlock): LossyReason[] {
     if ('border' in el && (el.border ?? 0) > 0) {
       out.push({ label: 'Quote/preformatted border', where });
     }
+    if (el.type === 'rich_text_preformatted') {
+      // A code block holds plain text only, so anything else in it can't come back.
+      el.elements?.forEach((inline, i) => {
+        const sub = `${where}.elements[${i}]`;
+        if (inline.type !== 'text') {
+          out.push({ label: `In code block: ${inline.type}`, where: sub });
+        } else if (Object.values(inline.style ?? {}).some(Boolean)) {
+          out.push({ label: 'Styled text in code block', where: sub });
+        }
+      });
+      return;
+    }
     scanInlines(el.elements ?? [], where, out);
   });
   return out;
