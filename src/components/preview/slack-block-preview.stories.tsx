@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
+import { expect, userEvent, within } from 'storybook/test';
 import type { SupportedBlock } from '../../types';
 import { SlackBlockPreview } from './slack-block-preview';
 
@@ -318,6 +319,46 @@ export const Table: Story = {
         ]
       ]
     })
+  }
+};
+
+export const DataTable: Story = {
+  args: {
+    block: block({
+      type: 'data_table',
+      caption: 'Open deals',
+      page_size: 2,
+      rows: [
+        [
+          { type: 'raw_text', text: 'Deal' },
+          { type: 'raw_text', text: 'Amount' }
+        ],
+        [
+          { type: 'raw_text', text: 'Acme Expansion' },
+          { type: 'raw_number', value: 1200000, text: '$1.2M' }
+        ],
+        [
+          { type: 'raw_text', text: 'Partner Portal' },
+          { type: 'raw_number', value: 98000, text: '$98K' }
+        ],
+        [
+          { type: 'raw_text', text: 'Weather Integration' },
+          { type: 'raw_number', value: 450000, text: '$450K' }
+        ]
+      ]
+    })
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const table = await canvas.findByRole('table', { name: 'Open deals' });
+    const bodyRows = () => within(table).getAllByRole('row').slice(1);
+
+    await expect(bodyRows()).toHaveLength(2);
+    await userEvent.click(canvas.getByRole('button', { name: 'Next page' }));
+    await expect(within(table).getByText('Weather Integration')).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: /amount/i }));
+    await expect(bodyRows()[0]).toHaveTextContent('Partner Portal');
   }
 };
 

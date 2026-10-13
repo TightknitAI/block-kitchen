@@ -7,7 +7,7 @@ import { expect, fn, userEvent, within } from 'storybook/test';
 import { buildVariantById, defaultPalette, extraAlertVariant, legacyInputVariants } from '../../lib/default-blocks';
 import { toSlackBlocks } from '../../lib/to-slack-blocks';
 import { TooltipProvider } from '../../lib/ui/tooltip';
-import type { SupportedBlock } from '../../types';
+import type { DataTableBlock, SupportedBlock } from '../../types';
 import { BlockEditor } from './block-editor';
 
 /**
@@ -181,6 +181,81 @@ export const RichText: Story = {
 
 export const Table: Story = {
   args: { block: variant('table_simple') }
+};
+
+/**
+ * Keeps the edited block in local state. `updateArgs` merges arrays
+ * element-wise, so a removed row, or a key dropped from a cell, would
+ * come back; data table edits do both.
+ */
+function LocalStateRender(args: { block: SupportedBlock; onChange?: (next: SupportedBlock) => void }) {
+  const [block, setBlock] = useState<SupportedBlock>(args.block);
+  return (
+    <BlockEditor
+      block={block}
+      onChange={(next) => {
+        args.onChange?.(next);
+        setBlock(next);
+      }}
+    />
+  );
+}
+
+export const DataTable: Story = {
+  args: { block: variant('data_table_basic') },
+  render: LocalStateRender
+};
+
+// Cell types the palette preset leaves out: raw_number (with and without
+// display text) and a read-only action_cell, plus page size and a
+// non-default row header column.
+export const DataTableNumbersAndButtons: Story = {
+  args: {
+    block: {
+      type: 'data_table',
+      caption: 'Open deals',
+      page_size: 10,
+      row_header_column_index: 1,
+      rows: [
+        [
+          { type: 'raw_text', text: 'Stage' },
+          { type: 'raw_text', text: 'Deal' },
+          { type: 'raw_text', text: 'Value' },
+          { type: 'raw_text', text: 'Action' }
+        ],
+        [
+          { type: 'raw_text', text: 'Negotiation' },
+          { type: 'raw_text', text: 'Acme expansion' },
+          { type: 'raw_number', value: 1200000, text: '$1.2M' },
+          {
+            type: 'action_cell',
+            element: {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Open' },
+              action_id: 'open_deal',
+              value: 'deal_1'
+            },
+            fallback: { type: 'raw_text', text: 'Open' }
+          }
+        ],
+        [
+          { type: 'raw_text', text: 'Qualification' },
+          { type: 'raw_text', text: 'Nimbus integration' },
+          { type: 'raw_number', value: 85000 },
+          {
+            type: 'action_cell',
+            element: {
+              type: 'button',
+              text: { type: 'plain_text', text: 'Open' },
+              action_id: 'open_deal',
+              value: 'deal_2'
+            }
+          }
+        ]
+      ]
+    }
+  },
+  render: LocalStateRender
 };
 
 export const Alert: Story = {
@@ -451,6 +526,46 @@ export const SwitchingImageSourceProducesValidBlock: Story = {
     expect(latest.type).toBe('image');
     expect(latest).not.toHaveProperty('slack_file');
     expect(latest).toHaveProperty('image_url', 'https://example.com/chart.png');
+  }
+};
+
+// A text cell flips to a number cell, keeping its text as the display
+// value until it's cleared, and the result validates.
+export const TogglingDataTableCellToNumberProducesValidBlock: Story = {
+  args: { block: variant('data_table_basic') },
+  render: LocalStateRender,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole('button', { name: 'Row 2, column 2 as number' }));
+    const value = await canvas.findByLabelText('Row 2, column 2 value');
+    await userEvent.clear(value);
+    await userEvent.type(value, '42');
+    await userEvent.clear(await canvas.findByLabelText('Row 2, column 2 display text'));
+    const latest = expectLastOnChangeIsValid(args.onChange as ReturnType<typeof fn>);
+    expect(latest.type).toBe('data_table');
+    expect((latest as DataTableBlock).rows[1][1]).toEqual({ type: 'raw_number', value: 42 });
+  }
+};
+
+// The header row has no remove button; a new row is filled in and the
+// table still validates.
+export const AddingDataTableRowProducesValidBlock: Story = {
+  args: { block: variant('data_table_basic') },
+  render: LocalStateRender,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    expect(canvas.queryByRole('button', { name: 'Remove row 1' })).not.toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole('button', { name: /add row/i }));
+    for (const [col, text] of ['Macrodata', 'MDR', 'Blue'].entries()) {
+      await userEvent.type(await canvas.findByLabelText(`Row 5, column ${col + 1}`), text);
+    }
+    const latest = expectLastOnChangeIsValid(args.onChange as ReturnType<typeof fn>) as DataTableBlock;
+    expect(latest.rows).toHaveLength(5);
+    expect(latest.rows[4]).toEqual([
+      { type: 'raw_text', text: 'Macrodata' },
+      { type: 'raw_text', text: 'MDR' },
+      { type: 'raw_text', text: 'Blue' }
+    ]);
   }
 };
 

@@ -1,5 +1,4 @@
 import { Plus, Trash2 } from 'lucide-react';
-import { useEffect, useState } from 'react';
 import { Button } from '../../lib/ui/button';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
@@ -14,6 +13,7 @@ import type {
   PieChartSegment
 } from '../../types';
 import { EditorField } from './field';
+import { NumberInput } from './number-input';
 import type { BlockEditorProps } from './types';
 
 const CHART_TYPES: readonly ChartType[] = ['line', 'bar', 'area', 'pie'] as const;
@@ -103,60 +103,6 @@ export function DataVisualizationEditor({ block, onChange }: BlockEditorProps<Da
         <PieFields chart={chart} onChange={setChart} />
       )}
     </div>
-  );
-}
-
-/**
- * Numeric input that keeps a local string draft so partial values like a
- * lone "-" type cleanly. Commits a parsed number on every valid keystroke
- * and normalizes (empty / invalid → 0) on blur. Resyncs when the model
- * value changes from outside (e.g. a chart-type switch or row reindex).
- */
-function NumberInput({
-  id,
-  value,
-  onCommit,
-  ariaLabel,
-  className
-}: {
-  id?: string;
-  value: number;
-  onCommit: (next: number) => void;
-  ariaLabel?: string;
-  className?: string;
-}) {
-  const [draft, setDraft] = useState(String(value));
-  useEffect(() => {
-    setDraft(String(value));
-  }, [value]);
-
-  return (
-    <Input
-      id={id}
-      type="number"
-      inputMode="numeric"
-      aria-label={ariaLabel}
-      value={draft}
-      className={className}
-      onChange={(e) => {
-        const raw = e.target.value;
-        setDraft(raw);
-        // Skip intermediate states that don't parse to a number yet.
-        if (raw === '' || raw === '-' || raw === '.' || raw === '-.') {
-          return;
-        }
-        const next = Number(raw);
-        if (!Number.isNaN(next)) {
-          onCommit(next);
-        }
-      }}
-      onBlur={() => {
-        const next = Number(draft);
-        const safe = draft.trim() === '' || Number.isNaN(next) ? 0 : next;
-        onCommit(safe);
-        setDraft(String(safe));
-      }}
-    />
   );
 }
 
