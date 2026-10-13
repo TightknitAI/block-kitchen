@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.10.20](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.19...block-kitchen-v0.10.20) (2026-10-13)
+
+
+### Features
+
+* add the Slack data_table block ([77e2189](https://github.com/TightknitAI/block-kitchen/commit/77e2189498ee9cd4c5be648ed3ec08fb5bb1c6bf))
+* add the Slack data_table block ([ad59f1f](https://github.com/TightknitAI/block-kitchen/commit/ad59f1ffed53ba16423d2fe7e1f23fdd181a9861))
+* render data_table previews with slack-blocks-to-jsx 1.2.0 ([310bc3f](https://github.com/TightknitAI/block-kitchen/commit/310bc3febec44bef6d2e20087edcc7d1eac3f128))
+* validate data_table action cells with slack-block-kit-validator 0.1.19 ([0141743](https://github.com/TightknitAI/block-kitchen/commit/0141743e6500c4f54e6f5ee6d97f1661cdd775d8))
+
 ## [0.10.19](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.18...block-kitchen-v0.10.19) (2026-10-12)
 
 
