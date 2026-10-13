@@ -1015,8 +1015,7 @@ export const defaultPalette: readonly PaletteSection[] = [
         })
       },
       {
-        // Slack's documented example. No action_cell column: validator
-        // 0.1.18 rejects action cells.
+        // Slack's documented example.
         id: 'data_table_basic',
         label: 'Data table',
         factory: () => ({

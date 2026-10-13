@@ -236,4 +236,11 @@ describe('data_table payloads validate', () => {
 
     expect(validateBlockKit(toSlackBlocks([block]), { target: 'blocks', surface }).errors).toEqual([]);
   });
+
+  it.each(['message', 'home'] as const)('accepts action cells across 200 data rows on %s', (surface) => {
+    const rows = Array.from({ length: 200 }, (_, i) => [text(`Task ${i}`), ACTION]);
+    const block = table({ rows: [[text('Task'), text('Action')], ...rows] });
+
+    expect(validateBlockKit(toSlackBlocks([block]), { target: 'blocks', surface }).errors).toEqual([]);
+  });
 });
