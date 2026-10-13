@@ -65,7 +65,7 @@
     "clsx": "^2.1.1",
     "emoji-datasource": "^16.0.0",
     "nanoid": "^6.0.1",
-    "slack-blocks-to-jsx": "^1.1.2",
+    "slack-blocks-to-jsx": "^1.2.0",
     "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {

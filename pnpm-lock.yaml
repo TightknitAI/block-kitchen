@@ -51,8 +51,8 @@ importers:
         specifier: ^6.0.1
         version: 6.0.1
       slack-blocks-to-jsx:
-        specifier: ^1.1.2
-        version: 1.1.2(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
+        specifier: ^1.2.0
+        version: 1.2.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       tailwind-merge:
         specifier: ^3.6.0
         version: 3.6.0
@@ -3290,8 +3290,8 @@ packages:
   react-is@17.0.2:
     resolution: {integrity: sha512-w2GsyukL62IJnlaff/nRegPQR94C/XXamvMWmSHRJ4y7Ts/4ocGRmTHvOs8PSE6pB3dWOrD/nueuU5sduBsQ4w==}
 
-  react-markdown@9.1.0:
-    resolution: {integrity: sha512-xaijuJB0kzGiUdG7nc2MOMDUDBWPyGAjZtUrow9XxUeua8IqeP+VlIfAZ3bphpcLTnSZXz6z9jcVC/TCwbfgdw==}
+  react-markdown@10.1.0:
+    resolution: {integrity: sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==}
     peerDependencies:
       '@types/react': '>=18'
       react: '>=18'
@@ -3411,8 +3411,8 @@ packages:
     resolution: {integrity: sha512-kUMbT1oBJCpgrnKoSr0o6wPtvRWT9W9UKvGLwfJYO2WuahZRHOpEyL1ckyMGgMWh0UdpmaoFqKKD29WTomNEGA==}
     engines: {node: '>=8'}
 
-  slack-blocks-to-jsx@1.1.2:
-    resolution: {integrity: sha512-q6A/kPiLb7bWPAhBi2Av2N4owDpb79IqebnUxO0ydY25/4LOJoidoYG2d0Uo6MmVOOf17RzH/yKmItVuuQK1Hg==}
+  slack-blocks-to-jsx@1.2.0:
+    resolution: {integrity: sha512-JJ3Eq+B7Nq3f9SntnlpQspgV/Dr1z7QXTb9rqCbEbGnrsMRgt2p8z2zGA6j4igjRUD8jttpOlhpZPIIVVoQvkA==}
     peerDependencies:
       react: ^17 || ^18 || ^19
       react-dom: ^17 || ^18 || ^19
@@ -6790,7 +6790,7 @@ snapshots:
 
   react-is@17.0.2: {}
 
-  react-markdown@9.1.0(@types/react@19.3.0)(react@19.3.0):
+  react-markdown@10.1.0(@types/react@19.3.0)(react@19.3.0):
     dependencies:
       '@types/hast': 3.0.5
       '@types/mdast': 4.0.4
@@ -6976,12 +6976,12 @@ snapshots:
     dependencies:
       unicode-emoji-modifier-base: 1.0.0
 
-  slack-blocks-to-jsx@1.1.2(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
+  slack-blocks-to-jsx@1.2.0(@types/react@19.3.0)(react-dom@19.3.0(react@19.3.0))(react@19.3.0):
     dependencies:
       node-emoji: 2.2.0
       react: 19.3.0
       react-dom: 19.3.0(react@19.3.0)
-      react-markdown: 9.1.0(@types/react@19.3.0)(react@19.3.0)
+      react-markdown: 10.1.0(@types/react@19.3.0)(react@19.3.0)
       remark-gfm: 4.0.1
     transitivePeerDependencies:
       - '@types/react'
