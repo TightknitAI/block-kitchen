@@ -31,7 +31,8 @@ const BLOCK_TYPE_LABELS: Record<SupportedBlockType, string> = {
   plan: 'Plan',
   task_card: 'Task Card',
   data_visualization: 'Data Visualization',
-  container: 'Container'
+  container: 'Container',
+  data_table: 'Data Table'
 };
 
 /**

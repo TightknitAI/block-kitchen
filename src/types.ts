@@ -36,7 +36,8 @@ export type SupportedBlockType =
   | 'plan'
   | 'task_card'
   | 'data_visualization'
-  | 'container';
+  | 'container'
+  | 'data_table';
 
 /**
  * Slack `markdown` block payload. Renders standard markdown (GFM)
@@ -51,11 +52,19 @@ export interface MarkdownBlock {
 }
 
 /**
+ * A plain-text cell in a {@link TableBlock} or {@link DataTableBlock} row.
+ */
+export interface TableRawTextCell {
+  type: 'raw_text';
+  text: string;
+}
+
+/**
  * One cell in a {@link TableBlock} row. Slack accepts either a raw text
  * cell or a rich-text cell; the visual editor only emits raw text in v1
  * but preserves rich-text cells on edit.
  */
-export type TableCell = { type: 'raw_text'; text: string } | { type: 'rich_text'; elements: unknown[] };
+export type TableCell = TableRawTextCell | { type: 'rich_text'; elements: unknown[] };
 
 /**
  * Per-column setting in a {@link TableBlock}. May be null to skip a
@@ -74,6 +83,53 @@ export interface TableBlock {
   type: 'table';
   rows: TableCell[][];
   column_settings?: TableColumnSetting[];
+  block_id?: string;
+}
+
+/**
+ * A numeric cell in a {@link DataTableBlock} row. A column whose cells are
+ * all `raw_number` sorts numerically. `text`, when set, is shown in place
+ * of `value` (e.g. `"$1.2M"`).
+ */
+export interface DataTableRawNumberCell {
+  type: 'raw_number';
+  value: number;
+  text?: string;
+}
+
+/**
+ * A button cell in a {@link DataTableBlock} row. Clicking it sends a
+ * `block_actions` payload; set the button's `value` to tell rows apart.
+ * `fallback` shows instead on clients that don't support action cells.
+ */
+export interface DataTableActionCell {
+  type: 'action_cell';
+  element: SlackButton;
+  fallback?: TableRawTextCell | DataTableRawNumberCell;
+}
+
+/**
+ * One cell in a {@link DataTableBlock} row. `rich_text` is not allowed in
+ * the header (first) row.
+ */
+export type DataTableCell = TableCell | DataTableRawNumberCell | DataTableActionCell;
+
+/**
+ * Slack `data_table` block payload. A paginated, sortable table: the first
+ * row is the header, followed by 1-200 data rows of 1-20 cells each, all
+ * the same length. Valid on message and App Home surfaces.
+ * `slack-web-api-client` doesn't ship this type yet, so we declare it.
+ * @see https://docs.slack.dev/reference/block-kit/blocks/data-table-block
+ */
+export interface DataTableBlock {
+  type: 'data_table';
+  /** Required. Rendered as the table's HTML caption. */
+  caption: string;
+  rows: DataTableCell[][];
+  /** Rows per page, 1-100. Slack defaults to 5. */
+  page_size?: number;
+  /** 0-based index of the column that identifies each row. Slack defaults to 0. */
+  row_header_column_index?: number;
   block_id?: string;
 }
 
@@ -451,7 +507,8 @@ export type SupportedBlock =
   | PlanBlock
   | TaskCardBlock
   | DataVisualizationBlock
-  | ContainerBlock;
+  | ContainerBlock
+  | DataTableBlock;
 
 /**
  * A block as represented inside the builder's working state.

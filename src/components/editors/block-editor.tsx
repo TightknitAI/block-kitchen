@@ -14,6 +14,7 @@ import type {
   CarouselBlock,
   ContainerBlock,
   ContextActionsBlock,
+  DataTableBlock,
   DataVisualizationBlock,
   InputBlock,
   MarkdownBlock,
@@ -31,6 +32,7 @@ import { CarouselEditor } from './carousel-editor';
 import { ContainerEditor } from './container-editor';
 import { ContextActionsEditor } from './context-actions-editor';
 import { ContextEditor } from './context-editor';
+import { DataTableEditor } from './data-table-editor';
 import { DataVisualizationEditor } from './data-visualization-editor';
 import { DividerEditor } from './divider-editor';
 import { AdvancedIdField } from './field';
@@ -151,6 +153,8 @@ function dispatch(block: SupportedBlock, onChange: (next: SupportedBlock) => voi
       return <DataVisualizationEditor block={block as DataVisualizationBlock} onChange={(next) => onChange(next)} />;
     case 'container':
       return <ContainerEditor block={block as ContainerBlock} onChange={(next) => onChange(next)} />;
+    case 'data_table':
+      return <DataTableEditor block={block as DataTableBlock} onChange={(next) => onChange(next)} />;
     default:
       return null;
   }
