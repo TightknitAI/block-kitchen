@@ -125,7 +125,8 @@ describe('DataTableEditor columns and rows', () => {
     expect((screen.getByRole('button', { name: 'Remove row 2' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('allows up to 200 data rows under the header', () => {
+  // Renders two ~200-row grids, which takes several seconds on CI runners.
+  it('allows up to 200 data rows under the header', { timeout: 20_000 }, () => {
     const rows = (count: number) => Array.from({ length: count }, (_, i) => [text(`Row ${i}`)]);
 
     const { unmount } = render(<BlockEditor block={table({ rows: rows(200) })} onChange={vi.fn()} />);
