@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.21](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.20...block-kitchen-v0.10.21) (2026-10-15)
+
+
+### Features
+
+* add channel mentions to rich text editor ([98012e3](https://github.com/TightknitAI/block-kitchen/commit/98012e3192d30cdd92381126512cadc8b25a4c97))
+* add channel mentions to rich text editor ([89320e7](https://github.com/TightknitAI/block-kitchen/commit/89320e712a4193e5e4d0bee3b1b6ee1bc8342906))
+
 ## [0.10.20](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.19...block-kitchen-v0.10.20) (2026-10-13)
 
 
