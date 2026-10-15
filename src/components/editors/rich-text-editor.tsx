@@ -6,6 +6,7 @@ import {
   Bold,
   Code,
   Code2,
+  Hash,
   Italic,
   Link as LinkIcon,
   List,
@@ -28,6 +29,13 @@ import {
   proseMirrorToRichText,
   richTextToProseMirror
 } from '../../lib/rich-text-tiptap';
+import { ChannelMentionNode } from '../../lib/tiptap-channel-mention-node';
+import {
+  ChannelSuggestion,
+  type ChannelSuggestionOptions,
+  dismissChannelSuggestion,
+  insertChannelTrigger
+} from '../../lib/tiptap-channel-suggestion';
 import { EmojiNode } from '../../lib/tiptap-emoji-node';
 import {
   dismissMentionSuggestion,
@@ -43,6 +51,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '../../lib/ui/popover';
 import { hasExplicitSafeScheme, isSafeHref } from '../../lib/url-safety';
 import { useCustomEmojis } from '../../state/custom-emoji-context';
 import { useMentions } from '../../state/mentions-context';
+import type { MentionChannel } from '../../types';
 import { EmojiPickerButton } from '../emoji/emoji-picker-button';
 import {
   MentionPicker,
@@ -56,7 +65,7 @@ import type { BlockEditorProps } from './types';
 /**
  * WYSIWYG editor for rich_text blocks, backed by TipTap. Falls back to
  * the structured editor when the block uses features the WYSIWYG can't
- * round-trip (channel mentions, broadcasts, list indent, etc.). The user
+ * round-trip (broadcasts, unsupported mention styles, list indent, etc.). The user
  * can also opt into the structured editor via a "More options" toggle.
  * @param props - editor props
  * @param props.block - the rich_text block to edit
@@ -116,9 +125,13 @@ export const RICH_TEXT_INPUT_RULE_ALLOWLIST = ['bold', 'italic', 'strike', 'code
  * a standalone factory (returning fresh instances per call) so the exact
  * production configuration can be exercised in tests.
  * @param mentionSuggestion - the `@` picker's search and UI bridge; omit for no picker
+ * @param channelSuggestion - the `#` picker's search and UI bridge; omit for no picker
  * @returns the configured TipTap extensions
  */
-export function buildRichTextExtensions(mentionSuggestion?: MentionSuggestionOptions) {
+export function buildRichTextExtensions(
+  mentionSuggestion?: MentionSuggestionOptions,
+  channelSuggestion?: ChannelSuggestionOptions
+) {
   return [
     StarterKit.configure({
       heading: false,
@@ -152,10 +165,11 @@ export function buildRichTextExtensions(mentionSuggestion?: MentionSuggestionOpt
       shouldAutoLink: hasExplicitSafeScheme,
       HTMLAttributes: { rel: 'noreferrer noopener', target: '_blank' }
     }),
-    // Always registered, so mentions already in the content round-trip with
-    // or without the picker.
+    // Always registered, so mentions already in the content round-trip with or without pickers.
     UserMentionNode,
-    ...(mentionSuggestion ? [MentionSuggestion.configure(mentionSuggestion)] : [])
+    ChannelMentionNode,
+    ...(mentionSuggestion ? [MentionSuggestion.configure(mentionSuggestion)] : []),
+    ...(channelSuggestion ? [ChannelSuggestion.configure(channelSuggestion)] : [])
   ];
 }
 
@@ -199,7 +213,8 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
   );
 
   const mentions = useMentions();
-  const mentionsEnabled = mentions !== null;
+  const userMentionsEnabled = mentions !== null;
+  const channelMentionsEnabled = mentions?.searchChannels !== undefined;
   // The suggestion plugin is built once with the editor, so it reads whether
   // mentions are on, and the host's current search, through this ref.
   const mentionsRef = useRef(mentions);
@@ -208,18 +223,32 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
   }, [mentions]);
   const [mentionPicker, setMentionPicker] = useState<MentionPickerState | null>(null);
   const mentionKeyHandlerRef = useRef<MentionPickerKeyHandler>(() => false);
+  const [channelPicker, setChannelPicker] = useState<MentionPickerState<MentionChannel> | null>(null);
+  const channelKeyHandlerRef = useRef<MentionPickerKeyHandler>(() => false);
 
   const editor = useEditor({
-    extensions: buildRichTextExtensions({
-      isEnabled: () => mentionsRef.current !== null,
-      search: async (query, signal) => (await mentionsRef.current?.searchUsers(query, { signal })) ?? [],
-      render: () => ({
-        onStart: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
-        onUpdate: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
-        onExit: () => setMentionPicker(null),
-        onKeyDown: ({ event }) => mentionKeyHandlerRef.current(event)
-      })
-    }),
+    extensions: buildRichTextExtensions(
+      {
+        isEnabled: () => mentionsRef.current !== null,
+        search: async (query, signal) => (await mentionsRef.current?.searchUsers(query, { signal })) ?? [],
+        render: () => ({
+          onStart: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
+          onUpdate: (props) => setMentionPicker((prev) => nextMentionPickerState(props, prev)),
+          onExit: () => setMentionPicker(null),
+          onKeyDown: ({ event }) => mentionKeyHandlerRef.current(event)
+        })
+      },
+      {
+        isEnabled: () => mentionsRef.current?.searchChannels !== undefined,
+        search: async (query, signal) => (await mentionsRef.current?.searchChannels?.(query, { signal })) ?? [],
+        render: () => ({
+          onStart: (props) => setChannelPicker((prev) => nextMentionPickerState(props, prev)),
+          onUpdate: (props) => setChannelPicker((prev) => nextMentionPickerState(props, prev)),
+          onExit: () => setChannelPicker(null),
+          onKeyDown: ({ event }) => channelKeyHandlerRef.current(event)
+        })
+      }
+    ),
     enableInputRules: RICH_TEXT_INPUT_RULE_ALLOWLIST,
     content: richTextToProseMirror(block, resolveEmoji) as never,
     editorProps: {
@@ -262,16 +291,29 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
       <Toolbar
         editor={editor}
         mention={
-          mentionsEnabled ? { active: mentionPicker !== null, insert: () => insertMentionTrigger(editor) } : null
+          userMentionsEnabled ? { active: mentionPicker !== null, insert: () => insertMentionTrigger(editor) } : null
+        }
+        channel={
+          channelMentionsEnabled ? { active: channelPicker !== null, insert: () => insertChannelTrigger(editor) } : null
         }
       />
       <EditorContent editor={editor} />
       {mentionPicker && (
         <MentionPicker
           editor={editor}
+          kind="user"
           state={mentionPicker}
           keyHandlerRef={mentionKeyHandlerRef}
           onDismiss={() => dismissMentionSuggestion(editor)}
+        />
+      )}
+      {channelPicker && (
+        <MentionPicker
+          editor={editor}
+          kind="channel"
+          state={channelPicker}
+          keyHandlerRef={channelKeyHandlerRef}
+          onDismiss={() => dismissChannelSuggestion(editor)}
         />
       )}
     </div>
@@ -282,10 +324,19 @@ function RichTextWysiwygEditor({ block, onChange }: { block: RichTextBlock; onCh
  * Formatting toolbar for the WYSIWYG editor (marks, lists, blocks, undo/redo).
  * @param props - toolbar props
  * @param props.editor - the TipTap editor instance to drive
- * @param props.mention - the `@` picker's button state and action, or null when mentions are off
+ * @param props.mention - the `@` picker's button state and action
+ * @param props.channel - the `#` picker's button state and action
  * @returns the rendered toolbar
  */
-function Toolbar({ editor, mention }: { editor: Editor; mention: { active: boolean; insert: () => void } | null }) {
+function Toolbar({
+  editor,
+  mention,
+  channel
+}: {
+  editor: Editor;
+  mention: { active: boolean; insert: () => void } | null;
+  channel: { active: boolean; insert: () => void } | null;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-0.5 rounded-md border bg-muted/30 p-1">
       <ToolbarButton
@@ -334,6 +385,7 @@ function Toolbar({ editor, mention }: { editor: Editor; mention: { active: boole
         }
       />
       {mention && <ToolbarButton label="Mention" active={mention.active} onClick={mention.insert} Icon={AtSign} />}
+      {channel && <ToolbarButton label="Channel" active={channel.active} onClick={channel.insert} Icon={Hash} />}
       <Divider />
       <ToolbarButton
         label="Bullet list"

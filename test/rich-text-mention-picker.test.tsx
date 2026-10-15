@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest';
 import { BlockKitchen } from '../src/components/block-kitchen';
 import { RichTextEditor } from '../src/components/editors/rich-text-editor';
 import { MentionsProvider } from '../src/state/mentions-context';
-import type { MentionsConfig, MentionUser, SupportedBlock } from '../src/types';
+import type { MentionChannel, MentionsConfig, MentionUser, SupportedBlock } from '../src/types';
 
 // ProseMirror measures the caret through Range rects when focus() scrolls the
 // selection into view; jsdom implements neither.
@@ -17,6 +17,8 @@ beforeAll(() => {
 
 const ADA: MentionUser = { id: 'U0ADA', name: 'Ada Lovelace', avatarUrl: 'https://avatars.test/ada.png' };
 const GRACE: MentionUser = { id: 'U0GRACE', name: 'Grace Hopper' };
+const GENERAL: MentionChannel = { id: 'C0GENERAL', name: 'general' };
+const RELEASES: MentionChannel = { id: 'C0RELEASES', name: 'releases' };
 
 const block = (...inline: unknown[]): RichTextBlock =>
   ({
@@ -235,20 +237,181 @@ describe('RichTextEditor @ mentions', () => {
   });
 });
 
+describe('RichTextEditor # channel mentions', () => {
+  it('runs the @ and # extensions together and emits exact Slack elements for both picks', async () => {
+    const searchUsers = vi.fn().mockResolvedValue([ADA]);
+    const searchChannels = vi.fn().mockResolvedValue([GENERAL, RELEASES]);
+    const { onChange, editor } = await renderEditor(block(), { searchUsers, searchChannels });
+
+    typeInto(editor, '@ad');
+    await findInPicker('Ada Lovelace');
+    fireEvent.click(screen.getByText('Ada Lovelace'));
+
+    typeInto(editor, '#rel');
+    await findInPicker('#releases');
+    expect(searchChannels).toHaveBeenLastCalledWith('rel', { signal: expect.any(AbortSignal) });
+    fireEvent.click(screen.getByText('#releases'));
+
+    expect(lastElements(onChange)).toEqual([
+      { type: 'user', user_id: 'U0ADA' },
+      { type: 'text', text: ' ' },
+      { type: 'channel', channel_id: 'C0RELEASES' },
+      { type: 'text', text: ' ' }
+    ]);
+    expect(editor.getText()).toBe('@Ada Lovelace #releases ');
+  });
+
+  it('opens the channel picker from the toolbar button', async () => {
+    const searchUsers = vi.fn().mockResolvedValue([]);
+    const searchChannels = vi.fn().mockResolvedValue([GENERAL]);
+    const { onChange, editor } = await renderEditor(block({ type: 'text', text: 'Post in' }), {
+      searchUsers,
+      searchChannels
+    });
+
+    fireEvent.click(screen.getByLabelText('Channel'));
+
+    await findInPicker('#general');
+    expect(searchChannels).toHaveBeenLastCalledWith('', { signal: expect.any(AbortSignal) });
+    expect(editor.getText()).toBe('Post in #');
+    fireEvent.click(screen.getByText('#general'));
+    expect(lastElements(onChange)).toEqual([
+      { type: 'text', text: 'Post in ' },
+      { type: 'channel', channel_id: 'C0GENERAL' },
+      { type: 'text', text: ' ' }
+    ]);
+  });
+
+  it('shows the channel loading state until the host search resolves', async () => {
+    let resolveSearch: ((channels: MentionChannel[]) => void) | undefined;
+    const searchChannels = vi.fn(
+      () =>
+        new Promise<MentionChannel[]>((resolve) => {
+          resolveSearch = resolve;
+        })
+    );
+    const { editor } = await renderEditor(block(), {
+      searchUsers: vi.fn().mockResolvedValue([]),
+      searchChannels
+    });
+
+    typeInto(editor, '#');
+    await findInPicker('Searching…');
+    await waitFor(() => expect(searchChannels).toHaveBeenCalledTimes(1));
+    await act(async () => resolveSearch?.([GENERAL]));
+    await findInPicker('#general');
+  });
+
+  it('preserves keyboard selection and Escape behavior', async () => {
+    const searchUsers = vi.fn().mockResolvedValue([]);
+    const searchChannels = vi.fn().mockResolvedValue([GENERAL, RELEASES]);
+    const onHostKeyDown = vi.fn();
+    const { onChange, editor } = await renderEditor(block(), { searchUsers, searchChannels }, onHostKeyDown);
+
+    typeInto(editor, '#');
+    await findInPicker('#general');
+    expect(editor.view.dom.getAttribute('role')).toBe('combobox');
+    expect(editor.view.dom.getAttribute('aria-expanded')).toBe('true');
+    expect(editor.view.dom.getAttribute('aria-controls')).toBe(pickerList()?.id);
+    expect(editor.view.dom.getAttribute('aria-activedescendant')).toBe(
+      document.querySelector('[role="option"][aria-selected="true"]')?.id
+    );
+    pressKey(editor, 'ArrowDown');
+    expect(editor.view.dom.getAttribute('aria-activedescendant')).toBe(
+      document.querySelector('[role="option"][aria-selected="true"]')?.id
+    );
+    pressKey(editor, 'Enter');
+    expect(lastElements(onChange)).toEqual([
+      { type: 'channel', channel_id: 'C0RELEASES' },
+      { type: 'text', text: ' ' }
+    ]);
+
+    typeInto(editor, '#gen');
+    await findInPicker('#general');
+    onHostKeyDown.mockClear();
+    pressKey(editor, 'Escape');
+    await waitFor(() => expect(pickerList()).toBeNull());
+    expect(onHostKeyDown).not.toHaveBeenCalled();
+    expect(editor.view.dom.getAttribute('role')).toBeNull();
+  });
+
+  it('labels channels through the host lookup, falling back to the raw id', async () => {
+    const getChannelName = (channelId: string) => (channelId === 'C0GENERAL' ? 'general' : undefined);
+    await renderEditor(
+      block(
+        { type: 'channel', channel_id: 'C0GENERAL' },
+        { type: 'text', text: ' ' },
+        { type: 'channel', channel_id: 'C0UNKNOWN' }
+      ),
+      {
+        searchUsers: vi.fn().mockResolvedValue([]),
+        searchChannels: vi.fn().mockResolvedValue([]),
+        getChannelName
+      }
+    );
+
+    expect(screen.getByText('#general')).toBeTruthy();
+    expect(screen.getByText('#C0UNKNOWN')).toBeTruthy();
+  });
+
+  it('does not open inside a word', async () => {
+    const searchChannels = vi.fn().mockResolvedValue([GENERAL]);
+    const { editor } = await renderEditor(block(), {
+      searchUsers: vi.fn().mockResolvedValue([]),
+      searchChannels
+    });
+
+    typeInto(editor, 'release#general');
+
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(pickerList()).toBeNull();
+    expect(searchChannels).not.toHaveBeenCalled();
+  });
+
+  it('round-trips existing channels without a picker when the host passes no config', async () => {
+    const { onChange, editor } = await renderEditor(block({ type: 'channel', channel_id: 'C0GENERAL' }));
+
+    expect(screen.queryByLabelText('Channel')).toBeNull();
+    expect(screen.getByText('#C0GENERAL')).toBeTruthy();
+
+    typeInto(editor, ' #gen');
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(pickerList()).toBeNull();
+    expect(lastElements(onChange)).toEqual([
+      { type: 'channel', channel_id: 'C0GENERAL' },
+      { type: 'text', text: ' #gen' }
+    ]);
+  });
+});
+
 describe('BlockKitchen mentions prop', () => {
-  const richText = [block({ type: 'text', text: 'Hi ' }, { type: 'user', user_id: 'U0ADA' })] as SupportedBlock[];
+  const richText = [
+    block(
+      { type: 'text', text: 'Hi ' },
+      { type: 'user', user_id: 'U0ADA' },
+      { type: 'text', text: ' in ' },
+      { type: 'channel', channel_id: 'C0GENERAL' }
+    )
+  ] as SupportedBlock[];
 
   it('reaches the rich text editor', async () => {
     render(
       <BlockKitchen
         initialBlocks={richText}
-        mentions={{ searchUsers: vi.fn().mockResolvedValue([]), getUserName: () => 'Ada Lovelace' }}
+        mentions={{
+          searchUsers: vi.fn().mockResolvedValue([]),
+          getUserName: () => 'Ada Lovelace',
+          searchChannels: vi.fn().mockResolvedValue([]),
+          getChannelName: () => 'general'
+        }}
       />
     );
     fireEvent.click(screen.getAllByLabelText('Edit block')[0]);
 
     await screen.findByLabelText('Mention');
+    expect(screen.getByLabelText('Channel')).toBeTruthy();
     expect(screen.getByText('@Ada Lovelace')).toBeTruthy();
+    expect(screen.getByText('#general')).toBeTruthy();
   });
 
   it('leaves the picker off without it', async () => {
@@ -257,5 +420,7 @@ describe('BlockKitchen mentions prop', () => {
 
     await screen.findByText('@U0ADA');
     expect(screen.queryByLabelText('Mention')).toBeNull();
+    expect(screen.queryByLabelText('Channel')).toBeNull();
+    expect(screen.getByText('#C0GENERAL')).toBeTruthy();
   });
 });

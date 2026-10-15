@@ -1,17 +1,24 @@
 import type { Editor } from '@tiptap/react';
 import type { SuggestionProps } from '@tiptap/suggestion';
-import { type RefObject, useEffect, useMemo, useRef, useState } from 'react';
+import { Hash } from 'lucide-react';
+import { type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
 import { cn } from '../../lib/cn';
 import { Popover, PopoverAnchor, PopoverContent } from '../../lib/ui/popover';
 import { isSafeImageSrc } from '../../lib/url-safety';
 import type { MentionUser } from '../../types';
 
-/** What the open `@` picker shows, mirrored from the suggestion plugin. */
-export interface MentionPickerState {
-  items: MentionUser[];
+interface MentionPickerItem {
+  id: string;
+  name: string;
+  avatarUrl?: string | null;
+}
+
+/** What an open mention picker shows, mirrored from its suggestion plugin. */
+export interface MentionPickerState<T extends MentionPickerItem = MentionUser> {
+  items: T[];
   loading: boolean;
   clientRect: (() => DOMRect | null) | null;
-  command: (user: MentionUser) => void;
+  command: (item: T) => void;
 }
 
 /**
@@ -28,10 +35,10 @@ export type MentionPickerKeyHandler = (event: KeyboardEvent) => boolean;
  * @param prev - the picker state being replaced, if open
  * @returns the next picker state
  */
-export function nextMentionPickerState(
-  props: SuggestionProps<MentionUser, MentionUser>,
-  prev: MentionPickerState | null
-): MentionPickerState {
+export function nextMentionPickerState<T extends MentionPickerItem>(
+  props: SuggestionProps<T, T>,
+  prev: MentionPickerState<T> | null
+): MentionPickerState<T> {
   return {
     items: props.loading && prev ? prev.items : props.items,
     loading: props.loading,
@@ -41,7 +48,7 @@ export function nextMentionPickerState(
 }
 
 /**
- * The `@` picker's result list, anchored at the typed `@`. Focus stays in the
+ * A mention picker's result list, anchored at its typed trigger. Focus stays in the
  * editor throughout: the suggestion plugin forwards Arrow/Enter/Tab through
  * `keyHandlerRef`, and Escape or a click elsewhere dismisses it.
  * @param props - picker props
@@ -51,14 +58,16 @@ export function nextMentionPickerState(
  * @param props.onDismiss - closes the picker without inserting anything
  * @returns the rendered picker
  */
-export function MentionPicker({
+export function MentionPicker<T extends MentionPickerItem>({
   editor,
+  kind,
   state,
   keyHandlerRef,
   onDismiss
 }: {
   editor: Editor;
-  state: MentionPickerState;
+  kind: 'user' | 'channel';
+  state: MentionPickerState<T>;
   keyHandlerRef: RefObject<MentionPickerKeyHandler>;
   onDismiss: () => void;
 }) {
@@ -70,6 +79,28 @@ export function MentionPicker({
     setActiveIndex(0);
   }
   const listRef = useRef<HTMLDivElement>(null);
+  const listboxId = useId();
+  const activeOptionId = items[activeIndex] ? `${listboxId}-${activeIndex}` : undefined;
+
+  useEffect(() => {
+    const root = editor.view.dom;
+    root.setAttribute('role', 'combobox');
+    root.setAttribute('aria-autocomplete', 'list');
+    root.setAttribute('aria-expanded', 'true');
+    root.setAttribute('aria-controls', listboxId);
+    if (activeOptionId) {
+      root.setAttribute('aria-activedescendant', activeOptionId);
+    } else {
+      root.removeAttribute('aria-activedescendant');
+    }
+    return () => {
+      root.removeAttribute('role');
+      root.removeAttribute('aria-autocomplete');
+      root.removeAttribute('aria-expanded');
+      root.removeAttribute('aria-controls');
+      root.removeAttribute('aria-activedescendant');
+    };
+  }, [activeOptionId, editor, listboxId]);
 
   useEffect(() => {
     keyHandlerRef.current = (event) => {
@@ -81,12 +112,12 @@ export function MentionPicker({
         return true;
       }
       if (event.key === 'Enter' || event.key === 'Tab') {
-        const user = items[activeIndex];
+        const item = items[activeIndex];
         // With nothing to pick, release the key so Enter still breaks the line.
-        if (!user) {
+        if (!item) {
           return false;
         }
-        command(user);
+        command(item);
         return true;
       }
       return false;
@@ -135,37 +166,49 @@ export function MentionPicker({
         // discards the whole edit on an Escape that reaches it.
         onEscapeKeyDown={(e) => e.stopPropagation()}
         // Clicks in the editor are the suggestion plugin's to judge: moving the
-        // caret out of the `@query` closes the picker, moving within it doesn't.
+        // caret out of the trigger query closes the picker, moving within it doesn't.
         onInteractOutside={(e) => {
           if (e.target instanceof Node && editor.view.dom.contains(e.target)) {
             e.preventDefault();
           }
         }}
       >
-        <div ref={listRef} role="listbox" aria-label="People to mention">
+        <div
+          ref={listRef}
+          id={listboxId}
+          role="listbox"
+          aria-label={kind === 'channel' ? 'Channels to mention' : 'People to mention'}
+        >
           {items.length === 0 ? (
             <p className="px-2 py-3 text-center text-xs text-muted-foreground">
-              {loading ? 'Searching…' : 'No people match that search.'}
+              {loading ? 'Searching…' : `No ${kind === 'channel' ? 'channels' : 'people'} match that search.`}
             </p>
           ) : (
-            items.map((user, index) => (
+            items.map((item, index) => (
               // biome-ignore lint/a11y/useFocusableInteractive: focus stays in the editor, which drives this list through the suggestion plugin's key handling.
               // biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard path is the editor's, forwarded via keyHandlerRef.
               <div
-                key={user.id}
+                key={item.id}
+                id={`${listboxId}-${index}`}
                 role="option"
                 aria-selected={index === activeIndex}
                 // Keep focus (and the caret) in the editor until the pick lands.
                 onPointerDown={(e) => e.preventDefault()}
-                onClick={() => command(user)}
+                onClick={() => command(item)}
                 onMouseMove={() => setActiveIndex(index)}
                 className={cn(
                   'flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-foreground',
                   index === activeIndex && 'bg-accent'
                 )}
               >
-                <MentionAvatar user={user} />
-                <span className="truncate">{user.name}</span>
+                {kind === 'channel' ? (
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+                    <Hash className="h-3.5 w-3.5" />
+                  </span>
+                ) : (
+                  <MentionAvatar user={item} />
+                )}
+                <span className="truncate">{kind === 'channel' ? `#${item.name}` : item.name}</span>
               </div>
             ))
           )}
@@ -182,7 +225,7 @@ export function MentionPicker({
  * @param props.user - the person the row offers
  * @returns the rendered avatar
  */
-function MentionAvatar({ user }: { user: MentionUser }) {
+function MentionAvatar({ user }: { user: MentionPickerItem }) {
   const [failed, setFailed] = useState(false);
   const src = user.avatarUrl && isSafeImageSrc(user.avatarUrl) ? user.avatarUrl : null;
   if (src && !failed) {

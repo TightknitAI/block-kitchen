@@ -54,6 +54,7 @@ export type {
   LoadMessageInput,
   LoadResult,
   MarkdownBlock,
+  MentionChannel,
   MentionsConfig,
   MentionUser,
   PaletteMode,

@@ -139,7 +139,7 @@ Given no height to work with — a plain `<div>` in ordinary document flow — i
 | `confirmUpdateLabel` | `string` | no | Label for the update dialog's final confirm button. Defaults to `'Update message'` (shows `'Updating…'` while in flight). |
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
 | `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
-| `mentions` | `{ searchUsers, getUserName? }` | no | Opt-in `@` mentions in the rich-text editor: typing `@` or the toolbar's Mention button opens a picker backed by `searchUsers(query, { signal })`, and a pick inserts a rich text `user` element. `getUserName(userId)` labels mentions in the editor. See [Mentions](#mentions-opt-in). |
+| `mentions` | `{ searchUsers, getUserName?, searchChannels?, getChannelName? }` | no | Opt-in rich-text mentions. `@` and the Mention button search users; when `searchChannels` is provided, `#` and the Channel button search channels. Picks serialize as Slack `user` / `channel` elements. See [Mentions](#mentions-opt-in). |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
 | `disabledBlockTypes` | `SupportedBlockType[]` | no | Block types to hide from the palette without rebuilding it. Filters at the variant level — a section keeps any variants whose block types aren't disabled; sections that end up empty are dropped. Convenient when you want the default palette minus a few types (e.g. `['image', 'table']` for a text-only builder). |
 | `paletteMode` | `'advanced' \| 'simple'` | no | How much of the palette the user meets first. `'advanced'` (default) renders the full sectioned palette with its search input. `'simple'` opens on a flat list of the variants flagged `basic` — in the built-in palette: **Header**, **Divider**, **Rich Text Section** and **Image** — with no search and an "Advanced" link at the top that swaps in the full palette. Nothing is removed; it's a smaller first screen. See [Simple vs advanced palette](#simple-vs-advanced-palette). |
@@ -608,8 +608,9 @@ import type {
   BlockKitchenSendProps,        // the send trio + `onUpdate` + `renderSendExtras`
   LoadingConfig,                // load an existing message (works in both modes)
   LoadedMessage,                // the loaded target: channel + ts + verdict
-  MentionsConfig,               // opt-in `@` mentions: host search + name lookup
+  MentionsConfig,               // opt-in `@` / `#` mentions: host search + name lookup
   MentionUser,                  // one person the `@` picker offers
+  MentionChannel,               // one channel the `#` picker offers
   BlockKitchenComposeOnlyProps, // the trio explicitly absent + `primaryAction`
   PaletteSection,
   PaletteVariant,
@@ -642,6 +643,8 @@ Pass [`customEmojis`](#props) to add your workspace's custom emoji: image entrie
 
 Pass `mentions` to let people `@`-mention someone in the rich-text WYSIWYG editor. Typing `@` (after a space or at the start of a line, so `name@domain` is left alone) or clicking the toolbar's **Mention** button opens a picker backed by your search. Picking someone inserts a rich text `user` element, `{ type: "user", user_id }`. The picker's name and avatar are never serialized.
 
+Add `searchChannels` to enable the matching `#` trigger and **Channel** toolbar button. Picking a channel inserts `{ type: "channel", channel_id }`; its display name is never serialized.
+
 ```tsx
 <BlockKitchen
   mentions={{
@@ -654,13 +657,19 @@ Pass `mentions` to let people `@`-mention someone in the rich-text WYSIWYG edito
     },
     // Optional: labels mentions in the editor by id, including ones that came
     // with the draft or a loaded message. Return undefined when unknown.
-    getUserName: (userId) => names.get(userId)
+    getUserName: (userId) => userNames.get(userId),
+    searchChannels: async (query, { signal }) => {
+      const res = await fetch(`/api/channels?q=${encodeURIComponent(query)}`, { signal });
+      const channels = await res.json();
+      return channels.map((channel) => ({ id: channel.id, name: channel.name }));
+    },
+    getChannelName: (channelId) => channelNames.get(channelId)
   }}
   {...rest}
 />
 ```
 
-Mentions already in a draft round-trip through the WYSIWYG with or without `mentions`; without `getUserName` they show the picked name or the raw id. The builder never looks people up itself. To show names in the Slack preview too, resolve the ids in [`previewHooks.user`](#props).
+User and channel mentions already in a draft round-trip through the WYSIWYG with or without picker configuration. Labels resolve through `getUserName` / `getChannelName`, then the name captured when picked, then the raw id. The builder never looks users or channels up itself. To show names in the Slack preview too, resolve the ids in [`previewHooks`](#props).
 
 ## Validation
 
