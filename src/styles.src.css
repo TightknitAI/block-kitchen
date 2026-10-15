@@ -221,18 +221,21 @@
   color: #1d9bd1;
 }
 
-/* TipTap rich text editor: a user mention reads like Slack's own chip. */
-.bk-rich-editor .bk-user-mention {
+/* TipTap rich text editor: mentions read like Slack's own chips. */
+.bk-rich-editor .bk-user-mention,
+.bk-rich-editor .bk-channel-mention {
   border-radius: 3px;
   padding: 0 2px;
   background-color: rgb(29 155 209 / 0.1);
   color: #1264a3;
 }
-.dark .bk-rich-editor .bk-user-mention {
+.dark .bk-rich-editor .bk-user-mention,
+.dark .bk-rich-editor .bk-channel-mention {
   background-color: rgb(29 155 209 / 0.18);
   color: #1d9bd1;
 }
-.bk-rich-editor .bk-user-mention.ProseMirror-selectednode {
+.bk-rich-editor .bk-user-mention.ProseMirror-selectednode,
+.bk-rich-editor .bk-channel-mention.ProseMirror-selectednode {
   outline: 2px solid rgb(29 155 209 / 0.5);
 }
 

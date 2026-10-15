@@ -90,3 +90,93 @@ describe('rich-text-tiptap user mentions', () => {
     expect(proseMirrorToRichText(doc)).toEqual(blockWith());
   });
 });
+
+describe('rich-text-tiptap channel mentions', () => {
+  it('edits a block with a channel mention in the WYSIWYG', () => {
+    const block = blockWith({ type: 'text', text: 'See ' }, { type: 'channel', channel_id: 'C0GENERAL' });
+    expect(detectLossy(block)).toEqual([]);
+  });
+
+  it('keeps bold/italic/strike/underline channel mentions in the WYSIWYG', () => {
+    const block = blockWith({
+      type: 'channel',
+      channel_id: 'C0GENERAL',
+      style: { bold: true, italic: true, strike: true, underline: true }
+    });
+    expect(detectLossy(block)).toEqual([]);
+  });
+
+  it('falls back to the structured editor for unsupported channel styles', () => {
+    const block = blockWith({ type: 'channel', channel_id: 'C0GENERAL', style: { highlight: true } });
+    expect(detectLossy(block)).toEqual([{ label: 'Channel style: highlight', where: 'elements[0].elements[0]' }]);
+  });
+
+  it('falls back to the structured editor rather than dropping a channel without an id', () => {
+    const block = blockWith({ type: 'channel', channel_id: '' });
+    expect(detectLossy(block)).toEqual([{ label: 'Channel without id', where: 'elements[0].elements[0]' }]);
+  });
+
+  it('falls back to the structured editor for a channel inside a code block', () => {
+    const block = {
+      type: 'rich_text',
+      elements: [
+        {
+          type: 'rich_text_preformatted',
+          elements: [
+            { type: 'text', text: 'post in ' },
+            { type: 'channel', channel_id: 'C0GENERAL' }
+          ]
+        }
+      ]
+    } as RichTextBlock;
+    expect(detectLossy(block)).toEqual([{ label: 'In code block: channel', where: 'elements[0].elements[1]' }]);
+  });
+
+  it('round-trips channel mentions, styles, and surrounding text', () => {
+    const block = blockWith(
+      { type: 'text', text: 'Post in ' },
+      {
+        type: 'channel',
+        channel_id: 'C0GENERAL',
+        style: { bold: true, italic: true, strike: true, underline: true }
+      },
+      { type: 'text', text: ' or ' },
+      { type: 'channel', channel_id: 'G0PRIVATE' }
+    );
+    expect(proseMirrorToRichText(richTextToProseMirror(block))).toEqual(block);
+  });
+
+  it('exports only the channel id, not the picked name', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [{ type: 'channelMention', attrs: { channelId: 'C0GENERAL', name: 'general' } }]
+        }
+      ]
+    };
+    expect(proseMirrorToRichText(doc)).toEqual(blockWith({ type: 'channel', channel_id: 'C0GENERAL' }));
+  });
+
+  it('drops a code mark from a channel mention', () => {
+    const doc = {
+      type: 'doc',
+      content: [
+        {
+          type: 'paragraph',
+          content: [
+            {
+              type: 'channelMention',
+              attrs: { channelId: 'C0GENERAL', name: null },
+              marks: [{ type: 'code' }, { type: 'strike' }]
+            }
+          ]
+        }
+      ]
+    };
+    expect(proseMirrorToRichText(doc)).toEqual(
+      blockWith({ type: 'channel', channel_id: 'C0GENERAL', style: { strike: true } })
+    );
+  });
+});

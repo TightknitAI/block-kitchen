@@ -1,3 +1,4 @@
+import { PluginKey } from '@tiptap/pm/state';
 import { type Editor, Extension, type Range } from '@tiptap/react';
 import { exitSuggestion, Suggestion, type SuggestionOptions } from '@tiptap/suggestion';
 import type { MentionUser } from '../types';
@@ -5,6 +6,9 @@ import { USER_MENTION_NODE } from './rich-text-tiptap';
 
 /** How long the `@` picker waits after a keystroke before searching. */
 export const MENTION_SEARCH_DEBOUNCE_MS = 200;
+
+/** ProseMirror key dedicated to the `@` suggestion plugin. */
+export const USER_MENTION_SUGGESTION_PLUGIN_KEY = new PluginKey('userMentionSuggestion');
 
 /** The render lifecycle `@tiptap/suggestion` drives the picker UI through. */
 export type MentionSuggestionRender = NonNullable<SuggestionOptions<MentionUser, MentionUser>['render']>;
@@ -47,6 +51,15 @@ export function insertUserMention(editor: Editor, range: Range, user: MentionUse
  * @param editor - the editor to insert into
  */
 export function insertMentionTrigger(editor: Editor) {
+  insertSuggestionTrigger(editor, '@');
+}
+
+/**
+ * Types a suggestion trigger at the cursor, separating it from preceding text.
+ * @param editor - the editor to insert into
+ * @param char - the trigger character
+ */
+export function insertSuggestionTrigger(editor: Editor, char: '@' | '#') {
   const { from } = editor.state.selection;
   // A leaf atom (emoji, mention) reads as a non-space too, so the trigger
   // after one still gets its separating space.
@@ -55,7 +68,7 @@ export function insertMentionTrigger(editor: Editor) {
   editor
     .chain()
     .focus()
-    .insertContent(needsSpace ? ' @' : '@')
+    .insertContent(needsSpace ? ` ${char}` : char)
     .run();
 }
 
@@ -65,7 +78,7 @@ export function insertMentionTrigger(editor: Editor) {
  * @param editor - the editor whose suggestion to close
  */
 export function dismissMentionSuggestion(editor: Editor) {
-  exitSuggestion(editor.view);
+  exitSuggestion(editor.view, USER_MENTION_SUGGESTION_PLUGIN_KEY);
 }
 
 /**
@@ -90,6 +103,7 @@ export const MentionSuggestion = Extension.create<MentionSuggestionOptions>({
     return [
       Suggestion<MentionUser, MentionUser>({
         editor: this.editor,
+        pluginKey: USER_MENTION_SUGGESTION_PLUGIN_KEY,
         char: '@',
         debounce: MENTION_SEARCH_DEBOUNCE_MS,
         allow: () => isEnabled(),

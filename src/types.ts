@@ -899,10 +899,20 @@ export interface MentionUser {
 }
 
 /**
- * Opt-in `@` mentions for the rich text editor, passed as
- * {@link BlockKitchenBaseProps.mentions}. Typing `@` (or the toolbar's
- * mention button) opens a picker backed by the host's search; picking someone
- * inserts a rich text `user` element (`{ type: 'user', user_id }`).
+ * A Slack channel the rich text editor's `#` picker offers, returned by
+ * {@link MentionsConfig.searchChannels}.
+ */
+export interface MentionChannel {
+  /** Slack channel id (`C…` / `G…`), written to the rich text `channel` element's `channel_id`. */
+  id: string;
+  /** Name shown in the picker row and on the inserted mention. */
+  name: string;
+}
+
+/**
+ * Opt-in `@` user and `#` channel mentions for the rich text editor, passed as
+ * {@link BlockKitchenBaseProps.mentions}. Each configured search powers its
+ * typed trigger and toolbar action.
  *
  * Like every other I/O concern, the search is brokered by the host: the
  * builder never looks people up itself.
@@ -921,6 +931,16 @@ export interface MentionsConfig {
    * from the search, then the raw id.
    */
   getUserName?: (userId: string) => string | undefined;
+  /**
+   * Optional. Searches the channels the picker offers. Called with the text
+   * typed after `#` and the same debounce/abort behavior as `searchUsers`.
+   */
+  searchChannels?: (query: string, options: { signal: AbortSignal }) => Promise<MentionChannel[]>;
+  /**
+   * Optional. Labels a channel mention in the editor by channel id. Return
+   * `undefined` to fall back to the picked name, then the raw id.
+   */
+  getChannelName?: (channelId: string) => string | undefined;
 }
 
 /**
@@ -1046,10 +1066,9 @@ export interface BlockKitchenBaseProps {
    */
   customEmojis?: CustomEmoji[];
   /**
-   * Opt-in `@` mentions in the rich text editor: an `@` trigger and a toolbar
-   * button that search people through the host. See {@link MentionsConfig}.
-   * Without it, mentions already in the draft still round-trip and display by
-   * raw id, but there is no picker.
+   * Opt-in `@` user and `#` channel mentions in the rich text editor. See
+   * {@link MentionsConfig}. Existing mentions still round-trip without picker
+   * configuration and display by raw id.
    */
   mentions?: MentionsConfig;
   /**

@@ -58,6 +58,7 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@tightknitai/slack-block-kit-validator": "^0.1.19",
     "@tiptap/extension-link": "^3.30.5",
+    "@tiptap/pm": "^3.30.5",
     "@tiptap/react": "^3.30.5",
     "@tiptap/starter-kit": "^3.30.5",
     "@tiptap/suggestion": "^3.30.5",

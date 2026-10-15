@@ -69,8 +69,14 @@ const PEOPLE = [
   { id: 'U0KATHERINE', name: 'Katherine Johnson' }
 ];
 
-// Click the rich text block, then type `@` (or use the toolbar's Mention
-// button) to search these people.
+const MENTION_CHANNELS = [
+  { id: 'C0GENERAL', name: 'general' },
+  { id: 'C0RELEASES', name: 'releases' },
+  { id: 'G0LEADS', name: 'team-leads' }
+];
+
+// Click the rich text block, then type `@` / `#` (or use the matching toolbar
+// button) to search these people and channels.
 export const WithMentions: Story = {
   args: {
     initialBlocks: [
@@ -82,7 +88,9 @@ export const WithMentions: Story = {
             elements: [
               { type: 'text', text: 'Thanks ' },
               { type: 'user', user_id: 'U0ADA' },
-              { type: 'text', text: ' for the release notes!' }
+              { type: 'text', text: ' for the release notes in ' },
+              { type: 'channel', channel_id: 'C0RELEASES' },
+              { type: 'text', text: '!' }
             ]
           }
         ]
@@ -92,10 +100,17 @@ export const WithMentions: Story = {
       searchUsers: fn(async (query: string) =>
         PEOPLE.filter((person) => person.name.toLowerCase().includes(query.toLowerCase()))
       ),
-      getUserName: (userId: string) => PEOPLE.find((person) => person.id === userId)?.name
+      getUserName: (userId: string) => PEOPLE.find((person) => person.id === userId)?.name,
+      searchChannels: fn(async (query: string) =>
+        MENTION_CHANNELS.filter((channel) => channel.name.toLowerCase().includes(query.toLowerCase()))
+      ),
+      getChannelName: (channelId: string) => MENTION_CHANNELS.find((channel) => channel.id === channelId)?.name
     },
     previewHooks: {
-      user: ({ id }: { id: string }) => <span>@{PEOPLE.find((person) => person.id === id)?.name ?? id}</span>
+      user: ({ id }: { id: string }) => <span>@{PEOPLE.find((person) => person.id === id)?.name ?? id}</span>,
+      channel: ({ id }: { id: string }) => (
+        <span>#{MENTION_CHANNELS.find((channel) => channel.id === id)?.name ?? id}</span>
+      )
     }
   }
 };

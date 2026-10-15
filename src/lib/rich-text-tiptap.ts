@@ -2,6 +2,7 @@ import type {
   AnyRichTextBlockElement,
   AnyRichTextSectionElement,
   RichTextBlock,
+  RichTextSectionChannel,
   RichTextSectionElementStyle,
   RichTextSectionElementStyleWithCode,
   RichTextSectionLink,
@@ -13,6 +14,9 @@ type RichStyle = RichTextSectionElementStyleWithCode;
 
 /** Name of the TipTap node backing a Slack rich text `user` element. */
 export const USER_MENTION_NODE = 'userMention';
+
+/** Name of the TipTap node backing a Slack rich text `channel` element. */
+export const CHANNEL_MENTION_NODE = 'channelMention';
 
 /**
  * Minimal ProseMirror node shape we read/write. Mirrors the JSON format
@@ -35,12 +39,12 @@ const SUPPORTED_BLOCK_KINDS = new Set([
   'rich_text_preformatted'
 ]);
 
-const SUPPORTED_INLINE_KINDS = new Set(['text', 'link', 'emoji', 'user']);
+const SUPPORTED_INLINE_KINDS = new Set(['text', 'link', 'emoji', 'user', 'channel']);
 
 const SUPPORTED_TEXT_STYLE_KEYS = new Set(['bold', 'italic', 'strike', 'underline', 'code']);
 
-/** Slack's `user` element takes every text style but `code`. */
-const SUPPORTED_USER_STYLE_KEYS = new Set(['bold', 'italic', 'strike', 'underline']);
+/** Slack mention elements take every text style but `code`. */
+const SUPPORTED_MENTION_STYLE_KEYS = new Set(['bold', 'italic', 'strike', 'underline']);
 
 /**
  * Slack's documented maximum value for `indent` on a rich_text_list.
@@ -51,8 +55,8 @@ const MAX_LIST_INDENT = 8;
 /**
  * Reasons a Slack rich_text payload can't round-trip cleanly through the
  * TipTap WYSIWYG (paragraphs, lists, blockquote, code block, emoji, user
- * mentions, plus bold/italic/strike/underline/code marks and links). Anything
- * else (channel mentions, broadcasts, list indent, etc.) ends up in this list so the UI
+ * and channel mentions, plus bold/italic/strike/underline/code marks and links). Anything
+ * else (broadcasts, list indent, etc.) ends up in this list so the UI
  * can offer the structured editor instead.
  */
 export interface LossyReason {
@@ -129,10 +133,13 @@ function scanInlines(inlines: AnyRichTextSectionElement[], where: string, out: L
         }
       }
     }
-    if (inline.type === 'user') {
+    if (inline.type === 'user' || inline.type === 'channel') {
+      if (inline.type === 'channel' && !inline.channel_id) {
+        out.push({ label: 'Channel without id', where: sub });
+      }
       for (const k of Object.keys(inline.style ?? {})) {
-        if (!SUPPORTED_USER_STYLE_KEYS.has(k)) {
-          out.push({ label: `Mention style: ${k}`, where: sub });
+        if (!SUPPORTED_MENTION_STYLE_KEYS.has(k)) {
+          out.push({ label: `${inline.type === 'channel' ? 'Channel' : 'Mention'} style: ${k}`, where: sub });
         }
       }
     }
@@ -353,6 +360,20 @@ function inlinesToPM(inlines: AnyRichTextSectionElement[], resolveEmoji: EmojiIm
         node.marks = marks;
       }
       out.push(node);
+    } else if (inline.type === 'channel') {
+      const channel = inline as RichTextSectionChannel;
+      if (!channel.channel_id) {
+        continue;
+      }
+      const node: PMNode = {
+        type: CHANNEL_MENTION_NODE,
+        attrs: { channelId: channel.channel_id, name: null }
+      };
+      const marks = styleToMarks(channel.style);
+      if (marks.length > 0) {
+        node.marks = marks;
+      }
+      out.push(node);
     } else if (inline.type === 'link') {
       const link = inline as RichTextSectionLink;
       const text = link.text || link.url || '';
@@ -543,11 +564,24 @@ function proseMirrorInlinesToRichTextElements(nodes: PMNode[]): AnyRichTextSecti
       }
       // Export keeps only Slack's fields; the picked `name` is render-only.
       const user: RichTextSectionUser = { type: 'user', user_id: userId };
-      const style = userStyle(node.marks ?? []);
+      const style = mentionStyle(node.marks ?? []);
       if (Object.keys(style).length > 0) {
         user.style = style;
       }
       out.push(user);
+      continue;
+    }
+    if (node.type === CHANNEL_MENTION_NODE) {
+      const channelId = String(node.attrs?.channelId ?? '');
+      if (!channelId) {
+        continue;
+      }
+      const channel: RichTextSectionChannel = { type: 'channel', channel_id: channelId };
+      const style = mentionStyle(node.marks ?? []);
+      if (Object.keys(style).length > 0) {
+        channel.style = style;
+      }
+      out.push(channel);
       continue;
     }
     if (node.type === 'hardBreak') {
@@ -620,15 +654,15 @@ function marksToStyle(marks: { type: string }[]): RichStyle {
 }
 
 /**
- * Converts the marks on a mention to Slack style flags, minus `code`, which a
- * `user` element doesn't take.
+ * Converts the marks on a mention to Slack style flags, minus `code`, which
+ * Slack mention elements don't take.
  * @param marks - the ProseMirror marks attached to the mention
  * @returns the mention's Slack style flags
  */
-function userStyle(marks: { type: string }[]): RichTextSectionElementStyle {
+function mentionStyle(marks: { type: string }[]): RichTextSectionElementStyle {
   const style: RichTextSectionElementStyle = {};
   for (const [key, value] of Object.entries(marksToStyle(marks))) {
-    if (SUPPORTED_USER_STYLE_KEYS.has(key)) {
+    if (SUPPORTED_MENTION_STYLE_KEYS.has(key)) {
       style[key as keyof RichTextSectionElementStyle] = value;
     }
   }
