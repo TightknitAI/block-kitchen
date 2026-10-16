@@ -110,11 +110,18 @@
 }
 
 /* Accessibility overrides for upstream slack-blocks-to-jsx markup.
-   All selectors are scoped under #slack_blocks_to_jsx so they apply only
-   inside the preview pane and don't leak into consumer styles.
+   Every preview override below is scoped to
+   `#slack_blocks_to_jsx:where(.styles_enabled)`, the root our previews
+   render. Hosts also render the library unstyled under the same id (Studio
+   does, for its own message bodies), and this stylesheet stays loaded for
+   the rest of an SPA session, so a bare `#slack_blocks_to_jsx` rule would
+   override the host's colors there. `:where()` keeps each rule's
+   specificity unchanged.
 
    - Inline code: upstream uses rgb(224 30 90) on a tinted bg, giving 4.31:1
-     contrast (fails WCAG AA's 4.5:1 for normal text). Darken the foreground.
+     contrast (fails WCAG AA's 4.5:1 for normal text). Darken the foreground,
+     in the light theme only: on the dark preview it would drop to 2.63:1,
+     while upstream's dark-theme code colors already pass.
    - Links: upstream only underlines on :hover, leaving color as the sole
      visual cue at rest. Add a permanent underline so links remain
      distinguishable per WCAG 1.4.1 ("Use of color"), with no reliance on
@@ -122,22 +129,30 @@
    - Filled-style buttons in dark mode: upstream applies the dark text
      token (rgb 209 210 211) on .bg-green-primary (primary) and
      .bg-red-primary (danger), yielding 3.52:1 and 3.19:1 respectively.
-     Force white so both hit 4.5:1+ in both themes. */
-#slack_blocks_to_jsx code.slack_code_inline,
-#slack_blocks_to_jsx pre code.text-red-primary {
+     Force white so both hit 4.5:1+ in both themes.
+   - User, channel and user-group mentions in dark mode: upstream's
+     rgb(29 155 209) on its own 20% tint reads 4.01:1. Lighten the text
+     (same hue) to 5.08:1. */
+#slack_blocks_to_jsx:where(.styles_enabled):not([data-theme="dark"]) code.slack_code_inline,
+#slack_blocks_to_jsx:where(.styles_enabled):not([data-theme="dark"]) pre code.text-red-primary,
+#slack_blocks_to_jsx:where(.styles_enabled):not([data-theme="dark"]) .slack_inline_code {
   color: #c4144b;
 }
 
-#slack_blocks_to_jsx a.text-blue-primary {
+#slack_blocks_to_jsx:where(.styles_enabled) a.text-blue-primary {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
-#slack_blocks_to_jsx .bg-green-primary,
-#slack_blocks_to_jsx .bg-green-primary *,
-#slack_blocks_to_jsx .bg-red-primary,
-#slack_blocks_to_jsx .bg-red-primary * {
+#slack_blocks_to_jsx:where(.styles_enabled) .bg-green-primary,
+#slack_blocks_to_jsx:where(.styles_enabled) .bg-green-primary *,
+#slack_blocks_to_jsx:where(.styles_enabled) .bg-red-primary,
+#slack_blocks_to_jsx:where(.styles_enabled) .bg-red-primary * {
   color: #ffffff;
+}
+
+#slack_blocks_to_jsx:where(.styles_enabled)[data-theme="dark"] :is(.slack_user, .slack_channel, .slack_user_group) {
+  color: #4aafda;
 }
 
 /* Chevron centering on select previews: upstream's stylesheet
@@ -149,7 +164,7 @@
    element-height above its input. Drop the legacy transform inside
    the preview namespace; the `translate` property already handles
    the offset. */
-#slack_blocks_to_jsx .-translate-y-1\/2 {
+#slack_blocks_to_jsx:where(.styles_enabled) .-translate-y-1\/2 {
   transform: none;
 }
 
@@ -160,9 +175,9 @@
    these out so the chrome hugs the visible block. The library's own
    `my-2` utility is scoped under `#slack_blocks_to_jsx` (ID specificity),
    so we match that ID here to win specificity. */
-#slack_blocks_to_jsx .slack_blocks_to_jsx__card:not(.slack_blocks_to_jsx__card--in_carousel),
-#slack_blocks_to_jsx .slack_blocks_to_jsx__image,
-#slack_blocks_to_jsx .slack_blocks_to_jsx__carousel {
+#slack_blocks_to_jsx:where(.styles_enabled) .slack_blocks_to_jsx__card:not(.slack_blocks_to_jsx__card--in_carousel),
+#slack_blocks_to_jsx:where(.styles_enabled) .slack_blocks_to_jsx__image,
+#slack_blocks_to_jsx:where(.styles_enabled) .slack_blocks_to_jsx__carousel {
   margin-block: 0;
 }
 
@@ -197,12 +212,12 @@
    against its own bundled preflight thanks to source order, and a
    logical-property override here would (re)win the cascade and remove
    the bullet column. */
-#slack_blocks_to_jsx
+#slack_blocks_to_jsx:where(.styles_enabled)
   .slack_blocks_to_jsx__markdown_block
   :where(p, ul, ol, h1, h2, h3, h4, h5, h6, blockquote, pre) {
   margin-top: 0;
 }
-#slack_blocks_to_jsx .slack_blocks_to_jsx__markdown_block {
+#slack_blocks_to_jsx:where(.styles_enabled) .slack_blocks_to_jsx__markdown_block {
   white-space: normal !important;
 }
 
