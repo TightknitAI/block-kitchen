@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.22](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.21...block-kitchen-v0.10.22) (2026-10-17)
+
+
+### Features
+
+* accept rich_text_input min_lines and max_lines with slack-block-kit-validator 0.1.20 ([83e6c3b](https://github.com/TightknitAI/block-kitchen/commit/83e6c3b6fb1c4894609e40f7ffe098a48d6dfa89))
+* accept rich_text_input min_lines and max_lines with slack-block-kit-validator 0.1.20 ([fb6471d](https://github.com/TightknitAI/block-kitchen/commit/fb6471dec85feed5c87a7cbac3a9e74f89e6b179))
+
 ## [0.10.21](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.20...block-kitchen-v0.10.21) (2026-10-15)
 
 
