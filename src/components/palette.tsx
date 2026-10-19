@@ -1,9 +1,9 @@
 import { useDraggable } from '@dnd-kit/core';
-import { ChevronDown, ChevronRight, GripVertical, Search } from 'lucide-react';
+import { ChevronDown, ChevronRight, GripVertical, Lock, Search } from 'lucide-react';
 import type * as React from 'react';
 import { useMemo, useState } from 'react';
 import { cn } from '../lib/cn';
-import type { PaletteSection as PaletteSectionDef, PaletteVariant } from '../lib/default-blocks';
+import type { PaletteSection as PaletteSectionDef, PaletteVariant, PaletteVariantBadge } from '../lib/default-blocks';
 import { Input } from '../lib/ui/input';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '../lib/ui/tooltip';
 import type { PaletteMode, SupportedBlock } from '../types';
@@ -136,6 +136,8 @@ function filterSections(sections: readonly PaletteSectionDef[], query: string): 
  *   opens on. Defaults to `false` (the simple list).
  * @param props.onAdvancedChange - called with the new side whenever the
  *   user flips the switch.
+ * @param props.onLockedPicked - called after the user picks a `locked`
+ *   variant (which itself calls the variant's `onLockedSelect`).
  * @returns the rendered palette aside
  */
 export function Palette({
@@ -147,6 +149,7 @@ export function Palette({
   mode = 'advanced',
   defaultAdvanced = false,
   onAdvancedChange,
+  onLockedPicked,
   variant = 'aside'
 }: {
   onAddBlock: (block: SupportedBlock) => void;
@@ -166,6 +169,8 @@ export function Palette({
   defaultAdvanced?: boolean;
   /** Called with the newly shown side each time the user flips the switch. */
   onAdvancedChange?: (advanced: boolean) => void;
+  /** Called after the user picks a `locked` variant. */
+  onLockedPicked?: () => void;
   /**
    * `'aside'` — persistent left rail (default). Fixed width with right border.
    * `'sheet'` — full-width content for mobile bottom-sheet hosting. No
@@ -275,7 +280,15 @@ export function Palette({
         {!advanced ? (
           // Simple mode: a flat list, no section headings — with this few
           // rows the headings would outnumber the blocks under them.
-          basics.map((v) => <PaletteItem key={v.id} variant={v} onAdd={() => onAddBlock(v.factory())} mode={variant} />)
+          basics.map((v) => (
+            <PaletteItem
+              key={v.id}
+              variant={v}
+              onAdd={() => onAddBlock(v.factory())}
+              onLockedPicked={onLockedPicked}
+              mode={variant}
+            />
+          ))
         ) : visibleSections.length === 0 ? (
           <p className="px-1 py-2 text-xs text-muted-foreground">No blocks match.</p>
         ) : (
@@ -286,6 +299,7 @@ export function Palette({
               defaultOpen={isDefaultOpen(section.name, defaultOpenSections)}
               forceOpen={queryActive}
               onAddBlock={onAddBlock}
+              onLockedPicked={onLockedPicked}
               variant={variant}
             />
           ))
@@ -350,12 +364,14 @@ function PaletteSection({
   defaultOpen,
   forceOpen,
   onAddBlock,
+  onLockedPicked,
   variant = 'aside'
 }: {
   section: PaletteSectionDef;
   defaultOpen: boolean;
   forceOpen: boolean;
   onAddBlock: (block: SupportedBlock) => void;
+  onLockedPicked?: () => void;
   variant?: 'aside' | 'sheet';
 }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -386,7 +402,13 @@ function PaletteSection({
       {isOpen ? (
         <div className="mt-0.5 flex flex-col">
           {section.variants.map((v) => (
-            <PaletteItem key={v.id} variant={v} onAdd={() => onAddBlock(v.factory())} mode={variant} />
+            <PaletteItem
+              key={v.id}
+              variant={v}
+              onAdd={() => onAddBlock(v.factory())}
+              onLockedPicked={onLockedPicked}
+              mode={variant}
+            />
           ))}
         </div>
       ) : null}
@@ -396,26 +418,36 @@ function PaletteSection({
 
 /**
  * One draggable palette row. Hover surfaces a chevron button that
- * appends the variant's block to the preview without dragging.
+ * appends the variant's block to the preview without dragging. A `locked`
+ * variant renders as a {@link LockedPaletteItem} instead.
  * @param props - item props
  * @param props.variant - the block variant this row represents
  * @param props.onAdd - called when the chevron button is clicked
+ * @param props.onLockedPicked - called after a `locked` variant is picked
+ * @param props.mode - `'aside'` for the desktop rail, `'sheet'` for the mobile sheet
  * @returns the rendered palette row
  */
 function PaletteItem({
   variant,
   onAdd,
+  onLockedPicked,
   mode = 'aside'
 }: {
   variant: PaletteVariant;
   onAdd: () => void;
+  onLockedPicked?: () => void;
   mode?: 'aside' | 'sheet';
 }) {
   const { attributes, listeners, setNodeRef, setActivatorNodeRef, isDragging } = useDraggable({
-    id: `${PALETTE_DRAG_PREFIX}${variant.id}`
+    id: `${PALETTE_DRAG_PREFIX}${variant.id}`,
+    disabled: variant.locked
   });
 
   const isSheet = mode === 'sheet';
+
+  if (variant.locked) {
+    return <LockedPaletteItem variant={variant} isSheet={isSheet} onPicked={onLockedPicked} />;
+  }
 
   if (isSheet) {
     // In the mobile sheet the row IS the tap target — no separate grip /
@@ -433,6 +465,7 @@ function PaletteItem({
         )}
       >
         <span className="min-w-0 flex-1 truncate">{variant.label}</span>
+        {variant.badge ? <VariantBadge badge={variant.badge} /> : null}
         {/* Trailing, the way a nav row's disclosure chevron reads: the label
           is what the eye scans down, and the chevron marks where the row
           takes you. */}
@@ -461,6 +494,13 @@ function PaletteItem({
       >
         <GripVertical className="h-3.5 w-3.5 shrink-0" />
         <span className="truncate">{variant.label}</span>
+        {/* The flex row collapses the space, but it keeps label and badge apart in the accessible name. */}
+        {variant.badge ? (
+          <>
+            {' '}
+            <VariantBadge badge={variant.badge} />
+          </>
+        ) : null}
       </div>
       <button
         type="button"
@@ -471,5 +511,80 @@ function PaletteItem({
         <ChevronRight className="h-3.5 w-3.5" />
       </button>
     </div>
+  );
+}
+
+/**
+ * A palette row for a `locked` variant: shown, badge and all, but it can't be
+ * dragged or added. With an `onLockedSelect` the row is a button that calls
+ * it (an upgrade prompt, say); without one it's inert.
+ * @param props - row props
+ * @param props.variant - the locked variant
+ * @param props.isSheet - whether the row renders in the mobile sheet
+ * @param props.onPicked - called after the variant's own `onLockedSelect`
+ * @returns the rendered locked row
+ */
+function LockedPaletteItem({
+  variant,
+  isSheet,
+  onPicked
+}: {
+  variant: PaletteVariant;
+  isSheet: boolean;
+  onPicked?: () => void;
+}) {
+  const select = variant.onLockedSelect;
+  const className = cn(
+    'flex w-full items-center text-left text-muted-foreground',
+    isSheet ? 'min-h-11 gap-3 rounded-md px-3 py-2 text-sm font-medium' : 'gap-2 rounded px-2 py-1 text-sm'
+  );
+  const content = (
+    <>
+      <Lock aria-hidden className={cn('shrink-0', isSheet ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
+      <span className="min-w-0 flex-1 truncate">{variant.label}</span>
+      {variant.badge ? <VariantBadge badge={variant.badge} /> : null}
+    </>
+  );
+
+  if (!select) {
+    return (
+      <div aria-disabled="true" className={className}>
+        {content}
+      </div>
+    );
+  }
+  return (
+    <button
+      type="button"
+      // Leads with the visible label so voice control still matches it; the
+      // lock icon alone wouldn't tell a screen reader the block can't be added.
+      aria-label={`${variant.label} (locked${variant.badge ? `, ${variant.badge.label}` : ''})`}
+      onClick={() => {
+        onPicked?.();
+        select();
+      }}
+      className={cn(
+        className,
+        'cursor-pointer appearance-none border-0 bg-transparent transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring'
+      )}
+    >
+      {content}
+    </button>
+  );
+}
+
+/**
+ * The small tag a variant carries beside its label (see `PaletteVariant.badge`).
+ * @param props - badge props
+ * @param props.badge - the tag's text and optional icon
+ * @returns the rendered tag
+ */
+function VariantBadge({ badge }: { badge: PaletteVariantBadge }) {
+  const Icon = badge.icon;
+  return (
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-background px-1.5 text-[10px] font-medium leading-4 text-muted-foreground">
+      {Icon ? <Icon aria-hidden className="h-2.5 w-2.5 shrink-0" /> : null}
+      {badge.label}
+    </span>
   );
 }

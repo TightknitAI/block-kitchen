@@ -8,7 +8,7 @@ export type {
   BrandTheme,
   BrandTokens
 } from './lib/brand-theme';
-export type { PaletteSection, PaletteVariant } from './lib/default-blocks';
+export type { PaletteSection, PaletteVariant, PaletteVariantBadge } from './lib/default-blocks';
 export { defaultPalette, extraAlertVariant, legacyInputVariants } from './lib/default-blocks';
 export { toSlackBlocks } from './lib/to-slack-blocks';
 export {
@@ -38,6 +38,8 @@ export type {
   ContainerChildBlock,
   ContextActionsBlock,
   ContextActionsElement,
+  CustomBlockEditor,
+  CustomBlockEditorProps,
   CustomEmoji,
   DataTableActionCell,
   DataTableBlock,

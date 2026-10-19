@@ -1,8 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react-vite';
 import { AlignLeft } from 'lucide-react';
+import type { ActionsBlock, Button } from 'slack-web-api-client';
 import { expect, fireEvent, fn, userEvent, waitFor, within } from 'storybook/test';
 import { defaultPalette, type PaletteSection } from '../lib/default-blocks';
-import type { BlockKitchenBaseProps, BlockKitchenSendProps, SupportedBlock } from '../types';
+import { Label } from '../lib/ui/label';
+import { Textarea } from '../lib/ui/textarea';
+import type {
+  BlockKitchenBaseProps,
+  BlockKitchenSendProps,
+  CustomBlockEditor,
+  CustomBlockEditorProps,
+  SupportedBlock
+} from '../types';
 import { BlockKitchen } from './block-kitchen';
 
 // Stories exercise the send-enabled configuration; pin that branch of the
@@ -390,6 +399,86 @@ export const DoneButtonClosesBlockEditor: Story = {
     await waitFor(() => {
       expect(body.queryByRole('button', { name: /^done$/i })).not.toBeInTheDocument();
       expect(body.queryByRole('heading', { name: /edit section/i })).not.toBeInTheDocument();
+    });
+  }
+};
+
+const SHARE_URL = 'https://example.com/share?text=';
+
+/**
+ * The share button of a block the share editor matched.
+ * @param block - the matched block
+ * @returns its only element
+ */
+function shareButton(block: SupportedBlock): Button {
+  return (block as ActionsBlock).elements[0] as Button;
+}
+
+/**
+ * Edits the text a share URL carries instead of the raw URL.
+ * @param props - {@link CustomBlockEditorProps}
+ * @param props.block - the share block
+ * @param props.onChange - receives the block with the new URL
+ * @returns the form
+ */
+function ShareForm({ block, onChange }: CustomBlockEditorProps) {
+  const button = shareButton(block);
+  return (
+    <div className="flex flex-col gap-1.5">
+      <Label htmlFor="share-text">Post text</Label>
+      <Textarea
+        id="share-text"
+        value={decodeURIComponent((button.url ?? '').slice(SHARE_URL.length))}
+        onChange={(e) =>
+          onChange({
+            ...block,
+            elements: [{ ...button, url: `${SHARE_URL}${encodeURIComponent(e.target.value)}` }]
+          } as SupportedBlock)
+        }
+      />
+    </div>
+  );
+}
+
+const SHARE_EDITORS: readonly CustomBlockEditor[] = [
+  {
+    id: 'share',
+    label: 'Share button',
+    match: (block) =>
+      block.type === 'actions' && block.elements.length === 1 && (shareButton(block).url ?? '').startsWith(SHARE_URL),
+    component: ShareForm
+  }
+];
+
+export const HostBlockEditor: Story = {
+  args: {
+    initialBlocks: [
+      {
+        type: 'actions',
+        elements: [
+          {
+            type: 'button',
+            text: { type: 'plain_text', text: 'Share the news' },
+            url: `${SHARE_URL}${encodeURIComponent('We just launched!')}`
+          }
+        ]
+      }
+    ],
+    blockEditors: SHARE_EDITORS
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click((await canvas.findAllByLabelText('Edit block'))[0]);
+
+    const body = within(document.body);
+    await expect(await body.findByRole('heading', { name: 'Edit Share button' })).toBeInTheDocument();
+    const text = body.getByLabelText('Post text');
+    await expect(text).toHaveValue('We just launched!');
+
+    await userEvent.type(text, ' Go');
+    await waitFor(() => {
+      const blocks = (args.onChange as ReturnType<typeof fn>).mock.calls.at(-1)?.[0] as SupportedBlock[];
+      expect(shareButton(blocks[0]).url).toBe(`${SHARE_URL}${encodeURIComponent('We just launched! Go')}`);
     });
   }
 };

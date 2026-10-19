@@ -140,6 +140,7 @@ Given no height to work with — a plain `<div>` in ordinary document flow — i
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
 | `blockActions` | `BlockAction[]` | no | Host buttons added to every block's action toolbar, before Edit / Duplicate / Delete. Each is `{ id, label, icon, onSelect }`, and `onSelect` receives the block's `{ index, childIndex }`. See [Adding your own block actions](#adding-your-own-block-actions-blockactions). |
 | `renderBlockAdornment` | `(position: BlockPosition) => ReactNode` | no | Host content shown beside every block, at its right edge, all the time (unlike `blockActions`, which show on hover), e.g. a count of comments on the block. Return `null` for a block with nothing to show. See [Adding your own block actions](#adding-your-own-block-actions-blockactions). |
+| `blockEditors` | `CustomBlockEditor[]` | no | Host forms that replace the built-in editor for the blocks they match. Each is `{ id, label, match, component }`. The block stays ordinary Block Kit. See [Editing a block your way](#editing-a-block-your-way-blockeditors). |
 | `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
 | `mentions` | `{ searchUsers, getUserName?, searchChannels?, getChannelName? }` | no | Opt-in rich-text mentions. `@` and the Mention button search users; when `searchChannels` is provided, `#` and the Channel button search channels. Picks serialize as Slack `user` / `channel` elements. See [Mentions](#mentions-opt-in). |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
@@ -489,6 +490,41 @@ the canvas, for example to scroll to it or highlight it:
 document.querySelector(`.bk-root [data-bk-block-index="${index}"]:not([data-bk-child-index])`);
 ```
 
+## Editing a block your way (`blockEditors`)
+
+Some blocks mean something to your app beyond their Block Kit shape: a
+"Share on LinkedIn" button, say, whose URL is built from the text of a post.
+Editing that URL by hand in the built-in buttons form is no way to write a
+post. `blockEditors` lets the host supply the form instead:
+
+```tsx
+const LINKEDIN_EDITOR: CustomBlockEditor = {
+  id: "linkedin-share",
+  label: "Share on LinkedIn",
+  match: (block) => isLinkedInShareBlock(block), // your own check
+  component: ({ block, onChange }) => (
+    <Textarea
+      value={postTextFrom(block)}
+      onChange={(e) => onChange(withPostText(block, e.target.value))}
+    />
+  ),
+};
+
+<BlockKitchen blockEditors={[LINKEDIN_EDITOR]} {...rest} />;
+```
+
+When a block's edit popover opens, the first editor whose `match` accepts the
+block replaces the built-in form, under the heading "Edit {label}". The
+popover keeps its validation errors, Block ID field and Done button. Blocks no
+editor matches keep the built-in form, and so does every block when the prop
+is left out.
+
+The block itself stays ordinary Block Kit, so the preview, validation, the
+JSON view and sending all treat it like any other. That also means `match` has
+to recognize the block from what it holds (a URL, an `action_id`): a message
+loaded back from Slack carries nothing else. Keep the array referentially
+stable (module scope or `useMemo`).
+
 ## Customizing the palette
 
 On desktop the palette is a rail down the left-hand side, with a chevron handle on its outer border that hides and restores it — collapsed, the preview gets the full width, and the rail comes back with its open sections and search exactly as they were. Below the `md` breakpoint there's no rail: the toolbar's **Blocks** button opens the palette as a bottom sheet instead, and picking a block closes it.
@@ -524,6 +560,28 @@ const PALETTE: readonly PaletteSection[] = [
 ```
 
 Variant `id`s must be unique across the array — the drag-drop lookup keys by id.
+
+### Badges and locked variants
+
+A variant can carry a `badge`, a small tag beside its label such as the plan
+it belongs to. Set `locked` as well to show a block without letting the user
+add it: it can't be dragged, has no add button, and picking it calls
+`onLockedSelect`, for example to open an upgrade prompt.
+
+```tsx
+const shareVariant: PaletteVariant = {
+  id: "linkedin_share",
+  label: "Share on LinkedIn",
+  factory: () => linkedInShareBlock(),
+  badge: { label: "Enterprise", icon: Crown },
+  locked: !plan.includesLinkedIn,
+  onLockedSelect: () => openUpgradeDialog(),
+};
+```
+
+A locked variant without `onLockedSelect` is inert. In the mobile sheet,
+picking one closes the sheet first, so whatever the host opens isn't stacked
+on top of it.
 
 ### Simple vs advanced palette
 

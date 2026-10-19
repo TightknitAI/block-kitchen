@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import type {
   ActionsBlock,
   ContextBlock,
@@ -672,6 +672,38 @@ export interface BlockAction {
   onSelect: (position: BlockPosition) => void;
 }
 
+/** What a {@link CustomBlockEditor}'s component is rendered with. */
+export interface CustomBlockEditorProps {
+  /** The block being edited. */
+  block: SupportedBlock;
+  /**
+   * Replaces the block. The result must still be ordinary Block Kit: it is
+   * previewed, validated and sent like any other block.
+   */
+  onChange: (next: SupportedBlock) => void;
+}
+
+/**
+ * A host-owned form for blocks your app gives a meaning of its own, e.g. a
+ * "Share on LinkedIn" button whose URL is built from the post text. It
+ * replaces the built-in form in the block's edit popover. The block itself
+ * stays ordinary Block Kit, so preview, validation and sending don't change.
+ */
+export interface CustomBlockEditor {
+  /** Stable identifier. */
+  id: string;
+  /** Names the block in the editor's heading, e.g. "Edit Share on LinkedIn". */
+  label: string;
+  /**
+   * Whether this editor handles a block; the first match wins. Match on what
+   * the block itself holds (a URL, an `action_id`): a message loaded back
+   * from Slack carries nothing else.
+   */
+  match: (block: SupportedBlock) => boolean;
+  /** The form. Rendered as a component, so it can use hooks. */
+  component: ComponentType<CustomBlockEditorProps>;
+}
+
 /**
  * A host-owned primary action for compose-only mode, rendered in the
  * toolbar slot where the built-in "Review & send" button normally sits.
@@ -1097,6 +1129,12 @@ export interface BlockKitchenBaseProps {
    * {@link BlockPosition}); return `null` for a block with nothing to show.
    */
   renderBlockAdornment?: (position: BlockPosition) => ReactNode;
+  /**
+   * Opt-in host forms that replace the built-in editor for the blocks they
+   * match. See {@link CustomBlockEditor}. Expected to be referentially
+   * stable across renders (define at module scope or wrap in `useMemo`).
+   */
+  blockEditors?: readonly CustomBlockEditor[];
   /**
    * Workspace custom emoji (`emoji.list`) the preview should resolve. Entries
    * with a non-null `url` render as the workspace image; alias entries fall
