@@ -21,6 +21,7 @@ import {
 import type { ComponentType, KeyboardEvent, ReactNode } from 'react';
 import { useRef, useState } from 'react';
 import { cn } from '../lib/cn';
+import { useIsApplePlatform } from '../lib/history-shortcuts';
 import { Button } from '../lib/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
 import { SlackMark } from '../lib/ui/slack-mark';
@@ -72,6 +73,8 @@ const SEND_MENU_ITEM =
  * @param props.canRedo - whether the Redo button is enabled
  * @param props.onUndo - steps the draft back one history entry
  * @param props.onRedo - steps the draft forward one history entry
+ * @param props.undoRedoShortcuts - whether the Undo / Redo tooltips show
+ *   their keyboard shortcuts (default true)
  * @param props.onClear - resets the draft to empty (disabled when already empty)
  * @param props.onOpenJson - opens the JSON drawer
  * @param props.onOpenIssues - opens the issues sheet
@@ -103,6 +106,7 @@ export function Toolbar({
   canRedo = false,
   onUndo,
   onRedo,
+  undoRedoShortcuts = true,
   onClear,
   onOpenJson,
   onOpenIssues,
@@ -138,6 +142,8 @@ export function Toolbar({
   onUndo?: () => void;
   /** Steps the draft forward one history entry. Redo button is hidden if omitted. */
   onRedo?: () => void;
+  /** Whether the Undo / Redo tooltips show their keyboard shortcuts. Defaults to `true`. */
+  undoRedoShortcuts?: boolean;
   onClear: () => void;
   onOpenJson: () => void;
   onOpenIssues: () => void;
@@ -198,6 +204,7 @@ export function Toolbar({
   const showSurfaceControl = surfaceOptions.length > 1;
   const docsHref = docsLink === false ? null : (docsLink?.href ?? DEFAULT_DOCS_HREF);
   const docsLabel = docsLink === false ? null : (docsLink?.label ?? DEFAULT_DOCS_LABEL);
+  const isApple = useIsApplePlatform();
 
   // Controlled open state so we can close the menus after a selection — the
   // `role="menuitemradio"` semantics imply activation dismisses the menu.
@@ -299,7 +306,8 @@ export function Toolbar({
                 onClick={onUndo}
                 disabled={!canUndo}
                 aria-label="Undo"
-                title="Undo (Ctrl+Z)"
+                aria-keyshortcuts={undoRedoShortcuts ? 'Control+Z Meta+Z' : undefined}
+                title={undoRedoShortcuts ? `Undo (${isApple ? '⌘Z' : 'Ctrl+Z'})` : 'Undo'}
                 className="px-2"
               >
                 <Undo2 className="h-3.5 w-3.5" />
@@ -311,7 +319,8 @@ export function Toolbar({
                 onClick={onRedo}
                 disabled={!canRedo}
                 aria-label="Redo"
-                title="Redo (Ctrl+Shift+Z)"
+                aria-keyshortcuts={undoRedoShortcuts ? 'Control+Shift+Z Meta+Shift+Z Control+Y' : undefined}
+                title={undoRedoShortcuts ? `Redo (${isApple ? '⇧⌘Z' : 'Ctrl+Shift+Z'})` : 'Redo'}
                 className="px-2"
               >
                 <Redo2 className="h-3.5 w-3.5" />
