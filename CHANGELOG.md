@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.25](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.24...block-kitchen-v0.10.25) (2026-10-19)
+
+
+### Features
+
+* make undo/redo shortcuts work when focus leaves the builder ([56c87a6](https://github.com/TightknitAI/block-kitchen/commit/56c87a6329fd5c84109672527262667df7477e18))
+* make undo/redo shortcuts work when focus leaves the builder ([d827d8c](https://github.com/TightknitAI/block-kitchen/commit/d827d8c0af617e86311ecf031e57b5a7e60b3da8))
+
+
+### Bug Fixes
+
+* keep the hover toolbar clear of block adornments ([c9dec8a](https://github.com/TightknitAI/block-kitchen/commit/c9dec8abf6316348d9a89382bd24b6b4800edeb2))
+* keep the hover toolbar clear of block adornments ([00dfd38](https://github.com/TightknitAI/block-kitchen/commit/00dfd386d12765a855a936be3e28ed252922044b))
+* let the mention picker take keys as soon as results show ([91210a5](https://github.com/TightknitAI/block-kitchen/commit/91210a57a299a0c2e8aaec8ac57287a5c1e773b7))
+* let the mention picker take keys as soon as results show ([26684e4](https://github.com/TightknitAI/block-kitchen/commit/26684e41af51cf4cf865b99dcecadb8ba07144ca))
+
 ## [0.10.24](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.23...block-kitchen-v0.10.24) (2026-10-19)
 
 
