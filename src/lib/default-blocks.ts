@@ -71,6 +71,11 @@ export interface PaletteVariantBadge {
   label: string;
   /** Optional icon shown before the text, e.g. a Lucide icon component. */
   icon?: ComponentType<SVGProps<SVGSVGElement>>;
+  /**
+   * Extra classes for the tag, merged over its defaults (conflicting Tailwind
+   * classes win), so it can match the host's own plan badges.
+   */
+  className?: string;
 }
 
 /**

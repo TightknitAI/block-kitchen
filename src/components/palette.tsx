@@ -602,7 +602,12 @@ function RailLabel({ variant }: { variant: PaletteVariant }) {
 function VariantBadge({ badge }: { badge: PaletteVariantBadge }) {
   const Icon = badge.icon;
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full border bg-background px-1.5 text-[10px] font-medium leading-4 text-muted-foreground">
+    <span
+      className={cn(
+        'inline-flex shrink-0 items-center gap-1 rounded-full border bg-background px-1.5 text-[10px] font-medium leading-4 text-muted-foreground',
+        badge.className
+      )}
+    >
       {Icon ? <Icon aria-hidden className="h-2.5 w-2.5 shrink-0" /> : null}
       {badge.label}
     </span>

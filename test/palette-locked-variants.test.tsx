@@ -39,6 +39,16 @@ it('shows a badge beside an addable variant', () => {
   expect(blocks.map((b) => b.type)).toEqual(['divider']);
 });
 
+it("merges the host's classes over the badge's own", () => {
+  render(<BlockKitchen palette={sharePalette({ badge: { ...ENTERPRISE, className: 'text-amber-700 ring-1' } })} />);
+
+  const badge = screen.getByText('Enterprise');
+  expect(badge.className).toContain('text-amber-700');
+  expect(badge.className).toContain('ring-1');
+  // The default text color gives way rather than fighting the host's.
+  expect(badge.className).not.toContain('text-muted-foreground');
+});
+
 it("shows a locked variant but won't add it, handing the pick to the host", () => {
   const onChange = vi.fn();
   const onLockedSelect = vi.fn();
