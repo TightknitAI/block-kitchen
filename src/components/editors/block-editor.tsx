@@ -8,6 +8,7 @@ import type {
 } from 'slack-web-api-client';
 import { labelForBlockType } from '../../lib/default-blocks';
 import { Button } from '../../lib/ui/button';
+import { useCustomBlockEditor } from '../../state/block-editors-context';
 import type {
   AlertBlock,
   CardBlock,
@@ -50,7 +51,8 @@ import { VideoEditor } from './video-editor';
 /**
  * Dispatches to the correct per-block editor form. Provides a consistent
  * header (block type label) and surfaces this block's validation errors
- * so the popover feels unified. Edits apply live via `onChange`; when
+ * so the popover feels unified. A host editor (`blockEditors`) that matches
+ * the block replaces the built-in form. Edits apply live via `onChange`; when
  * hosted in a closable context window the caller passes `onDone`, which
  * renders a "Done" button in a shared footer so every block-editing
  * surface has an explicit way to dismiss itself.
@@ -73,11 +75,13 @@ export function BlockEditor({
   onChange: (next: SupportedBlock) => void;
   onDone?: () => void;
 }) {
+  const custom = useCustomBlockEditor(block);
+  const CustomForm = custom?.component;
   return (
     <div className="flex flex-col gap-3">
       <div>
         <h3 className="text-sm font-semibold text-foreground">
-          Edit {labelForBlockType(block.type as SupportedBlockType)}
+          Edit {custom ? custom.label : labelForBlockType(block.type as SupportedBlockType)}
         </h3>
       </div>
       {errors && errors.length > 0 ? (
@@ -87,7 +91,7 @@ export function BlockEditor({
           ))}
         </ul>
       ) : null}
-      {dispatch(block, onChange)}
+      {CustomForm ? <CustomForm block={block} onChange={onChange} /> : dispatch(block, onChange)}
       <AdvancedIdField
         label="Block ID"
         help="Optional. Unique within the message or view. Slack returns it in interaction payloads."

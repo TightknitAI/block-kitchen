@@ -24,6 +24,7 @@ import { historyShortcutOf, isTextEditingTarget, type ShortcutKeyPress } from '.
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/sheet';
 import { TooltipProvider } from '../lib/ui/tooltip';
 import { useIsMobile } from '../lib/use-is-mobile';
+import { BlockEditorsProvider } from '../state/block-editors-context';
 import { CustomEmojiProvider } from '../state/custom-emoji-context';
 import { MentionsProvider } from '../state/mentions-context';
 import { useBlockKitValidation } from '../state/use-block-kit-validation';
@@ -94,6 +95,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
     previewHooks,
     blockActions,
     renderBlockAdornment,
+    blockEditors,
     customEmojis,
     mentions,
     loadChannels,
@@ -427,7 +429,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
       const variantId = parsePaletteDragId(active.id);
       if (variantId) {
         const variant = variantById.get(variantId);
-        if (!variant) {
+        if (!variant || variant.locked) {
           return;
         }
         if (target.kind === 'container') {
@@ -676,30 +678,32 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     )}
                   </button>
                 </div>
-                {/* Every rich text editor renders inside the surface's block rows. */}
+                {/* Every block editor renders inside the surface's block rows. */}
                 <MentionsProvider mentions={mentions}>
-                  <Surface
-                    blocks={blocks}
-                    workspaceName={workspaceName}
-                    // When a message is loaded for editing, show its author in
-                    // the preview header instead of the generic workspace name.
-                    authorName={activeEditTarget?.username}
-                    authorIcon={activeEditTarget?.iconUrl}
-                    previewHooks={mergedPreviewHooks}
-                    previewTheme={previewTheme}
-                    previewSurface={previewSurface}
-                    errorsByBlockId={validation.byBlockId}
-                    openBlockId={openBlockId}
-                    onOpenBlockChange={setOpenBlockId}
-                    onUpdate={updateBlock}
-                    onDuplicate={duplicateBlock}
-                    onDelete={removeBlock}
-                    onReorder={reorderBlock}
-                    isPaletteDrag={activePaletteVariant !== null}
-                    onOpenPalette={() => setPaletteOpen(true)}
-                    blockActions={blockActions}
-                    renderBlockAdornment={renderBlockAdornment}
-                  />
+                  <BlockEditorsProvider blockEditors={blockEditors}>
+                    <Surface
+                      blocks={blocks}
+                      workspaceName={workspaceName}
+                      // When a message is loaded for editing, show its author in
+                      // the preview header instead of the generic workspace name.
+                      authorName={activeEditTarget?.username}
+                      authorIcon={activeEditTarget?.iconUrl}
+                      previewHooks={mergedPreviewHooks}
+                      previewTheme={previewTheme}
+                      previewSurface={previewSurface}
+                      errorsByBlockId={validation.byBlockId}
+                      openBlockId={openBlockId}
+                      onOpenBlockChange={setOpenBlockId}
+                      onUpdate={updateBlock}
+                      onDuplicate={duplicateBlock}
+                      onDelete={removeBlock}
+                      onReorder={reorderBlock}
+                      isPaletteDrag={activePaletteVariant !== null}
+                      onOpenPalette={() => setPaletteOpen(true)}
+                      blockActions={blockActions}
+                      renderBlockAdornment={renderBlockAdornment}
+                    />
+                  </BlockEditorsProvider>
                 </MentionsProvider>
               </div>
             </div>
@@ -742,6 +746,9 @@ export function BlockKitchen(props: BlockKitchenProps) {
                       addBlock(block);
                       setPaletteOpen(false);
                     }}
+                    // Out of the host's way: whatever a locked block opens
+                    // (an upgrade prompt, say) shouldn't stack on the sheet.
+                    onLockedPicked={() => setPaletteOpen(false)}
                     sections={paletteSections}
                     mode={paletteMode}
                     showSearch={showPaletteSearch}

@@ -1,6 +1,6 @@
 import { DndContext } from '@dnd-kit/core';
 import type { Meta, StoryObj } from '@storybook/react-vite';
-import { AlignLeft } from 'lucide-react';
+import { AlignLeft, Crown, Share2 } from 'lucide-react';
 import { expect, fn, screen, userEvent, within } from 'storybook/test';
 import { defaultPalette, type PaletteSection } from '../lib/default-blocks';
 import { Palette } from './palette';
@@ -220,5 +220,42 @@ export const SimpleModeWithoutBasicVariants: Story = {
     await canvas.findByRole('button', { name: /^add help footer to preview$/i });
     await canvas.findByRole('searchbox', { name: /search blocks/i });
     expect(canvas.queryByRole('button', { name: /^advanced block palette$/i })).toBeNull();
+  }
+};
+
+export const BadgedAndLockedVariants: Story = {
+  args: {
+    sections: [
+      {
+        name: 'Sharing',
+        icon: Share2,
+        variants: [
+          {
+            id: 'share_unlocked',
+            label: 'Share on LinkedIn',
+            factory: () => ({ type: 'divider' }),
+            badge: { label: 'Enterprise', icon: Crown }
+          },
+          {
+            id: 'share_locked',
+            label: 'Share on X',
+            factory: () => ({ type: 'divider' }),
+            badge: { label: 'Enterprise', icon: Crown },
+            locked: true,
+            onLockedSelect: fn()
+          }
+        ]
+      }
+    ]
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole('button', { name: 'Add Share on LinkedIn to preview' })).toBeInTheDocument();
+    await expect(canvas.queryByRole('button', { name: 'Add Share on X to preview' })).not.toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole('button', { name: 'Share on X (locked, Enterprise)' }));
+    const locked = args.sections[0].variants[1];
+    await expect(locked.onLockedSelect).toHaveBeenCalledOnce();
+    await expect(args.onAddBlock).not.toHaveBeenCalled();
   }
 };

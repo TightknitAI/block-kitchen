@@ -46,6 +46,31 @@ export interface PaletteVariant {
    * mode, and unnecessary for a variant whose label already stands alone.
    */
   basicLabel?: string;
+  /**
+   * A short tag shown beside the label, e.g. the plan a block belongs to
+   * ("Enterprise"). Shown whether or not the variant is `locked`.
+   */
+  badge?: PaletteVariantBadge;
+  /**
+   * Shows the variant without letting anyone add it: it can't be dragged,
+   * and it has no add button. Use it to show a block the user's plan doesn't
+   * include, alongside a `badge` saying which one does. Picking it calls
+   * `onLockedSelect`.
+   */
+  locked?: boolean;
+  /**
+   * Called when the user picks a `locked` variant, e.g. to open an upgrade
+   * prompt. Without it a locked variant is inert.
+   */
+  onLockedSelect?: () => void;
+}
+
+/** A tag shown beside a palette variant's label. See {@link PaletteVariant.badge}. */
+export interface PaletteVariantBadge {
+  /** Visible text, e.g. `'Enterprise'`. */
+  label: string;
+  /** Optional icon shown before the text, e.g. a Lucide icon component. */
+  icon?: ComponentType<SVGProps<SVGSVGElement>>;
 }
 
 /**
