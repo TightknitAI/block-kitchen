@@ -181,6 +181,61 @@ export function ContainerRow({
     </div>
   );
 
+  // Hover toolbar — edit / duplicate / delete / move, mirroring BlockRow.
+  const toolbar = (
+    <div
+      className={cn(
+        'absolute -top-3 right-2 z-10 hidden items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm transition-opacity md:flex',
+        hasErrors
+          ? 'opacity-100'
+          : 'opacity-0 group-hover/container:opacity-100 group-has-[:focus-visible]/container:opacity-100'
+      )}
+    >
+      {hasErrors ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label={`Show ${errors!.length} validation ${errors!.length === 1 ? 'issue' : 'issues'}`}
+              onClick={() => onOpenBlockChange?.(id)}
+              className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <AlertTriangle className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top" align="end">
+            <ul className="flex flex-col gap-0.5">
+              {errors!.slice(0, 4).map((err, i) => (
+                <li key={i}>{err}</li>
+              ))}
+              {errors!.length > 4 ? <li className="text-muted-foreground">and {errors!.length - 4} more</li> : null}
+            </ul>
+          </TooltipContent>
+        </Tooltip>
+      ) : null}
+      {onReorder && typeof index === 'number' && typeof total === 'number' ? (
+        <>
+          <ToolbarButton label="Move up" disabled={index === 0} onClick={() => onReorder(id, index - 1)}>
+            <ArrowUp className="h-3.5 w-3.5" />
+          </ToolbarButton>
+          <ToolbarButton label="Move down" disabled={index >= total - 1} onClick={() => onReorder(id, index + 1)}>
+            <ArrowDown className="h-3.5 w-3.5" />
+          </ToolbarButton>
+        </>
+      ) : null}
+      <BlockActionButtons actions={blockActions} position={position} variant="toolbar" />
+      <ToolbarButton label="Edit" onClick={() => onOpenBlockChange?.(id)}>
+        <Pencil className="h-3.5 w-3.5" />
+      </ToolbarButton>
+      <ToolbarButton label="Duplicate" onClick={() => onDuplicate(id)}>
+        <Copy className="h-3.5 w-3.5" />
+      </ToolbarButton>
+      <ToolbarButton label="Delete" destructive onClick={() => onDelete(id)}>
+        <Trash2 className="h-3.5 w-3.5" />
+      </ToolbarButton>
+    </div>
+  );
+
   return (
     <div
       ref={setNodeRef}
@@ -190,65 +245,20 @@ export function ContainerRow({
     >
       {renderBlockAdornment ? (
         <div className="flex items-start gap-2">
-          <div className="min-w-0 flex-1">{card}</div>
+          {/* The toolbar sits in the card's own column, so its `right-2` measures
+              from the card's right edge and stays clear of the adornment. */}
+          <div className="relative min-w-0 flex-1">
+            {card}
+            {toolbar}
+          </div>
           {adornment != null && adornment !== false ? <div className="shrink-0">{adornment}</div> : null}
         </div>
       ) : (
-        card
+        <>
+          {card}
+          {toolbar}
+        </>
       )}
-
-      {/* Hover toolbar — edit / duplicate / delete / move, mirroring BlockRow. */}
-      <div
-        className={cn(
-          'absolute -top-3 right-2 z-10 hidden items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm transition-opacity md:flex',
-          hasErrors
-            ? 'opacity-100'
-            : 'opacity-0 group-hover/container:opacity-100 group-has-[:focus-visible]/container:opacity-100'
-        )}
-      >
-        {hasErrors ? (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label={`Show ${errors!.length} validation ${errors!.length === 1 ? 'issue' : 'issues'}`}
-                onClick={() => onOpenBlockChange?.(id)}
-                className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <AlertTriangle className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top" align="end">
-              <ul className="flex flex-col gap-0.5">
-                {errors!.slice(0, 4).map((err, i) => (
-                  <li key={i}>{err}</li>
-                ))}
-                {errors!.length > 4 ? <li className="text-muted-foreground">and {errors!.length - 4} more</li> : null}
-              </ul>
-            </TooltipContent>
-          </Tooltip>
-        ) : null}
-        {onReorder && typeof index === 'number' && typeof total === 'number' ? (
-          <>
-            <ToolbarButton label="Move up" disabled={index === 0} onClick={() => onReorder(id, index - 1)}>
-              <ArrowUp className="h-3.5 w-3.5" />
-            </ToolbarButton>
-            <ToolbarButton label="Move down" disabled={index >= total - 1} onClick={() => onReorder(id, index + 1)}>
-              <ArrowDown className="h-3.5 w-3.5" />
-            </ToolbarButton>
-          </>
-        ) : null}
-        <BlockActionButtons actions={blockActions} position={position} variant="toolbar" />
-        <ToolbarButton label="Edit" onClick={() => onOpenBlockChange?.(id)}>
-          <Pencil className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        <ToolbarButton label="Duplicate" onClick={() => onDuplicate(id)}>
-          <Copy className="h-3.5 w-3.5" />
-        </ToolbarButton>
-        <ToolbarButton label="Delete" destructive onClick={() => onDelete(id)}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </ToolbarButton>
-      </div>
 
       {/* Mobile inline action bar. */}
       <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-dashed bg-muted/40 px-2 py-1 md:hidden">
