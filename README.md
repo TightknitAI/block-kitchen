@@ -580,7 +580,10 @@ const shareVariant: PaletteVariant = {
 };
 ```
 
-A locked variant without `onLockedSelect` is inert. In the mobile sheet,
+Pass `badge.className` to restyle the tag to match your app (for example
+your plan badges' colors); it's merged over the defaults, so a conflicting
+Tailwind class replaces the built-in one. A locked variant without
+`onLockedSelect` is inert. In the mobile sheet,
 picking one closes the sheet first, so whatever the host opens isn't stacked
 on top of it.
 
