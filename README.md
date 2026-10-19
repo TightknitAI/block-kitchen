@@ -150,6 +150,7 @@ Given no height to work with — a plain `<div>` in ordinary document flow — i
 | `paletteSearchPlaceholder` | `string` | no | Placeholder text for the palette search input. Defaults to `'Search blocks…'`. Useful for localization. |
 | `allowedSurfaces` | `PreviewSurface[]` | no | Allowlist of preview surfaces (`'message'`, `'modal'`, `'app_home'`). Defaults to `['message']` — surface dropdown is hidden when only one surface is allowed. The first entry is the initial selection. |
 | `showThemeControl` | `boolean` | no | Defaults to `true`. When `false`, the toolbar's light/dark toggle is hidden and the theme stays at `defaultPreviewTheme`. Ignored when `previewTheme` is set (a controlled theme always hides the toggle). |
+| `undoRedoShortcuts` | `boolean` | no | Defaults to `true`: `Ctrl`/`Cmd` + `Z` undoes and `Ctrl`/`Cmd` + `Shift` + `Z` (or `Ctrl` + `Y`) redoes, like the toolbar's Undo / Redo buttons. Pass `false` to leave those keys to the host. See [Undo & redo](#undo--redo). |
 | `defaultPreviewTheme` | `'light' \| 'dark'` | no | Initial (uncontrolled) preview theme. Pass the host app's current theme so the preview opens matched to the consuming app's appearance. Ignored when `previewTheme` is provided. |
 | `previewTheme` | `'light' \| 'dark'` | no | Controlled preview theme. When set, the preview renders in this theme, follows it reactively, and the toolbar's light/dark toggle is hidden so the host app fully owns the theme. Leave unset to keep the preview uncontrolled (seeded from `defaultPreviewTheme`, toggle shown). |
 | `sendButtonLabel` | `string` | no | Label and accessible name for the toolbar's Send button (which opens the send dialog). Defaults to `'Review & send'` (the dialog is the review step). Override it for product-specific copy, e.g. `'Send to channel…'`. |
@@ -728,8 +729,8 @@ Defense-in-depth: blocks are validated against [slack-block-kit-validator](https
 Every edit to the draft is undoable — adding, deleting, duplicating,
 reordering, dragging in and out of containers, editing a block's fields, and
 the toolbar's **Clear** and **View JSON → apply**. The toolbar shows **Undo**
-and **Redo** buttons (disabled when there's nothing to step to), and the
-keyboard shortcuts work whenever focus is inside the builder:
+and **Redo** buttons (disabled when there's nothing to step to), and these
+keyboard shortcuts do the same:
 
 | Shortcut | Action |
 |---|---|
@@ -743,10 +744,23 @@ Notes:
   character at a time. Editing a different block, or any structural change,
   starts a new step.
 - **Native text undo is preserved.** While a text input, textarea, or the
-  inline rich-text editor is focused, `Ctrl/Cmd+Z` performs the browser's
-  own per-character undo — the builder only takes over when focus is on the
-  canvas or toolbar. The shortcut is scoped to the builder, so it never
-  hijacks the host app's own `Ctrl/Cmd+Z`.
+  inline rich-text editor is focused (including the fields in a block's
+  editor popover), `Ctrl/Cmd+Z` performs the browser's own per-character
+  undo. The builder only takes over when focus is on the canvas or toolbar.
+- **The shortcuts are scoped to the builder**, so they don't hijack the host
+  page's own `Ctrl/Cmd+Z`. They act while focus is inside the builder, or
+  while nothing on the page has focus (focus is on `<body>`, or on a host
+  element wrapping the builder) and the last click landed in the builder.
+  That second case covers a click on the canvas background, or deleting a
+  block, which unmounts the Delete button that had focus. After a click
+  elsewhere on the page, or with focus in one of the host's own fields, the
+  keys are left alone.
+- With nothing to undo or redo, or when something else already handled the
+  key press (`defaultPrevented`), the shortcut does nothing and doesn't call
+  `preventDefault`.
+- **Opting out.** Pass `undoRedoShortcuts={false}` to turn the shortcuts off
+  and leave those keys to the host. The toolbar buttons still work, and
+  their tooltips stop mentioning the shortcuts.
 - **Loading is a fresh baseline.** [Loading an existing
   message](#loading-an-existing-message-opt-in) (or "open as new") starts a
   new document with an empty history — undo won't step back across the load

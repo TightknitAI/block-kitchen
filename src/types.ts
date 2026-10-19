@@ -1245,6 +1245,14 @@ export interface BlockKitchenBaseProps {
    */
   docsLink?: false | { href?: string; label?: string };
   /**
+   * Whether Ctrl/Cmd+Z undoes and Ctrl/Cmd+Shift+Z (or Ctrl+Y) redoes, like
+   * the toolbar's Undo / Redo buttons. Defaults to `true`. They act while
+   * focus is in the builder, or while nothing on the page has focus and the
+   * last click landed in the builder, and never in a text field. Pass `false`
+   * to leave those keys entirely to the host.
+   */
+  undoRedoShortcuts?: boolean;
+  /**
    * Initial preview theme (uncontrolled). Defaults to `'light'`. Pass the
    * host app's current theme (e.g. from `next-themes` or your own theme
    * hook) so the preview opens matched to the consuming app's appearance.

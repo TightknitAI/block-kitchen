@@ -14,12 +14,13 @@ import {
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { ChevronLeft, ChevronRight, GripVertical } from 'lucide-react';
-import { type KeyboardEvent, useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { channelLabel } from '../lib/channel-label';
 import { cn } from '../lib/cn';
 import { parseContainerBodyId } from '../lib/container-blocks';
 import { makeEmojiHook } from '../lib/custom-emoji-hook';
 import { buildVariantById, defaultPalette, type PaletteSection } from '../lib/default-blocks';
+import { historyShortcutOf, isTextEditingTarget, type ShortcutKeyPress } from '../lib/history-shortcuts';
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '../lib/ui/sheet';
 import { TooltipProvider } from '../lib/ui/tooltip';
 import { useIsMobile } from '../lib/use-is-mobile';
@@ -118,7 +119,8 @@ export function BlockKitchen(props: BlockKitchenProps) {
     previewTheme: controlledPreviewTheme,
     sendButtonLabel,
     confirmSendLabel,
-    theme
+    theme,
+    undoRedoShortcuts = true
     // Widen the all-or-nothing union so the branch-specific props
     // destructure as independent optionals: untyped JS consumers can still
     // pass partial wiring (handled by the runtime guards below), and the
@@ -447,37 +449,66 @@ export function BlockKitchen(props: BlockKitchenProps) {
     setActivePaletteVariantId(null);
   }, []);
 
-  // Undo/redo keyboard shortcuts, scoped to the builder: this is a React
-  // `onKeyDown` on the root, so it only fires while focus is inside the
-  // builder and never hijacks the host app's own Cmd+Z. Text-editing targets
-  // (inputs, textareas, the inline rich-text contentEditable) keep their
-  // native per-character undo — we bail before preventing default. Popover
-  // and dialog editors render in body-level portals outside this subtree, so
-  // their fields are unaffected regardless.
-  const handleKeyDown = useCallback(
-    (event: KeyboardEvent<HTMLDivElement>) => {
-      if (!(event.metaKey || event.ctrlKey) || event.altKey) {
+  // Undo/redo keyboard shortcuts, scoped to the builder so the host page's own
+  // Ctrl/Cmd+Z is left alone. They act while focus is inside the builder (the
+  // root's `onKeyDown`, which React also bubbles up from the popover and
+  // dialog portals), and while focus has fallen back to the page around it
+  // but the last click landed in the builder (the window listener below). Text-editing
+  // targets (inputs, textareas, the inline rich-text contentEditable) keep
+  // their native per-character undo, a key press something else already
+  // handled is left alone, and with nothing to step to the key falls through
+  // without `preventDefault`.
+  const runHistoryShortcut = useCallback(
+    (event: ShortcutKeyPress) => {
+      const action = historyShortcutOf(event);
+      if (!undoRedoShortcuts || !action || event.defaultPrevented || isTextEditingTarget(event.target)) {
         return;
       }
-      const key = event.key.toLowerCase();
-      const isUndo = key === 'z' && !event.shiftKey;
-      const isRedo = key === 'y' || (key === 'z' && event.shiftKey);
-      if (!isUndo && !isRedo) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (target && (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))) {
+      if (action === 'undo' ? !canUndo : !canRedo) {
         return;
       }
       event.preventDefault();
-      if (isRedo) {
-        if (canRedo) redo();
-      } else if (canUndo) {
+      if (action === 'undo') {
         undo();
+      } else {
+        redo();
       }
     },
-    [canRedo, canUndo, redo, undo]
+    [canRedo, canUndo, redo, undo, undoRedoShortcuts]
   );
+
+  // Focus often leaves the builder without the user leaving it: deleting a
+  // block unmounts the Delete button that had focus, and a click on the
+  // canvas background focuses nothing, so focus falls back to <body> (or to a
+  // focusable host wrapper around the builder) and the root's `onKeyDown`
+  // never sees the key. Pick those presses up at the window, but only while
+  // the focused element is an ancestor of the builder and the last click
+  // landed in it, so a Cmd+Z after clicking elsewhere on the page is ignored.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const lastClickInBuilderRef = useRef(false);
+  useEffect(() => {
+    if (!undoRedoShortcuts) {
+      return;
+    }
+    // Capture at the window runs before any React handler, so the root's
+    // `onPointerDownCapture` (portals included) sets it back for clicks in the builder.
+    const onPointerDown = () => {
+      lastClickInBuilderRef.current = false;
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      const root = rootRef.current;
+      const focusAroundBuilder = event.target instanceof Node && root !== null && event.target.contains(root);
+      if (focusAroundBuilder && lastClickInBuilderRef.current) {
+        runHistoryShortcut(event);
+      }
+    };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [runHistoryShortcut, undoRedoShortcuts]);
 
   const activePaletteVariant = activePaletteVariantId ? variantById.get(activePaletteVariantId) : null;
 
@@ -495,9 +526,10 @@ export function BlockKitchen(props: BlockKitchenProps) {
             onDragCancel={handleDragCancel}
           >
             {/* The builder shell doubles as the keydown scope for undo/redo
-              shortcuts: the handler only augments already-focusable children
-              (toolbar buttons, block rows, fields) and never acts as a
-              control itself, so it needs no role or tabindex.
+              shortcuts, and marks clicks as landing in the builder: the
+              handlers only augment already-focusable children (toolbar
+              buttons, block rows, fields) and never act as a control
+              themselves, so it needs no role or tabindex.
 
               `h-full` computes to `auto` in ordinary document flow, so the
               shell grew to its tallest child — the palette — instead of
@@ -505,14 +537,19 @@ export function BlockKitchen(props: BlockKitchenProps) {
               the host's own height is smaller. Override with
               `--bk-max-height` on any ancestor (`none` opts out). */}
             <div
+              ref={rootRef}
               className="bk-root flex h-full max-h-[var(--bk-max-height,100svh)] w-full flex-col overflow-hidden rounded-md border bg-background text-foreground"
-              onKeyDown={handleKeyDown}
+              onKeyDown={runHistoryShortcut}
+              onPointerDownCapture={() => {
+                lastClickInBuilderRef.current = true;
+              }}
             >
               <Toolbar
                 canUndo={canUndo}
                 canRedo={canRedo}
                 onUndo={undo}
                 onRedo={redo}
+                undoRedoShortcuts={undoRedoShortcuts}
                 onClear={() => replaceAll([])}
                 onOpenJson={() => setJsonOpen(true)}
                 onOpenIssues={() => setIssuesOpen(true)}
