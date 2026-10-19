@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.24](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.23...block-kitchen-v0.10.24) (2026-10-19)
+
+
+### Features
+
+* add an always-visible adornment beside each block ([d24dfe8](https://github.com/TightknitAI/block-kitchen/commit/d24dfe88073c3442141bb385d474f34950ffda66))
+* add an always-visible adornment beside each block ([9d6e7d2](https://github.com/TightknitAI/block-kitchen/commit/9d6e7d2d174c3bb9cf1e4262adbff8db20873f26))
+
 ## [0.10.23](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.22...block-kitchen-v0.10.23) (2026-10-19)
 
 
