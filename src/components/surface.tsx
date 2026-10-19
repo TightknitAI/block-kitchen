@@ -3,7 +3,7 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { LayoutGrid, Plus, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
-import type { BuilderBlock, PreviewHooks, PreviewSurface, PreviewTheme, SupportedBlock } from '../types';
+import type { BlockAction, BuilderBlock, PreviewHooks, PreviewSurface, PreviewTheme, SupportedBlock } from '../types';
 import { BlockRow } from './block-row';
 import { ContainerRow } from './container-row';
 import { SlackMessageFrame } from './preview/slack-message-preview';
@@ -31,6 +31,7 @@ export const SURFACE_DROPPABLE_ID = 'builder-surface';
  * @param props.onUpdate - update handler forwarded to each row
  * @param props.onDuplicate - duplicate handler forwarded to each row
  * @param props.onDelete - delete handler forwarded to each row
+ * @param props.blockActions - host buttons forwarded to each row's toolbars
  * @returns the rendered preview surface
  */
 export function Surface({
@@ -49,7 +50,8 @@ export function Surface({
   onDelete,
   onReorder,
   isPaletteDrag = false,
-  onOpenPalette
+  onOpenPalette,
+  blockActions
 }: {
   blocks: BuilderBlock[];
   workspaceName?: string;
@@ -75,6 +77,8 @@ export function Surface({
   isPaletteDrag?: boolean;
   /** When provided, the empty state shows a mobile-friendly CTA that opens the palette sheet. */
   onOpenPalette?: () => void;
+  /** Host buttons forwarded to each row's toolbars. */
+  blockActions?: readonly BlockAction[];
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: SURFACE_DROPPABLE_ID });
   const isDark = previewTheme === 'dark';
@@ -118,6 +122,7 @@ export function Surface({
                 total={blocks.length}
                 onReorder={onReorder}
                 isPaletteDrag={isPaletteDrag}
+                blockActions={blockActions}
               />
             ) : (
               <BlockRow
@@ -135,6 +140,8 @@ export function Surface({
                 total={blocks.length}
                 onReorder={onReorder}
                 isPaletteDrag={isPaletteDrag}
+                position={{ index: idx, childIndex: null }}
+                blockActions={blockActions}
               />
             )
           )}

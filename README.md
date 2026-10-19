@@ -138,6 +138,7 @@ Given no height to work with — a plain `<div>` in ordinary document flow — i
 | `updateButtonLabel` | `string` | no | Label for the toolbar's primary button while a message is loaded for editing. It's a split button: clicking it updates the message in place; the menu beside it also offers "Send as a new message" (post the current blocks as new). Defaults to `'Review & update'`. |
 | `confirmUpdateLabel` | `string` | no | Label for the update dialog's final confirm button. Defaults to `'Update message'` (shows `'Updating…'` while in flight). |
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
+| `blockActions` | `BlockAction[]` | no | Host buttons added to every block's action toolbar, before Edit / Duplicate / Delete. Each is `{ id, label, icon, onSelect }`, and `onSelect` receives the block's `{ index, childIndex }`. See [Adding your own block actions](#adding-your-own-block-actions-blockactions). |
 | `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
 | `mentions` | `{ searchUsers, getUserName?, searchChannels?, getChannelName? }` | no | Opt-in rich-text mentions. `@` and the Mention button search users; when `searchChannels` is provided, `#` and the Channel button search channels. Picks serialize as Slack `user` / `channel` elements. See [Mentions](#mentions-opt-in). |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
@@ -440,6 +441,39 @@ update against the target from `loadedMessage` / `onLoadedMessageChange`.
 > // After
 > <BlockKitchen loading={{ onLoadMessage, loadRecentMessages }} onUpdate={onUpdate} />
 > ```
+
+## Adding your own block actions (`blockActions`)
+
+Actions about a block that belong to your app, like "Comment on this block",
+can sit in the block's own toolbar (the hover toolbar on desktop, the inline
+row on mobile) through `blockActions`:
+
+```tsx
+<BlockKitchen
+  blockActions={[
+    {
+      id: "comment",
+      label: "Comment on block",
+      icon: <MessageSquare />,
+      onSelect: ({ index, childIndex }) => openCommentOn(blocks[index], childIndex),
+    },
+  ]}
+/>
+```
+
+`onSelect` gets the block's position: `index` among the draft's top-level
+blocks, and `childIndex` inside the container holding it (`null` for a
+top-level block). Map it onto the blocks `onChange` last reported; builder
+ids never leave the package. An `svg` icon is sized to match the built-in
+ones.
+
+Each block's row also carries `data-bk-block-index` (plus
+`data-bk-child-index` inside a container), so the host can find a block on
+the canvas, for example to scroll to it or highlight it:
+
+```ts
+document.querySelector(`.bk-root [data-bk-block-index="${index}"]:not([data-bk-child-index])`);
+```
 
 ## Customizing the palette
 

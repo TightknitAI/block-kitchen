@@ -18,10 +18,12 @@ export {
 export type {
   AlertBlock,
   AlertLevel,
+  BlockAction,
   BlockKitchenBaseProps,
   BlockKitchenComposeOnlyProps,
   BlockKitchenProps,
   BlockKitchenSendProps,
+  BlockPosition,
   BuilderBlock,
   CardBlock,
   CarouselBlock,
