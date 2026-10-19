@@ -1,7 +1,7 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertTriangle, ArrowDown, ArrowUp, Copy, Pencil, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { type ReactNode, useState } from 'react';
 import type { RichTextBlock } from 'slack-web-api-client';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
@@ -64,6 +64,7 @@ const BLOCK_TYPE_LABELS: Record<SupportedBlockType, string> = {
  * @param props.onDelete - called when the delete affordance is clicked
  * @param props.position - where the block sits in the draft, marked on the row
  * @param props.blockActions - host buttons added to the row's toolbars
+ * @param props.renderBlockAdornment - host content shown beside the block, at its right edge
  * @returns the rendered block row
  */
 export function BlockRow({
@@ -81,7 +82,8 @@ export function BlockRow({
   onReorder,
   isPaletteDrag = false,
   position,
-  blockActions
+  blockActions,
+  renderBlockAdornment
 }: {
   builderBlock: BuilderBlock;
   previewHooks?: PreviewHooks;
@@ -107,6 +109,8 @@ export function BlockRow({
   position?: BlockPosition;
   /** Host buttons added to the row's toolbars. */
   blockActions?: readonly BlockAction[];
+  /** Host content shown beside the block, at its right edge, told its position. */
+  renderBlockAdornment?: (position: BlockPosition) => ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: builderBlock.id
@@ -132,6 +136,68 @@ export function BlockRow({
 
   const preview = <SlackBlockPreview block={builderBlock.block} hooks={previewHooks} theme={previewTheme} />;
 
+  const body =
+    isRichText && inlineEditing ? (
+      <RichTextInlineEditor
+        block={builderBlock.block as RichTextBlock}
+        onSave={(next) => {
+          onUpdate(builderBlock.id, next);
+          setInlineEditing(false);
+        }}
+        onCancel={() => setInlineEditing(false)}
+      />
+    ) : isRichText ? (
+      <button
+        type="button"
+        aria-label="Edit block"
+        onClick={() => setInlineEditing(true)}
+        {...attributes}
+        {...listeners}
+        className={cn(
+          'block w-full cursor-grab rounded-sm border-0 bg-transparent p-0 text-left transition-shadow hover:shadow-md focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing',
+          hasErrors ? 'ring-1 ring-destructive/60 hover:ring-destructive' : 'hover:ring-1 hover:ring-border'
+        )}
+      >
+        {preview}
+      </button>
+    ) : (
+      <Popover open={isOpen} onOpenChange={onOpenChange}>
+        <PopoverTrigger asChild>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Edit block"
+            {...sortableA11yAttrs}
+            {...listeners}
+            onKeyDown={(e) => {
+              // The div trigger is keyboard-activatable via role="button" + tabIndex=0,
+              // but Space on a non-button element scrolls the page by default. Toggle the
+              // popover ourselves on Enter/Space and swallow the event so the page stays put.
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpenChange?.(!isOpen);
+              }
+            }}
+            className={cn(
+              'block w-full cursor-grab rounded-sm transition-shadow hover:shadow-md focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing',
+              hasErrors ? 'ring-1 ring-destructive/60 hover:ring-destructive' : 'hover:ring-1 hover:ring-border'
+            )}
+          >
+            {preview}
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]" align="start">
+          <BlockEditor
+            block={builderBlock.block}
+            errors={errors}
+            onChange={(next) => onUpdate(builderBlock.id, next)}
+            onDone={() => onOpenChange?.(false)}
+          />
+        </PopoverContent>
+      </Popover>
+    );
+  const adornment = position && renderBlockAdornment?.(position);
+
   return (
     <div
       ref={setNodeRef}
@@ -149,64 +215,13 @@ export function BlockRow({
         </div>
       ) : null}
       <div className="relative w-full">
-        {isRichText && inlineEditing ? (
-          <RichTextInlineEditor
-            block={builderBlock.block as RichTextBlock}
-            onSave={(next) => {
-              onUpdate(builderBlock.id, next);
-              setInlineEditing(false);
-            }}
-            onCancel={() => setInlineEditing(false)}
-          />
-        ) : isRichText ? (
-          <button
-            type="button"
-            aria-label="Edit block"
-            onClick={() => setInlineEditing(true)}
-            {...attributes}
-            {...listeners}
-            className={cn(
-              'block w-full cursor-grab rounded-sm border-0 bg-transparent p-0 text-left transition-shadow hover:shadow-md focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing',
-              hasErrors ? 'ring-1 ring-destructive/60 hover:ring-destructive' : 'hover:ring-1 hover:ring-border'
-            )}
-          >
-            {preview}
-          </button>
+        {renderBlockAdornment ? (
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">{body}</div>
+            {adornment != null && adornment !== false ? <div className="shrink-0">{adornment}</div> : null}
+          </div>
         ) : (
-          <Popover open={isOpen} onOpenChange={onOpenChange}>
-            <PopoverTrigger asChild>
-              <div
-                role="button"
-                tabIndex={0}
-                aria-label="Edit block"
-                {...sortableA11yAttrs}
-                {...listeners}
-                onKeyDown={(e) => {
-                  // The div trigger is keyboard-activatable via role="button" + tabIndex=0,
-                  // but Space on a non-button element scrolls the page by default. Toggle the
-                  // popover ourselves on Enter/Space and swallow the event so the page stays put.
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    onOpenChange?.(!isOpen);
-                  }
-                }}
-                className={cn(
-                  'block w-full cursor-grab rounded-sm transition-shadow hover:shadow-md focus-visible:ring-1 focus-visible:ring-ring active:cursor-grabbing',
-                  hasErrors ? 'ring-1 ring-destructive/60 hover:ring-destructive' : 'hover:ring-1 hover:ring-border'
-                )}
-              >
-                {preview}
-              </div>
-            </PopoverTrigger>
-            <PopoverContent className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]" align="start">
-              <BlockEditor
-                block={builderBlock.block}
-                errors={errors}
-                onChange={(next) => onUpdate(builderBlock.id, next)}
-                onDone={() => onOpenChange?.(false)}
-              />
-            </PopoverContent>
-          </Popover>
+          body
         )}
         <span className="-translate-x-1/2 pointer-events-none absolute bottom-full left-1/2 z-10 hidden bg-background px-1.5 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 md:block">
           {BLOCK_TYPE_LABELS[builderBlock.block.type]}

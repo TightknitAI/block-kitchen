@@ -139,6 +139,7 @@ Given no height to work with — a plain `<div>` in ordinary document flow — i
 | `confirmUpdateLabel` | `string` | no | Label for the update dialog's final confirm button. Defaults to `'Update message'` (shows `'Updating…'` while in flight). |
 | `previewHooks` | `PreviewHooks` | no | Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` for resolving user / channel / emoji directives. |
 | `blockActions` | `BlockAction[]` | no | Host buttons added to every block's action toolbar, before Edit / Duplicate / Delete. Each is `{ id, label, icon, onSelect }`, and `onSelect` receives the block's `{ index, childIndex }`. See [Adding your own block actions](#adding-your-own-block-actions-blockactions). |
+| `renderBlockAdornment` | `(position: BlockPosition) => ReactNode` | no | Host content shown beside every block, at its right edge, all the time (unlike `blockActions`, which show on hover), e.g. a count of comments on the block. Return `null` for a block with nothing to show. See [Adding your own block actions](#adding-your-own-block-actions-blockactions). |
 | `customEmojis` | `CustomEmoji[]` | no | Workspace custom emoji (`{ name, url, alias }`) the preview resolves. Entries with a `url` render `:name:` as the workspace image; alias entries (`url: null`) fall back to their target emoji. Render-only — never serialized into the emitted Block Kit JSON. A caller-supplied `previewHooks.emoji` takes precedence. |
 | `mentions` | `{ searchUsers, getUserName?, searchChannels?, getChannelName? }` | no | Opt-in rich-text mentions. `@` and the Mention button search users; when `searchChannels` is provided, `#` and the Channel button search channels. Picks serialize as Slack `user` / `channel` elements. See [Mentions](#mentions-opt-in). |
 | `palette` | `PaletteSection[]` | no | The left-hand palette of draggable variants. Defaults to `defaultPalette`. Spread it to filter, reorder, or add your own pre-configured variants — see [Customizing the palette](#customizing-the-palette). |
@@ -466,6 +467,19 @@ blocks, and `childIndex` inside the container holding it (`null` for a
 top-level block). Map it onto the blocks `onChange` last reported; builder
 ids never leave the package. An `svg` icon is sized to match the built-in
 ones.
+
+For something that should show all the time, like a count of comments on
+each block, pass `renderBlockAdornment`. It's called with the same position
+and renders beside the block, at its right edge; return `null` for a block
+with nothing to show:
+
+```tsx
+<BlockKitchen
+  renderBlockAdornment={({ index, childIndex }) =>
+    childIndex === null && counts[index] ? <CommentCount count={counts[index]} /> : null
+  }
+/>
+```
 
 Each block's row also carries `data-bk-block-index` (plus
 `data-bk-child-index` inside a container), so the host can find a block on

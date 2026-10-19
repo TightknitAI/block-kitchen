@@ -92,6 +92,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
     onValidationChange,
     previewHooks,
     blockActions,
+    renderBlockAdornment,
     customEmojis,
     mentions,
     loadChannels,
@@ -660,6 +661,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                     isPaletteDrag={activePaletteVariant !== null}
                     onOpenPalette={() => setPaletteOpen(true)}
                     blockActions={blockActions}
+                    renderBlockAdornment={renderBlockAdornment}
                   />
                 </MentionsProvider>
               </div>

@@ -2,11 +2,20 @@ import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { AlertTriangle, ArrowDown, ArrowUp, Copy, Pencil, Trash2 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
 import { containerBodyId, containerTitleText } from '../lib/container-blocks';
 import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
-import type { BlockAction, BuilderBlock, ContainerBlock, PreviewHooks, PreviewTheme, SupportedBlock } from '../types';
+import type {
+  BlockAction,
+  BlockPosition,
+  BuilderBlock,
+  ContainerBlock,
+  PreviewHooks,
+  PreviewTheme,
+  SupportedBlock
+} from '../types';
 import { BlockActionButtons } from './block-action-buttons';
 import { BlockRow } from './block-row';
 import { BlockEditor } from './editors/block-editor';
@@ -20,6 +29,7 @@ import { BlockEditor } from './editors/block-editor';
  * container's field editor; the body is a separate drop zone.
  * @param props - row props
  * @param props.blockActions - host buttons added to the container's toolbars and its children's
+ * @param props.renderBlockAdornment - host content shown beside the container and each child, at the right edge
  * @returns the rendered container row
  */
 export function ContainerRow({
@@ -36,7 +46,8 @@ export function ContainerRow({
   index,
   total,
   isPaletteDrag = false,
-  blockActions
+  blockActions,
+  renderBlockAdornment
 }: {
   builderBlock: BuilderBlock;
   previewHooks?: PreviewHooks;
@@ -53,6 +64,8 @@ export function ContainerRow({
   isPaletteDrag?: boolean;
   /** Host buttons added to the container's toolbars and its children's. */
   blockActions?: readonly BlockAction[];
+  /** Host content shown beside the container and each child, at the right edge, told its position. */
+  renderBlockAdornment?: (position: BlockPosition) => ReactNode;
 }) {
   const { id } = builderBlock;
   const block = builderBlock.block as ContainerBlock;
@@ -68,6 +81,105 @@ export function ContainerRow({
   const style = { transform: CSS.Transform.toString(transform), transition };
   const icon = block.icon && 'image_url' in block.icon ? block.icon.image_url : undefined;
   const position = typeof index === 'number' ? { index, childIndex: null } : undefined;
+  const adornment = position && renderBlockAdornment?.(position);
+
+  const card = (
+    <div
+      className={cn(
+        'overflow-hidden rounded-md border bg-card transition-shadow',
+        hasErrors ? 'border-destructive/60' : 'border-border'
+      )}
+    >
+      {/* Header — drag handle + click-to-edit the container's fields. */}
+      <Popover open={isOpen} onOpenChange={(open) => onOpenBlockChange?.(open ? id : null)}>
+        <PopoverTrigger asChild>
+          <div
+            role="button"
+            tabIndex={0}
+            aria-label="Edit container"
+            {...sortableA11yAttrs}
+            {...listeners}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                onOpenBlockChange?.(!isOpen ? id : null);
+              }
+            }}
+            className="flex w-full cursor-grab items-center gap-2 border-b bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted active:cursor-grabbing"
+          >
+            {icon ? (
+              <img src={icon} alt="" aria-hidden="true" className="h-5 w-5 shrink-0 rounded object-cover" />
+            ) : null}
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate text-xs font-semibold text-foreground">
+                {containerTitleText(block) || 'Container'}
+              </span>
+              {block.subtitle?.text ? (
+                <span className="truncate text-[11px] text-muted-foreground">{block.subtitle.text}</span>
+              ) : null}
+            </span>
+            <span className="ml-auto shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              Container
+            </span>
+          </div>
+        </PopoverTrigger>
+        <PopoverContent className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]" align="start">
+          <BlockEditor
+            block={block}
+            errors={errors}
+            onChange={(next) => onUpdate(id, next)}
+            onDone={() => onOpenBlockChange?.(null)}
+          />
+        </PopoverContent>
+      </Popover>
+
+      {/* Body — the child drop zone. */}
+      <div
+        ref={setBodyRef}
+        className={cn(
+          'flex flex-col gap-2 p-3 transition-colors',
+          isPaletteDrag && 'outline-2 -outline-offset-2 outline-dashed outline-primary/40',
+          isPaletteDrag && isBodyOver && 'bg-primary/5'
+        )}
+      >
+        {children.length === 0 ? (
+          <div
+            className={cn(
+              'flex items-center justify-center rounded-md border border-dashed px-3 py-6 text-center text-[11px] transition-colors',
+              isBodyOver ? 'border-primary/60 text-primary' : 'border-border text-muted-foreground'
+            )}
+          >
+            Drag blocks here
+          </div>
+        ) : (
+          <SortableContext items={children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+            {children.map((child, idx) => (
+              <BlockRow
+                key={child.id}
+                builderBlock={child}
+                previewHooks={previewHooks}
+                previewTheme={previewTheme}
+                errors={errorsByBlockId?.get(child.id)}
+                isOpen={openBlockId === child.id}
+                onOpenChange={(open) => onOpenBlockChange?.(open ? child.id : null)}
+                onUpdate={onUpdate}
+                onDuplicate={onDuplicate}
+                onDelete={onDelete}
+                index={idx}
+                total={children.length}
+                onReorder={onReorder}
+                isPaletteDrag={isPaletteDrag}
+                position={typeof index === 'number' ? { index, childIndex: idx } : undefined}
+                blockActions={blockActions}
+                renderBlockAdornment={renderBlockAdornment}
+              />
+            ))}
+            {isPaletteDrag && isBodyOver ? <DropIndicator /> : null}
+          </SortableContext>
+        )}
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -76,100 +188,14 @@ export function ContainerRow({
       data-bk-block-index={index}
       className={cn('group/container relative mb-2 last:mb-0 hover:z-10', isDragging && 'opacity-40')}
     >
-      <div
-        className={cn(
-          'overflow-hidden rounded-md border bg-card transition-shadow',
-          hasErrors ? 'border-destructive/60' : 'border-border'
-        )}
-      >
-        {/* Header — drag handle + click-to-edit the container's fields. */}
-        <Popover open={isOpen} onOpenChange={(open) => onOpenBlockChange?.(open ? id : null)}>
-          <PopoverTrigger asChild>
-            <div
-              role="button"
-              tabIndex={0}
-              aria-label="Edit container"
-              {...sortableA11yAttrs}
-              {...listeners}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
-                  e.preventDefault();
-                  onOpenBlockChange?.(!isOpen ? id : null);
-                }
-              }}
-              className="flex w-full cursor-grab items-center gap-2 border-b bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted active:cursor-grabbing"
-            >
-              {icon ? (
-                <img src={icon} alt="" aria-hidden="true" className="h-5 w-5 shrink-0 rounded object-cover" />
-              ) : null}
-              <span className="flex min-w-0 flex-col">
-                <span className="truncate text-xs font-semibold text-foreground">
-                  {containerTitleText(block) || 'Container'}
-                </span>
-                {block.subtitle?.text ? (
-                  <span className="truncate text-[11px] text-muted-foreground">{block.subtitle.text}</span>
-                ) : null}
-              </span>
-              <span className="ml-auto shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                Container
-              </span>
-            </div>
-          </PopoverTrigger>
-          <PopoverContent className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]" align="start">
-            <BlockEditor
-              block={block}
-              errors={errors}
-              onChange={(next) => onUpdate(id, next)}
-              onDone={() => onOpenBlockChange?.(null)}
-            />
-          </PopoverContent>
-        </Popover>
-
-        {/* Body — the child drop zone. */}
-        <div
-          ref={setBodyRef}
-          className={cn(
-            'flex flex-col gap-2 p-3 transition-colors',
-            isPaletteDrag && 'outline-2 -outline-offset-2 outline-dashed outline-primary/40',
-            isPaletteDrag && isBodyOver && 'bg-primary/5'
-          )}
-        >
-          {children.length === 0 ? (
-            <div
-              className={cn(
-                'flex items-center justify-center rounded-md border border-dashed px-3 py-6 text-center text-[11px] transition-colors',
-                isBodyOver ? 'border-primary/60 text-primary' : 'border-border text-muted-foreground'
-              )}
-            >
-              Drag blocks here
-            </div>
-          ) : (
-            <SortableContext items={children.map((c) => c.id)} strategy={verticalListSortingStrategy}>
-              {children.map((child, idx) => (
-                <BlockRow
-                  key={child.id}
-                  builderBlock={child}
-                  previewHooks={previewHooks}
-                  previewTheme={previewTheme}
-                  errors={errorsByBlockId?.get(child.id)}
-                  isOpen={openBlockId === child.id}
-                  onOpenChange={(open) => onOpenBlockChange?.(open ? child.id : null)}
-                  onUpdate={onUpdate}
-                  onDuplicate={onDuplicate}
-                  onDelete={onDelete}
-                  index={idx}
-                  total={children.length}
-                  onReorder={onReorder}
-                  isPaletteDrag={isPaletteDrag}
-                  position={typeof index === 'number' ? { index, childIndex: idx } : undefined}
-                  blockActions={blockActions}
-                />
-              ))}
-              {isPaletteDrag && isBodyOver ? <DropIndicator /> : null}
-            </SortableContext>
-          )}
+      {renderBlockAdornment ? (
+        <div className="flex items-start gap-2">
+          <div className="min-w-0 flex-1">{card}</div>
+          {adornment != null && adornment !== false ? <div className="shrink-0">{adornment}</div> : null}
         </div>
-      </div>
+      ) : (
+        card
+      )}
 
       {/* Hover toolbar — edit / duplicate / delete / move, mirroring BlockRow. */}
       <div
