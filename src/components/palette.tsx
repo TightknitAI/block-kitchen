@@ -493,14 +493,7 @@ function PaletteItem({
         {...listeners}
       >
         <GripVertical className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">{variant.label}</span>
-        {/* The flex row collapses the space, but it keeps label and badge apart in the accessible name. */}
-        {variant.badge ? (
-          <>
-            {' '}
-            <VariantBadge badge={variant.badge} />
-          </>
-        ) : null}
+        <RailLabel variant={variant} />
       </div>
       <button
         type="button"
@@ -541,8 +534,14 @@ function LockedPaletteItem({
   const content = (
     <>
       <Lock aria-hidden className={cn('shrink-0', isSheet ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
-      <span className="min-w-0 flex-1 truncate">{variant.label}</span>
-      {variant.badge ? <VariantBadge badge={variant.badge} /> : null}
+      {isSheet ? (
+        <>
+          <span className="min-w-0 flex-1 truncate">{variant.label}</span>
+          {variant.badge ? <VariantBadge badge={variant.badge} /> : null}
+        </>
+      ) : (
+        <RailLabel variant={variant} />
+      )}
     </>
   );
 
@@ -574,7 +573,28 @@ function LockedPaletteItem({
 }
 
 /**
- * The small tag a variant carries beside its label (see `PaletteVariant.badge`).
+ * A variant's label in the desktop rail, with its badge under it: the rail is
+ * too narrow to hold both on one line, and beside the label a badge cut it
+ * down to an ellipsis.
+ * @param props - label props
+ * @param props.variant - the variant being labelled
+ * @returns the label
+ */
+function RailLabel({ variant }: { variant: PaletteVariant }) {
+  if (!variant.badge) {
+    return <span className="truncate">{variant.label}</span>;
+  }
+  return (
+    <span className="flex min-w-0 flex-col items-start gap-0.5">
+      <span className="max-w-full truncate">{variant.label}</span>
+      {/* Collapsed by the flex column, but keeps label and badge apart in the accessible name. */}{' '}
+      <VariantBadge badge={variant.badge} />
+    </span>
+  );
+}
+
+/**
+ * The small tag a variant carries with its label (see `PaletteVariant.badge`).
  * @param props - badge props
  * @param props.badge - the tag's text and optional icon
  * @returns the rendered tag
