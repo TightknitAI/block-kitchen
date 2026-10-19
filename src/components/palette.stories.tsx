@@ -257,5 +257,9 @@ export const BadgedAndLockedVariants: Story = {
     const locked = args.sections[0].variants[1];
     await expect(locked.onLockedSelect).toHaveBeenCalledOnce();
     await expect(args.onAddBlock).not.toHaveBeenCalled();
+
+    // The badge sits under the label, so the narrow rail doesn't cut it short.
+    const label = canvas.getByText('Share on LinkedIn');
+    await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
   }
 };
