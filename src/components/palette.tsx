@@ -480,7 +480,7 @@ function PaletteItem({
     <div
       ref={setNodeRef}
       className={cn(
-        'group flex items-center gap-2 rounded px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground has-[:focus-visible]:bg-accent has-[:focus-visible]:text-foreground',
+        'group flex items-start gap-2 rounded px-2 py-1 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground has-[:focus-visible]:bg-accent has-[:focus-visible]:text-foreground',
         isDragging && 'opacity-50'
       )}
     >
@@ -488,11 +488,13 @@ function PaletteItem({
         ref={setActivatorNodeRef}
         // Negative margin plus matching padding so the grab target still
         // covers the row's full height after the row itself tightened up.
-        className="-my-1 flex min-w-0 flex-1 cursor-grab items-center gap-2 rounded py-1 active:cursor-grabbing focus-visible:outline-none"
+        className="-my-1 flex min-w-0 flex-1 cursor-grab items-start gap-2 rounded py-1 active:cursor-grabbing focus-visible:outline-none"
         {...attributes}
         {...listeners}
       >
-        <GripVertical className="h-3.5 w-3.5 shrink-0" />
+        {/* Top-aligned and nudged onto the label's first line, so a badge
+          under the label doesn't pull the handle down between the two. */}
+        <GripVertical className="mt-[3px] h-3.5 w-3.5 shrink-0" />
         <RailLabel variant={variant} />
       </div>
       <button
@@ -528,12 +530,14 @@ function LockedPaletteItem({
 }) {
   const select = variant.onLockedSelect;
   const className = cn(
-    'flex w-full items-center text-left text-muted-foreground',
-    isSheet ? 'min-h-11 gap-3 rounded-md px-3 py-2 text-sm font-medium' : 'gap-2 rounded px-2 py-1 text-sm'
+    'flex w-full text-left text-muted-foreground',
+    isSheet
+      ? 'min-h-11 items-center gap-3 rounded-md px-3 py-2 text-sm font-medium'
+      : 'items-start gap-2 rounded px-2 py-1 text-sm'
   );
   const content = (
     <>
-      <Lock aria-hidden className={cn('shrink-0', isSheet ? 'h-4 w-4' : 'h-3.5 w-3.5')} />
+      <Lock aria-hidden className={cn('shrink-0', isSheet ? 'h-4 w-4' : 'mt-[3px] h-3.5 w-3.5')} />
       {isSheet ? (
         <>
           <span className="min-w-0 flex-1 truncate">{variant.label}</span>

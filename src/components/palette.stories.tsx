@@ -261,5 +261,16 @@ export const BadgedAndLockedVariants: Story = {
     // The badge sits under the label, so the narrow rail doesn't cut it short.
     const label = canvas.getByText('Share on LinkedIn');
     await expect(label.scrollWidth).toBeLessThanOrEqual(label.clientWidth);
+
+    // Each row's icon lines up with the label's first line, not the middle of
+    // the label and the badge under it.
+    for (const name of ['Share on LinkedIn', 'Share on X']) {
+      const text = canvas.getByText(name);
+      const icon = text.closest('[aria-roledescription], button')?.querySelector('svg');
+      const textBox = text.getBoundingClientRect();
+      const iconBox = icon?.getBoundingClientRect();
+      const offset = Math.abs((iconBox?.top ?? 0) + (iconBox?.height ?? 0) / 2 - (textBox.top + textBox.height / 2));
+      await expect(offset).toBeLessThanOrEqual(1.5);
+    }
   }
 };
