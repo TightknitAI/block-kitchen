@@ -1,7 +1,7 @@
 import type { Editor } from '@tiptap/react';
 import type { SuggestionProps } from '@tiptap/suggestion';
 import { Hash } from 'lucide-react';
-import { type RefObject, useEffect, useId, useMemo, useRef, useState } from 'react';
+import { type RefObject, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '../../lib/cn';
 import { Popover, PopoverAnchor, PopoverContent } from '../../lib/ui/popover';
 import { isSafeImageSrc } from '../../lib/url-safety';
@@ -82,7 +82,13 @@ export function MentionPicker<T extends MentionPickerItem>({
   const listboxId = useId();
   const activeOptionId = items[activeIndex] ? `${listboxId}-${activeIndex}` : undefined;
 
-  useEffect(() => {
+  // Layout effects for the combobox attributes and the key handler, so both
+  // match the rows on screen from the same commit. Results land
+  // asynchronously, and React runs a plain effect for that commit in a later
+  // task: in between, `aria-activedescendant` would point at nothing, and an
+  // Arrow or Enter would reach the previous handler, with the previous (often
+  // empty) list, and be dropped.
+  useLayoutEffect(() => {
     const root = editor.view.dom;
     root.setAttribute('role', 'combobox');
     root.setAttribute('aria-autocomplete', 'list');
@@ -102,7 +108,7 @@ export function MentionPicker<T extends MentionPickerItem>({
     };
   }, [activeOptionId, editor, listboxId]);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     keyHandlerRef.current = (event) => {
       if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
         if (items.length > 0) {
