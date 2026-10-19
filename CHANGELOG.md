@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.10.23](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.22...block-kitchen-v0.10.23) (2026-10-19)
+
+
+### Features
+
+* add host block actions to each block's toolbar ([07586aa](https://github.com/TightknitAI/block-kitchen/commit/07586aab72f904d01c881d16fb8d1fe33b0239bc))
+* add host block actions to each block's toolbar ([9e4a4be](https://github.com/TightknitAI/block-kitchen/commit/9e4a4be31f2599cd1e549440c10ea0015e627300))
+
+
+### Bug Fixes
+
+* scope preview overrides to our preview, fix dark-mode contrast ([40c9fca](https://github.com/TightknitAI/block-kitchen/commit/40c9fca664a7df753891d6157e85dd2592305346))
+* scope preview overrides to our preview, fix dark-mode contrast ([1562786](https://github.com/TightknitAI/block-kitchen/commit/1562786596a8b4cdd05c7dc3a123406b589fa6f7))
+
 ## [0.10.22](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.21...block-kitchen-v0.10.22) (2026-10-17)
 
 
