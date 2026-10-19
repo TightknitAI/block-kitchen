@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.10.26](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.25...block-kitchen-v0.10.26) (2026-10-19)
+
+
+### Bug Fixes
+
+* keep a badged palette variant's label readable in the rail ([f822e4e](https://github.com/TightknitAI/block-kitchen/commit/f822e4e8ffaf19ae02c8bb03a99bd6454cd422d1))
+* keep a badged palette variant's label readable in the rail ([8f2bca1](https://github.com/TightknitAI/block-kitchen/commit/8f2bca11b2891add9b1264b44f43cead7937325e))
+
 ## [0.10.25](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.24...block-kitchen-v0.10.25) (2026-10-19)
 
 
