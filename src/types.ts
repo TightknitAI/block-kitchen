@@ -644,6 +644,35 @@ export interface PrimaryActionContext {
 }
 
 /**
+ * Where a block sits in the draft, as a {@link BlockAction} is told. Hosts
+ * map it onto their own copy of the blocks (e.g. the array `onChange` last
+ * emitted), since builder ids never leave the package.
+ */
+export interface BlockPosition {
+  /** Zero-based index among the draft's top-level blocks. */
+  index: number;
+  /** Zero-based index inside the container holding the block, or `null` for a top-level block. */
+  childIndex: number | null;
+}
+
+/**
+ * A host-owned button added to every block's action toolbar (the hover
+ * toolbar on desktop, the inline row on mobile), before the built-in Edit,
+ * Duplicate and Delete. Use it for actions about a block that belong to your
+ * app, e.g. "Comment on this block".
+ */
+export interface BlockAction {
+  /** Stable identifier, used as the button's React key. */
+  id: string;
+  /** Accessible name and tooltip for the button. */
+  label: string;
+  /** Icon for the button; an `svg` inside is sized to match the built-in icons. */
+  icon: ReactNode;
+  /** Called with the block's position when the button is clicked. */
+  onSelect: (position: BlockPosition) => void;
+}
+
+/**
  * A host-owned primary action for compose-only mode, rendered in the
  * toolbar slot where the built-in "Review & send" button normally sits.
  * Use it when the builder's commitment step belongs to your app — e.g. a
@@ -1054,6 +1083,13 @@ export interface BlockKitchenBaseProps {
    * directives render with the library's defaults.
    */
   previewHooks?: PreviewHooks;
+  /**
+   * Opt-in host buttons for every block's action toolbar, e.g. "Comment on
+   * this block". See {@link BlockAction}. Each block row also carries
+   * `data-bk-block-index` (and `data-bk-child-index` inside a container), so a
+   * host can find a block on the canvas to scroll to or highlight it.
+   */
+  blockActions?: readonly BlockAction[];
   /**
    * Workspace custom emoji (`emoji.list`) the preview should resolve. Entries
    * with a non-null `url` render as the workspace image; alias entries fall

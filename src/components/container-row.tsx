@@ -6,7 +6,8 @@ import { cn } from '../lib/cn';
 import { containerBodyId, containerTitleText } from '../lib/container-blocks';
 import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
-import type { BuilderBlock, ContainerBlock, PreviewHooks, PreviewTheme, SupportedBlock } from '../types';
+import type { BlockAction, BuilderBlock, ContainerBlock, PreviewHooks, PreviewTheme, SupportedBlock } from '../types';
+import { BlockActionButtons } from './block-action-buttons';
 import { BlockRow } from './block-row';
 import { BlockEditor } from './editors/block-editor';
 
@@ -18,6 +19,7 @@ import { BlockEditor } from './editors/block-editor';
  * reorder or pull them back out. The header is the drag handle and opens the
  * container's field editor; the body is a separate drop zone.
  * @param props - row props
+ * @param props.blockActions - host buttons added to the container's toolbars and its children's
  * @returns the rendered container row
  */
 export function ContainerRow({
@@ -33,7 +35,8 @@ export function ContainerRow({
   onReorder,
   index,
   total,
-  isPaletteDrag = false
+  isPaletteDrag = false,
+  blockActions
 }: {
   builderBlock: BuilderBlock;
   previewHooks?: PreviewHooks;
@@ -48,6 +51,8 @@ export function ContainerRow({
   index?: number;
   total?: number;
   isPaletteDrag?: boolean;
+  /** Host buttons added to the container's toolbars and its children's. */
+  blockActions?: readonly BlockAction[];
 }) {
   const { id } = builderBlock;
   const block = builderBlock.block as ContainerBlock;
@@ -62,11 +67,13 @@ export function ContainerRow({
 
   const style = { transform: CSS.Transform.toString(transform), transition };
   const icon = block.icon && 'image_url' in block.icon ? block.icon.image_url : undefined;
+  const position = typeof index === 'number' ? { index, childIndex: null } : undefined;
 
   return (
     <div
       ref={setNodeRef}
       style={style}
+      data-bk-block-index={index}
       className={cn('group/container relative mb-2 last:mb-0 hover:z-10', isDragging && 'opacity-40')}
     >
       <div
@@ -154,6 +161,8 @@ export function ContainerRow({
                   total={children.length}
                   onReorder={onReorder}
                   isPaletteDrag={isPaletteDrag}
+                  position={typeof index === 'number' ? { index, childIndex: idx } : undefined}
+                  blockActions={blockActions}
                 />
               ))}
               {isPaletteDrag && isBodyOver ? <DropIndicator /> : null}
@@ -203,6 +212,7 @@ export function ContainerRow({
             </ToolbarButton>
           </>
         ) : null}
+        <BlockActionButtons actions={blockActions} position={position} variant="toolbar" />
         <ToolbarButton label="Edit" onClick={() => onOpenBlockChange?.(id)}>
           <Pencil className="h-3.5 w-3.5" />
         </ToolbarButton>
@@ -218,6 +228,7 @@ export function ContainerRow({
       <div className="mt-1 flex items-center justify-between gap-2 rounded-md border border-dashed bg-muted/40 px-2 py-1 md:hidden">
         <span className="truncate text-[11px] font-medium text-muted-foreground">Container</span>
         <div className="flex items-center gap-1">
+          <BlockActionButtons actions={blockActions} position={position} variant="inline" />
           <button
             type="button"
             aria-label="Edit container"

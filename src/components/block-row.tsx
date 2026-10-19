@@ -7,7 +7,16 @@ import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
-import type { BuilderBlock, PreviewHooks, PreviewTheme, SupportedBlock, SupportedBlockType } from '../types';
+import type {
+  BlockAction,
+  BlockPosition,
+  BuilderBlock,
+  PreviewHooks,
+  PreviewTheme,
+  SupportedBlock,
+  SupportedBlockType
+} from '../types';
+import { BlockActionButtons } from './block-action-buttons';
 import { BlockEditor } from './editors/block-editor';
 import { RichTextEditor } from './editors/rich-text-editor';
 import { SlackBlockPreview } from './preview/slack-block-preview';
@@ -53,6 +62,8 @@ const BLOCK_TYPE_LABELS: Record<SupportedBlockType, string> = {
  * @param props.onUpdate - called with the updated block payload
  * @param props.onDuplicate - called when the duplicate affordance is clicked
  * @param props.onDelete - called when the delete affordance is clicked
+ * @param props.position - where the block sits in the draft, marked on the row
+ * @param props.blockActions - host buttons added to the row's toolbars
  * @returns the rendered block row
  */
 export function BlockRow({
@@ -68,7 +79,9 @@ export function BlockRow({
   index,
   total,
   onReorder,
-  isPaletteDrag = false
+  isPaletteDrag = false,
+  position,
+  blockActions
 }: {
   builderBlock: BuilderBlock;
   previewHooks?: PreviewHooks;
@@ -90,6 +103,10 @@ export function BlockRow({
   onReorder?: (id: string, toIndex: number) => void;
   /** True while a palette item is being dragged (vs. reordering an existing block). */
   isPaletteDrag?: boolean;
+  /** Where the block sits in the draft; marked on the row and passed to `blockActions`. */
+  position?: BlockPosition;
+  /** Host buttons added to the row's toolbars. */
+  blockActions?: readonly BlockAction[];
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging, isOver } = useSortable({
     id: builderBlock.id
@@ -119,6 +136,8 @@ export function BlockRow({
     <div
       ref={setNodeRef}
       style={style}
+      data-bk-block-index={position?.index}
+      data-bk-child-index={position?.childIndex ?? undefined}
       className={cn('group relative mb-2 last:mb-0 hover:z-10 md:mb-0', isDragging && 'opacity-40')}
     >
       {showDropIndicator ? (
@@ -261,6 +280,7 @@ export function BlockRow({
               </Tooltip>
             </>
           ) : null}
+          <BlockActionButtons actions={blockActions} position={position} variant="toolbar" />
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -327,6 +347,7 @@ export function BlockRow({
               <AlertTriangle className="h-4 w-4" />
             </button>
           ) : null}
+          <BlockActionButtons actions={blockActions} position={position} variant="inline" />
           <button
             type="button"
             aria-label="Edit block"
