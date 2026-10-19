@@ -137,6 +137,48 @@ describe('RichTextEditor @ mentions', () => {
     ]);
   });
 
+  it('is ready for Arrow and Enter the moment results show, before React runs its effects', async () => {
+    let resolveSearch: (users: MentionUser[]) => void = () => {};
+    const searchUsers = vi.fn(
+      () =>
+        new Promise<MentionUser[]>((resolve) => {
+          resolveSearch = resolve;
+        })
+    );
+    const { onChange, editor } = await renderEditor(block(), { searchUsers });
+
+    typeInto(editor, '@');
+    await waitFor(() => expect(searchUsers).toHaveBeenCalled(), { timeout: 3000 });
+    // React commits the results in one task and runs passive effects in a
+    // later one, so a key press can land in between. Check and press as soon
+    // as the rows appear: a MutationObserver callback runs right after the
+    // commit, before that later task.
+    const seen = await new Promise<{ activeDescendant: boolean; selectedAfterArrow: (string | null)[] }>((done) => {
+      const observer = new MutationObserver(() => {
+        const options = document.querySelectorAll('[role="option"]');
+        if (options.length < 2) {
+          return;
+        }
+        observer.disconnect();
+        const activeDescendant = editor.view.dom.getAttribute('aria-activedescendant') === options[0].id;
+        pressKey(editor, 'ArrowDown');
+        const selectedAfterArrow = Array.from(document.querySelectorAll('[role="option"]')).map((option) =>
+          option.getAttribute('aria-selected')
+        );
+        pressKey(editor, 'Enter');
+        done({ activeDescendant, selectedAfterArrow });
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      resolveSearch([ADA, GRACE]);
+    });
+
+    expect(seen).toEqual({ activeDescendant: true, selectedAfterArrow: ['false', 'true'] });
+    expect(lastElements(onChange)).toEqual([
+      { type: 'user', user_id: 'U0GRACE' },
+      { type: 'text', text: ' ' }
+    ]);
+  });
+
   it('opens the picker from the toolbar button', async () => {
     const searchUsers = vi.fn().mockResolvedValue([ADA]);
     const { editor } = await renderEditor(block({ type: 'text', text: 'Hi' }), { searchUsers });
