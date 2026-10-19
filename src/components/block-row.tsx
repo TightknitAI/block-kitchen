@@ -198,6 +198,131 @@ export function BlockRow({
     );
   const adornment = position && renderBlockAdornment?.(position);
 
+  // The type label and the desktop toolbar, floating over the top edge of the block body.
+  const hoverChrome = (
+    <>
+      <span className="-translate-x-1/2 pointer-events-none absolute bottom-full left-1/2 z-10 hidden bg-background px-1.5 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 md:block">
+        {BLOCK_TYPE_LABELS[builderBlock.block.type]}
+      </span>
+      {/* Desktop action toolbar. Hover-reveal floating above the block —
+          crowded but only one is visible at a time so the overlap is
+          invisible. Hidden on mobile in favor of the inline row below. */}
+      <div
+        className={cn(
+          // Hidden on mobile in favor of the inline row below; on desktop
+          // reveal on hover, on keyboard focus inside the row (so Tab-stops on
+          // the floating buttons themselves keep them visible), and when there
+          // are validation errors worth surfacing immediately.
+          // :focus-visible, not :focus-within — a drag leaves pointer focus on
+          // the block, which would otherwise pin the toolbar open until a click.
+          'absolute -top-3 right-2 z-10 hidden items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm transition-opacity md:flex',
+          hasErrors ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100'
+        )}
+      >
+        {hasErrors ? (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                type="button"
+                aria-label={`Show ${errors!.length} validation ${errors!.length === 1 ? 'issue' : 'issues'}`}
+                onClick={() => onOpenChange?.(true)}
+                className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <AlertTriangle className="h-3.5 w-3.5" />
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="top" align="end">
+              <ul className="flex flex-col gap-0.5">
+                {errors!.slice(0, 4).map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+                {errors!.length > 4 ? <li className="text-muted-foreground">and {errors!.length - 4} more</li> : null}
+              </ul>
+            </TooltipContent>
+          </Tooltip>
+        ) : null}
+        {onReorder && typeof index === 'number' && typeof total === 'number' ? (
+          <>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Move block up"
+                  disabled={index === 0}
+                  onClick={() => onReorder(builderBlock.id, index - 1)}
+                  className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                >
+                  <ArrowUp className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Move up</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  aria-label="Move block down"
+                  disabled={index >= total - 1}
+                  onClick={() => onReorder(builderBlock.id, index + 1)}
+                  className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
+                >
+                  <ArrowDown className="h-3.5 w-3.5" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="top">Move down</TooltipContent>
+            </Tooltip>
+          </>
+        ) : null}
+        <BlockActionButtons actions={blockActions} position={position} variant="toolbar" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Edit block"
+              onClick={() => {
+                if (isRichText) {
+                  setInlineEditing(true);
+                } else {
+                  onOpenChange?.(true);
+                }
+              }}
+              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Edit</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Duplicate block"
+              onClick={() => onDuplicate(builderBlock.id)}
+              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Duplicate</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              type="button"
+              aria-label="Delete block"
+              onClick={() => onDelete(builderBlock.id)}
+              className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="top">Delete</TooltipContent>
+        </Tooltip>
+      </div>
+    </>
+  );
+
   return (
     <div
       ref={setNodeRef}
@@ -217,131 +342,21 @@ export function BlockRow({
       <div className="relative w-full">
         {renderBlockAdornment ? (
           <div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">{body}</div>
+            {/* The hover chrome sits in the body's own column, so the toolbar's
+                `right-2` measures from the block's right edge and stays clear of
+                the adornment instead of covering it. */}
+            <div className="relative min-w-0 flex-1">
+              {body}
+              {hoverChrome}
+            </div>
             {adornment != null && adornment !== false ? <div className="shrink-0">{adornment}</div> : null}
           </div>
         ) : (
-          body
+          <>
+            {body}
+            {hoverChrome}
+          </>
         )}
-        <span className="-translate-x-1/2 pointer-events-none absolute bottom-full left-1/2 z-10 hidden bg-background px-1.5 text-[11px] text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 md:block">
-          {BLOCK_TYPE_LABELS[builderBlock.block.type]}
-        </span>
-        {/* Desktop action toolbar. Hover-reveal floating above the block —
-            crowded but only one is visible at a time so the overlap is
-            invisible. Hidden on mobile in favor of the inline row below. */}
-        <div
-          className={cn(
-            // Hidden on mobile in favor of the inline row below; on desktop
-            // reveal on hover, on keyboard focus inside the row (so Tab-stops on
-            // the floating buttons themselves keep them visible), and when there
-            // are validation errors worth surfacing immediately.
-            // :focus-visible, not :focus-within — a drag leaves pointer focus on
-            // the block, which would otherwise pin the toolbar open until a click.
-            'absolute -top-3 right-2 z-10 hidden items-center gap-0.5 rounded-md border bg-background p-0.5 shadow-sm transition-opacity md:flex',
-            hasErrors ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-has-[:focus-visible]:opacity-100'
-          )}
-        >
-          {hasErrors ? (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  aria-label={`Show ${errors!.length} validation ${errors!.length === 1 ? 'issue' : 'issues'}`}
-                  onClick={() => onOpenChange?.(true)}
-                  className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                >
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="top" align="end">
-                <ul className="flex flex-col gap-0.5">
-                  {errors!.slice(0, 4).map((err, i) => (
-                    <li key={i}>{err}</li>
-                  ))}
-                  {errors!.length > 4 ? <li className="text-muted-foreground">and {errors!.length - 4} more</li> : null}
-                </ul>
-              </TooltipContent>
-            </Tooltip>
-          ) : null}
-          {onReorder && typeof index === 'number' && typeof total === 'number' ? (
-            <>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Move block up"
-                    disabled={index === 0}
-                    onClick={() => onReorder(builderBlock.id, index - 1)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-                  >
-                    <ArrowUp className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Move up</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label="Move block down"
-                    disabled={index >= total - 1}
-                    onClick={() => onReorder(builderBlock.id, index + 1)}
-                    className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-muted-foreground"
-                  >
-                    <ArrowDown className="h-3.5 w-3.5" />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="top">Move down</TooltipContent>
-              </Tooltip>
-            </>
-          ) : null}
-          <BlockActionButtons actions={blockActions} position={position} variant="toolbar" />
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Edit block"
-                onClick={() => {
-                  if (isRichText) {
-                    setInlineEditing(true);
-                  } else {
-                    onOpenChange?.(true);
-                  }
-                }}
-                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <Pencil className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Edit</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Duplicate block"
-                onClick={() => onDuplicate(builderBlock.id)}
-                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <Copy className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Duplicate</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                aria-label="Delete block"
-                onClick={() => onDelete(builderBlock.id)}
-                className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              >
-                <Trash2 className="h-3.5 w-3.5" />
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="top">Delete</TooltipContent>
-          </Tooltip>
-        </div>
       </div>
       {/* Mobile-only inline action bar. Lives in the flow under the block
           preview so it never overlaps content (the floating desktop bar
