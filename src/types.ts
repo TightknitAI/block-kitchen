@@ -1091,6 +1091,13 @@ export interface BlockKitchenBaseProps {
    */
   blockActions?: readonly BlockAction[];
   /**
+   * Opt-in host content shown beside every block, at its right edge, all the
+   * time (unlike `blockActions`, which show on hover): e.g. a count of
+   * comments on the block. Called with the block's position (see
+   * {@link BlockPosition}); return `null` for a block with nothing to show.
+   */
+  renderBlockAdornment?: (position: BlockPosition) => ReactNode;
+  /**
    * Workspace custom emoji (`emoji.list`) the preview should resolve. Entries
    * with a non-null `url` render as the workspace image; alias entries fall
    * back to their target emoji. Optional and backward compatible: when omitted,

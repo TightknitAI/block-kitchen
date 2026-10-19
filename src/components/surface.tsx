@@ -3,7 +3,15 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { LayoutGrid, Plus, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
-import type { BlockAction, BuilderBlock, PreviewHooks, PreviewSurface, PreviewTheme, SupportedBlock } from '../types';
+import type {
+  BlockAction,
+  BlockPosition,
+  BuilderBlock,
+  PreviewHooks,
+  PreviewSurface,
+  PreviewTheme,
+  SupportedBlock
+} from '../types';
 import { BlockRow } from './block-row';
 import { ContainerRow } from './container-row';
 import { SlackMessageFrame } from './preview/slack-message-preview';
@@ -32,6 +40,7 @@ export const SURFACE_DROPPABLE_ID = 'builder-surface';
  * @param props.onDuplicate - duplicate handler forwarded to each row
  * @param props.onDelete - delete handler forwarded to each row
  * @param props.blockActions - host buttons forwarded to each row's toolbars
+ * @param props.renderBlockAdornment - host content forwarded to each row, shown at its right edge
  * @returns the rendered preview surface
  */
 export function Surface({
@@ -51,7 +60,8 @@ export function Surface({
   onReorder,
   isPaletteDrag = false,
   onOpenPalette,
-  blockActions
+  blockActions,
+  renderBlockAdornment
 }: {
   blocks: BuilderBlock[];
   workspaceName?: string;
@@ -79,6 +89,8 @@ export function Surface({
   onOpenPalette?: () => void;
   /** Host buttons forwarded to each row's toolbars. */
   blockActions?: readonly BlockAction[];
+  /** Host content forwarded to each row, shown at its right edge. */
+  renderBlockAdornment?: (position: BlockPosition) => ReactNode;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: SURFACE_DROPPABLE_ID });
   const isDark = previewTheme === 'dark';
@@ -123,6 +135,7 @@ export function Surface({
                 onReorder={onReorder}
                 isPaletteDrag={isPaletteDrag}
                 blockActions={blockActions}
+                renderBlockAdornment={renderBlockAdornment}
               />
             ) : (
               <BlockRow
@@ -142,6 +155,7 @@ export function Surface({
                 isPaletteDrag={isPaletteDrag}
                 position={{ index: idx, childIndex: null }}
                 blockActions={blockActions}
+                renderBlockAdornment={renderBlockAdornment}
               />
             )
           )}
