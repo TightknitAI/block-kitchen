@@ -9,9 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.3.0",
-    "react-dom": "^19.3.0",
-    "slack-web-api-client": "^1.1.14"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "slack-web-api-client": "^1.1.15"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
