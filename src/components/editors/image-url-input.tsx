@@ -14,8 +14,8 @@ import {
 
 /**
  * The URL input for an image field. When the host configured
- * {@link ImageUploadConfig}, it also offers an upload button and a drop zone,
- * and writes the uploaded file's URL into the field.
+ * {@link ImageUploadConfig}, an upload button and drop zone come first, with
+ * the URL input beneath, and an upload writes the file's URL into the field.
  * @param props - input props
  * @param props.id - id of the URL input, for its label
  * @param props.value - the current image URL
@@ -43,8 +43,8 @@ export function ImageUrlInput({
   }
   return (
     <div className="flex flex-col gap-1.5">
-      {input}
       <UploadDropZone upload={upload} inputId={id} onUploaded={onChange} variant="inline" />
+      {input}
     </div>
   );
 }
@@ -140,14 +140,7 @@ export function UploadDropZone({
     />
   );
   const pickButton = (label: string) => (
-    <Button
-      type="button"
-      variant="outline"
-      size="sm"
-      className="h-7"
-      disabled={uploading}
-      onClick={() => fileInputRef.current?.click()}
-    >
+    <Button type="button" size="sm" className="h-7" disabled={uploading} onClick={() => fileInputRef.current?.click()}>
       {label}
     </Button>
   );
@@ -183,7 +176,7 @@ export function UploadDropZone({
         >
           <Upload className={cn('h-3.5 w-3.5 shrink-0', uploading && 'animate-pulse')} aria-hidden="true" />
           <span className="flex-1" aria-live="polite">
-            {uploading ? 'Uploading…' : dragging ? 'Drop to upload' : 'Or drop an image here'}
+            {uploading ? 'Uploading…' : dragging ? 'Drop to upload' : 'Drop an image here, or paste a URL below'}
           </span>
           {pickButton('Upload image')}
           {fileInput}
