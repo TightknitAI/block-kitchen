@@ -3,6 +3,7 @@ import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { EditorField } from './field';
+import { ImageUrlInput } from './image-url-input';
 import type { BlockEditorProps } from './types';
 
 type ImageSourceKind = 'url' | 'slack_file';
@@ -69,12 +70,11 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<ImageBlock>) {
         <SlackFileFields block={block} onChange={onChange} />
       ) : (
         <EditorField label="Image URL" help="A publicly accessible image URL (PNG, JPG, GIF)." htmlFor="img-url">
-          <Input
+          <ImageUrlInput
             id="img-url"
-            type="url"
             value={block.image_url ?? ''}
             placeholder="e.g. https://example.com/cover.png"
-            onChange={(e) => onChange({ ...block, image_url: e.target.value })}
+            onChange={(url) => onChange({ ...block, image_url: url })}
           />
         </EditorField>
       )}

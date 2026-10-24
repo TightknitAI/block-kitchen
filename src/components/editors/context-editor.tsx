@@ -6,6 +6,7 @@ import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { Textarea } from '../../lib/ui/textarea';
 import { EditorField } from './field';
+import { ImageUrlInput } from './image-url-input';
 import type { BlockEditorProps } from './types';
 
 type TextElement = {
@@ -245,12 +246,11 @@ function ImageItemCard({
         help="A publicly accessible image URL. Best at small sizes (around 20px)."
         htmlFor={`ctx-img-url-${index}`}
       >
-        <Input
+        <ImageUrlInput
           id={`ctx-img-url-${index}`}
-          type="url"
           value={element.image_url}
           placeholder="e.g. https://example.com/avatar.png"
-          onChange={(e) => onChange({ ...element, image_url: e.target.value })}
+          onChange={(url) => onChange({ ...element, image_url: url })}
         />
       </EditorField>
       <EditorField label="Alt text" help="Describes the image for screen readers." htmlFor={`ctx-img-alt-${index}`}>

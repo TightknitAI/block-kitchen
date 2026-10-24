@@ -6,6 +6,7 @@ import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { Textarea } from '../../lib/ui/textarea';
 import { EmojiTextInsertButton } from '../emoji/emoji-text-insert-button';
 import { AdvancedIdField, EditorField } from './field';
+import { ImageUrlInput } from './image-url-input';
 import type { BlockEditorProps } from './types';
 
 type AccessoryKind = 'none' | 'button' | 'image' | 'other';
@@ -266,12 +267,11 @@ function ImageAccessoryFields({ image, onChange }: { image: ImageElement; onChan
         help="A publicly accessible image URL (PNG, JPG, GIF)."
         htmlFor="section-acc-img-url"
       >
-        <Input
+        <ImageUrlInput
           id="section-acc-img-url"
-          type="url"
           value={image.image_url ?? ''}
           placeholder="e.g. https://example.com/thumb.png"
-          onChange={(e) => onChange({ ...image, image_url: e.target.value })}
+          onChange={(url) => onChange({ ...image, image_url: url })}
         />
       </EditorField>
       <EditorField

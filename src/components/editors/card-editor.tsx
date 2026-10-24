@@ -9,6 +9,7 @@ import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import { Textarea } from '../../lib/ui/textarea';
 import type { CardBlock } from '../../types';
 import { AdvancedIdField, EditorField } from './field';
+import { ImageUrlInput } from './image-url-input';
 import type { BlockEditorProps } from './types';
 
 type ButtonStyle = 'default' | 'primary' | 'danger';
@@ -157,12 +158,11 @@ function ImageFields({
   return (
     <div className="flex flex-col gap-2 rounded-md border bg-muted/20 p-3">
       <EditorField label={label} help={help} htmlFor={`${idPrefix}-url`}>
-        <Input
+        <ImageUrlInput
           id={`${idPrefix}-url`}
-          type="url"
           value={url}
           placeholder="e.g. https://example.com/image.png"
-          onChange={(e) => update({ url: e.target.value })}
+          onChange={(next) => update({ url: next })}
         />
       </EditorField>
       <EditorField label="Alt text" help="Describes the image for screen readers." htmlFor={`${idPrefix}-alt`}>

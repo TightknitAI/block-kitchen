@@ -3,6 +3,7 @@ import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
 import type { ContainerBlock } from '../../types';
 import { EditorField } from './field';
+import { ImageUrlInput } from './image-url-input';
 import { RichTextField } from './rich-text-field';
 import type { BlockEditorProps } from './types';
 
@@ -116,17 +117,14 @@ export function ContainerEditor({ block, onChange }: BlockEditorProps<ContainerB
       ) : null}
 
       <EditorField label="Icon URL" help="Optional image shown left of the title." htmlFor="container-icon">
-        <Input
+        <ImageUrlInput
           id="container-icon"
-          type="url"
           value={iconUrl}
           placeholder="https://example.com/icon.png"
-          onChange={(e) =>
+          onChange={(url) =>
             onChange({
               ...block,
-              icon: e.target.value
-                ? { type: 'image', image_url: e.target.value, alt_text: iconAlt || 'Container icon' }
-                : undefined
+              icon: url ? { type: 'image', image_url: url, alt_text: iconAlt || 'Container icon' } : undefined
             })
           }
         />

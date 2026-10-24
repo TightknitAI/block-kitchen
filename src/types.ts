@@ -1005,6 +1005,30 @@ export interface MentionsConfig {
 }
 
 /**
+ * Opt-in image uploads, passed as {@link BlockKitchenBaseProps.imageUpload}.
+ * Image URL fields gain an "Upload" button and accept a dropped file, and an
+ * image file dropped on the canvas adds an image block.
+ *
+ * Like every other I/O concern, the upload is brokered by the host: the
+ * builder hands over the `File` and writes whatever URL comes back into the
+ * block. Slack fetches that URL when the message is posted, so it must be
+ * publicly reachable.
+ */
+export interface ImageUploadConfig {
+  /**
+   * Uploads one image and resolves its public URL. A rejection's `message`
+   * is shown to the user, so reject with something they can act on (e.g.
+   * "File size exceeds 5 MB limit").
+   */
+  uploadImage: (file: File) => Promise<{ url: string }>;
+  /**
+   * Optional. MIME types the file picker offers and drops accept. Defaults
+   * to PNG, JPEG and GIF, the formats Slack renders in an image block.
+   */
+  accept?: readonly string[];
+}
+
+/**
  * Hooks forwarded to `slack-blocks-to-jsx`'s `<Message>` so the consumer can
  * resolve user mentions, channel mentions, custom emojis, and links to
  * application-specific UI. See the upstream library for the full hook shape.
@@ -1152,6 +1176,12 @@ export interface BlockKitchenBaseProps {
    * configuration and display by raw id.
    */
   mentions?: MentionsConfig;
+  /**
+   * Opt-in image uploads from the user's device. See
+   * {@link ImageUploadConfig}. Without it, images are added by public URL
+   * only.
+   */
+  imageUpload?: ImageUploadConfig;
   /**
    * Opt-in: load an existing Slack message into the editor. Adds a
    * "Find message" toolbar entry — the user pastes a permalink (or picks a
