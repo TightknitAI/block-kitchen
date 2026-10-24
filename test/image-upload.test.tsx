@@ -30,10 +30,58 @@ function pickFile(container: HTMLElement, id: string, file: File) {
   fireEvent.change(input, { target: { files: [file] } });
 }
 
-describe('image URL field uploads', () => {
-  it('offers no upload without the host config', () => {
+const SLACK_FILE_BLOCK: ImageBlock = { type: 'image', slack_file: { id: 'F0123456789' }, alt_text: 'Chart' };
+
+const SECTION_WITH_IMAGE: SupportedBlock = {
+  type: 'section',
+  text: { type: 'mrkdwn', text: 'Roadmap' },
+  accessory: { type: 'image', image_url: 'https://example.com/thumb.png', alt_text: 'Thumb' }
+};
+
+function withUpload(uploadImage: ImageUploadConfig['uploadImage'], block: SupportedBlock, onChange = vi.fn()) {
+  return render(
+    <ImageUploadProvider imageUpload={{ uploadImage }}>
+      <BlockEditor block={block} onChange={onChange} />
+    </ImageUploadProvider>
+  );
+}
+
+describe('image block "Upload image" source', () => {
+  it('offers no upload source without the host config', () => {
     render(<BlockEditor block={URL_BLOCK} onChange={vi.fn()} />);
-    expect(screen.queryByRole('button', { name: 'Upload image' })).toBeNull();
+    expect(screen.queryByRole('radio', { name: 'Upload image' })).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Public URL' }).getAttribute('aria-checked')).toBe('true');
+  });
+
+  it('leads with the upload source and selects it, in place of the URL field', () => {
+    withUpload(vi.fn(), URL_BLOCK);
+
+    const sources = screen.getAllByRole('radio').map((radio) => radio.getAttribute('id'));
+    expect(sources).toEqual(['img-source-upload', 'img-source-url', 'img-source-slack_file']);
+    expect(screen.getByRole('radio', { name: 'Upload image' }).getAttribute('aria-checked')).toBe('true');
+    expect(screen.getByRole('region', { name: 'Upload an image' })).toBeTruthy();
+    expect(screen.queryByLabelText('Image URL')).toBeNull();
+  });
+
+  it('switches to Public URL without touching the block, showing its URL and no drop zone', () => {
+    const onChange = vi.fn();
+    withUpload(vi.fn(), URL_BLOCK, onChange);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Public URL' }));
+
+    expect((screen.getByLabelText('Image URL') as HTMLInputElement).value).toBe('https://example.com/cover.png');
+    expect(screen.queryByRole('region', { name: 'Upload an image' })).toBeNull();
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('opens a Slack file block on its own source, and switching to upload swaps in an image_url', () => {
+    const onChange = vi.fn();
+    withUpload(vi.fn(), SLACK_FILE_BLOCK, onChange);
+    expect(screen.getByRole('radio', { name: 'Slack file' }).getAttribute('aria-checked')).toBe('true');
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Upload image' }));
+
+    expect(onChange).toHaveBeenCalledWith({ type: 'image', image_url: '', alt_text: 'Chart' });
   });
 
   it('writes the uploaded URL into the block, keeping its other fields', async () => {
@@ -46,7 +94,7 @@ describe('image URL field uploads', () => {
     );
 
     const file = png();
-    pickFile(container, 'img-url', file);
+    pickFile(container, 'img-upload', file);
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ ...URL_BLOCK, image_url: UPLOADED_URL }));
     expect(uploadImage).toHaveBeenCalledWith(file);
@@ -67,7 +115,7 @@ describe('image URL field uploads', () => {
       </ImageUploadProvider>
     );
 
-    pickFile(container, 'img-url', png());
+    pickFile(container, 'img-upload', png());
     // Alt text edited while the upload is in flight.
     const edited: ImageBlock = { ...URL_BLOCK, alt_text: 'Q3 roadmap' };
     rerender(
@@ -91,7 +139,7 @@ describe('image URL field uploads', () => {
       </ImageUploadProvider>
     );
 
-    pickFile(container, 'img-url', png());
+    pickFile(container, 'img-upload', png());
 
     expect((await screen.findByRole('alert')).textContent).toBe('File size exceeds 5 MB limit');
     expect(onChange).not.toHaveBeenCalled();
@@ -105,7 +153,7 @@ describe('image URL field uploads', () => {
       </ImageUploadProvider>
     );
 
-    pickFile(container, 'img-url', new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' }));
+    pickFile(container, 'img-upload', new File(['<svg/>'], 'logo.svg', { type: 'image/svg+xml' }));
 
     expect((await screen.findByRole('alert')).textContent).toContain('Use PNG, JPEG or GIF');
     expect(uploadImage).not.toHaveBeenCalled();
@@ -127,6 +175,23 @@ describe('image URL field uploads', () => {
 
     await waitFor(() => expect(onChange).toHaveBeenCalledWith({ ...URL_BLOCK, image_url: UPLOADED_URL }));
     expect(canvasDrop).not.toHaveBeenCalled();
+  });
+});
+
+describe('inline upload on other image URL fields', () => {
+  it('uploads into a section image accessory from the strip under its URL', async () => {
+    const uploadImage = vi.fn<ImageUploadConfig['uploadImage']>().mockResolvedValue({ url: UPLOADED_URL });
+    const onChange = vi.fn();
+    const { container } = withUpload(uploadImage, SECTION_WITH_IMAGE, onChange);
+
+    pickFile(container, 'section-acc-img-url', png());
+
+    await waitFor(() =>
+      expect(onChange).toHaveBeenCalledWith({
+        ...SECTION_WITH_IMAGE,
+        accessory: { type: 'image', image_url: UPLOADED_URL, alt_text: 'Thumb' }
+      })
+    );
   });
 });
 

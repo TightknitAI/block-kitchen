@@ -44,27 +44,32 @@ export function ImageUrlInput({
   return (
     <div className="flex flex-col gap-1.5">
       {input}
-      <UploadDropZone upload={upload} inputId={id} onUploaded={onChange} />
+      <UploadDropZone upload={upload} inputId={id} onUploaded={onChange} variant="inline" />
     </div>
   );
 }
 
 /**
- * Dashed drop zone with an upload button, plus the upload's progress and error.
+ * Dashed drop zone with a file picker button, plus the upload's progress and
+ * error. `inline` is a one-line strip under a URL input; `panel` is a taller
+ * zone that stands in for the URL input altogether.
  * @param props - drop zone props
  * @param props.upload - the host's upload config
- * @param props.inputId - id of the URL input this fills, to derive the file input's id
+ * @param props.inputId - base id for the zone's file input
  * @param props.onUploaded - called with the uploaded file's URL
+ * @param props.variant - `inline` strip or standalone `panel`
  * @returns the rendered drop zone
  */
-function UploadDropZone({
+export function UploadDropZone({
   upload,
   inputId,
-  onUploaded
+  onUploaded,
+  variant
 }: {
   upload: ResolvedImageUpload;
   inputId: string;
   onUploaded: (url: string) => void;
+  variant: 'inline' | 'panel';
 }) {
   const [uploading, setUploading] = useState(false);
   const [dragging, setDragging] = useState(false);
@@ -115,50 +120,75 @@ function UploadDropZone({
     }
   };
 
+  const fileInput = (
+    <input
+      ref={fileInputRef}
+      id={`${inputId}-file`}
+      type="file"
+      accept={upload.accept.join(',')}
+      className="hidden"
+      tabIndex={-1}
+      aria-hidden="true"
+      onChange={(e) => {
+        const file = e.target.files?.[0];
+        // Cleared so picking the same file again after an error retries it.
+        e.target.value = '';
+        if (file) {
+          void uploadFile(file);
+        }
+      }}
+    />
+  );
+  const pickButton = (label: string) => (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="h-7"
+      disabled={uploading}
+      onClick={() => fileInputRef.current?.click()}
+    >
+      {label}
+    </Button>
+  );
+  const dropHandlers = { onDragOver, onDragLeave: () => setDragging(false), onDrop };
+
   return (
     <>
-      <section
-        aria-label="Upload an image"
-        onDragOver={onDragOver}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-        className={cn(
-          'flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-[11px] text-muted-foreground transition-colors',
-          dragging && 'border-primary bg-primary/5 text-primary'
-        )}
-      >
-        <Upload className={cn('h-3.5 w-3.5 shrink-0', uploading && 'animate-pulse')} aria-hidden="true" />
-        <span className="flex-1" aria-live="polite">
-          {uploading ? 'Uploading…' : dragging ? 'Drop to upload' : 'Or drop an image here'}
-        </span>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-7"
-          disabled={uploading}
-          onClick={() => fileInputRef.current?.click()}
+      {variant === 'panel' ? (
+        <section
+          aria-label="Upload an image"
+          {...dropHandlers}
+          className={cn(
+            'flex flex-col items-center justify-center gap-2 rounded-md border border-dashed px-4 py-6 text-center text-xs text-muted-foreground transition-colors',
+            dragging && 'border-primary bg-primary/5 text-primary'
+          )}
         >
-          Upload image
-        </Button>
-        <input
-          ref={fileInputRef}
-          id={`${inputId}-file`}
-          type="file"
-          accept={upload.accept.join(',')}
-          className="hidden"
-          tabIndex={-1}
-          aria-hidden="true"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            // Cleared so picking the same file again after an error retries it.
-            e.target.value = '';
-            if (file) {
-              void uploadFile(file);
-            }
-          }}
-        />
-      </section>
+          <Upload className={cn('h-5 w-5', uploading && 'animate-pulse')} aria-hidden="true" />
+          <span aria-live="polite">
+            {uploading ? 'Uploading…' : dragging ? 'Drop to upload' : 'Drag an image here, or'}
+          </span>
+          {pickButton('Choose file')}
+          <span className="text-[11px]">{formatList(upload.accept)}</span>
+          {fileInput}
+        </section>
+      ) : (
+        <section
+          aria-label="Upload an image"
+          {...dropHandlers}
+          className={cn(
+            'flex items-center gap-2 rounded-md border border-dashed px-3 py-2 text-[11px] text-muted-foreground transition-colors',
+            dragging && 'border-primary bg-primary/5 text-primary'
+          )}
+        >
+          <Upload className={cn('h-3.5 w-3.5 shrink-0', uploading && 'animate-pulse')} aria-hidden="true" />
+          <span className="flex-1" aria-live="polite">
+            {uploading ? 'Uploading…' : dragging ? 'Drop to upload' : 'Or drop an image here'}
+          </span>
+          {pickButton('Upload image')}
+          {fileInput}
+        </section>
+      )}
       {error ? (
         <p role="alert" className="text-[11px] leading-snug text-destructive">
           {error}

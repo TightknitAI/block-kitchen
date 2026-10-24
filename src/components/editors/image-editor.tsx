@@ -1,61 +1,79 @@
+import { useState } from 'react';
 import type { ImageBlock, PublicImageBlock, SlackFileImageBlock } from 'slack-web-api-client';
 import { Input } from '../../lib/ui/input';
 import { Label } from '../../lib/ui/label';
 import { RadioGroup, RadioGroupItem } from '../../lib/ui/radio-group';
+import { useImageUpload } from '../../state/image-upload-context';
 import { EditorField } from './field';
-import { ImageUrlInput } from './image-url-input';
+import { UploadDropZone } from './image-url-input';
 import type { BlockEditorProps } from './types';
 
-type ImageSourceKind = 'url' | 'slack_file';
+type ImageSourceKind = 'upload' | 'url' | 'slack_file';
 
 /**
  * Editor form for image blocks. Slack backs an image block with either a
  * public `image_url` or a `slack_file` reference, and the "Image source"
  * radio switches between the two — so a block loaded with a `slack_file`
  * (which the builder can't upload or preview) can be converted to a plain
- * URL image, and back. Alt text and title apply to both variants.
+ * URL image, and back. When the host configured image uploads, an "Upload
+ * image" source leads the radio and is selected first: it uploads a file
+ * from the user's device and writes its URL to `image_url`. Alt text and
+ * title apply to every source.
  * @param props - editor props
  * @param props.block - the image block to edit
  * @param props.onChange - called with the updated block payload
  * @returns the rendered image editor form
  */
 export function ImageEditor({ block, onChange }: BlockEditorProps<ImageBlock>) {
-  const source: ImageSourceKind = 'slack_file' in block ? 'slack_file' : 'url';
+  const upload = useImageUpload();
+  // Upload and Public URL both back the block with `image_url`, so which of
+  // the two shows is the editor's own choice rather than the block's.
+  const [urlSource, setUrlSource] = useState<'upload' | 'url'>(upload ? 'upload' : 'url');
+  const isSlackFile = 'slack_file' in block;
+  const source: ImageSourceKind = isSlackFile ? 'slack_file' : upload ? urlSource : 'url';
   const titleText = block.title?.text ?? '';
 
   const setSource = (next: ImageSourceKind) => {
     if (next === source) {
       return;
     }
+    if (next !== 'slack_file') {
+      setUrlSource(next);
+    }
     // Slack rejects a block carrying both keys, so the switch swaps one
     // backing field for the other. The default is spread first so a
     // malformed block that already carries both keys keeps its value.
-    if (next === 'url') {
+    if (next !== 'slack_file' && isSlackFile) {
       const { slack_file: _omit, ...rest } = block as SlackFileImageBlock;
       onChange({ image_url: '', ...rest });
-    } else {
+    } else if (next === 'slack_file') {
       const { image_url: _omit, ...rest } = block as PublicImageBlock;
       onChange({ slack_file: { id: '' }, ...rest });
     }
   };
 
+  const sourceOptions: (readonly [ImageSourceKind, string])[] = [
+    ...(upload ? [['upload', 'Upload image'] as const] : []),
+    ['url', 'Public URL'],
+    ['slack_file', 'Slack file']
+  ];
+
   return (
     <div className="flex flex-col gap-3">
       <EditorField
         label="Image source"
-        help="Where the image comes from: a public URL, or a file already uploaded to your Slack workspace."
+        help={
+          upload
+            ? 'Where the image comes from: a file from your device, a public URL, or a file already uploaded to your Slack workspace.'
+            : 'Where the image comes from: a public URL, or a file already uploaded to your Slack workspace.'
+        }
       >
         <RadioGroup
           value={source}
           onValueChange={(v) => setSource(v as ImageSourceKind)}
           className="flex flex-row flex-wrap gap-3"
         >
-          {(
-            [
-              ['url', 'Public URL'],
-              ['slack_file', 'Slack file']
-            ] as const
-          ).map(([value, label]) => (
+          {sourceOptions.map(([value, label]) => (
             <div key={value} className="flex items-center gap-1.5">
               <RadioGroupItem value={value} id={`img-source-${value}`} />
               <Label htmlFor={`img-source-${value}`} className="text-xs">
@@ -68,13 +86,21 @@ export function ImageEditor({ block, onChange }: BlockEditorProps<ImageBlock>) {
 
       {'slack_file' in block ? (
         <SlackFileFields block={block} onChange={onChange} />
+      ) : source === 'upload' && upload ? (
+        <UploadDropZone
+          upload={upload}
+          inputId="img-upload"
+          variant="panel"
+          onUploaded={(url) => onChange({ ...block, image_url: url })}
+        />
       ) : (
         <EditorField label="Image URL" help="A publicly accessible image URL (PNG, JPG, GIF)." htmlFor="img-url">
-          <ImageUrlInput
+          <Input
             id="img-url"
+            type="url"
             value={block.image_url ?? ''}
             placeholder="e.g. https://example.com/cover.png"
-            onChange={(url) => onChange({ ...block, image_url: url })}
+            onChange={(e) => onChange({ ...block, image_url: e.target.value })}
           />
         </EditorField>
       )}
