@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.10.27](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.26...block-kitchen-v0.10.27) (2026-10-25)
+
+
+### Features
+
+* add a close button to the block editor popover's title row ([bb978bd](https://github.com/TightknitAI/block-kitchen/commit/bb978bd61890df37d512fec321f8518e57687cc8))
+* lead the image block's sources with "Upload image" ([8cd0d5e](https://github.com/TightknitAI/block-kitchen/commit/8cd0d5ee5b3e3e2c2f00b0e718895e01f8c9438e))
+* let hosts take image uploads from the builder ([4303ad4](https://github.com/TightknitAI/block-kitchen/commit/4303ad437c246875de3dcfd6b846d789d668f6fd))
+* let hosts take image uploads from the builder ([421607a](https://github.com/TightknitAI/block-kitchen/commit/421607a439c7e8180ec20aee253ff64dc51666ab))
+* put the upload first on image URL fields, with primary buttons ([4823df5](https://github.com/TightknitAI/block-kitchen/commit/4823df5abe56ef9910cbedc871d589bb1d4e8833))
+
+
+### Bug Fixes
+
+* open the clicked block's editor while another block's editor is open ([3c42b65](https://github.com/TightknitAI/block-kitchen/commit/3c42b65a5c303e314ad670ad238dee3518126699))
+
 ## [0.10.26](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.25...block-kitchen-v0.10.26) (2026-10-19)
 
 
