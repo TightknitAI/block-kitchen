@@ -1,8 +1,10 @@
 import { useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { LayoutGrid, Plus, X } from 'lucide-react';
+import { ImagePlus, LayoutGrid, Plus, X } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
+import { useImageUpload } from '../state/image-upload-context';
+import { useCanvasImageDrop } from '../state/use-canvas-image-drop';
 import type {
   BlockAction,
   BlockPosition,
@@ -35,12 +37,14 @@ export const SURFACE_DROPPABLE_ID = 'builder-surface';
  * @param props.previewSurface - which surface chrome to render
  * @param props.errorsByBlockId - validation errors keyed by builder block id
  * @param props.openBlockId - id of the block whose editor popover is open
- * @param props.onOpenBlockChange - called when a block's popover open state changes
+ * @param props.onOpenBlockChange - called with a block's id when its popover opens or closes
  * @param props.onUpdate - update handler forwarded to each row
  * @param props.onDuplicate - duplicate handler forwarded to each row
  * @param props.onDelete - delete handler forwarded to each row
  * @param props.blockActions - host buttons forwarded to each row's toolbars
  * @param props.renderBlockAdornment - host content forwarded to each row, shown at its right edge
+ * @param props.onAddBlock - appends a block, for image files dropped on the canvas
+ * @param props.imageDropEnabled - whether dropped image files may add image blocks
  * @returns the rendered preview surface
  */
 export function Surface({
@@ -61,7 +65,9 @@ export function Surface({
   isPaletteDrag = false,
   onOpenPalette,
   blockActions,
-  renderBlockAdornment
+  renderBlockAdornment,
+  onAddBlock,
+  imageDropEnabled = true
 }: {
   blocks: BuilderBlock[];
   workspaceName?: string;
@@ -76,8 +82,8 @@ export function Surface({
   errorsByBlockId?: Map<string, string[]>;
   /** Block id whose editor popover is currently open. */
   openBlockId?: string | null;
-  /** Notified when a block's popover open state changes. */
-  onOpenBlockChange?: (id: string | null) => void;
+  /** Notified with a block's id when its popover opens or closes. */
+  onOpenBlockChange?: (id: string, open: boolean) => void;
   onUpdate: (id: string, block: SupportedBlock) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -91,9 +97,16 @@ export function Surface({
   blockActions?: readonly BlockAction[];
   /** Host content forwarded to each row, shown at its right edge. */
   renderBlockAdornment?: (position: BlockPosition) => ReactNode;
+  /** Appends a block. With the host's image upload configured, dropped image files become image blocks. */
+  onAddBlock?: (block: SupportedBlock) => void;
+  /** Whether dropped image files may add image blocks, false when the image block type is disabled. */
+  imageDropEnabled?: boolean;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: SURFACE_DROPPABLE_ID });
   const isDark = previewTheme === 'dark';
+  const imageDrop = useCanvasImageDrop({ upload: useImageUpload(), enabled: imageDropEnabled, onAddBlock });
+  // A file drag gets the same drop-target treatment as a palette drag.
+  const isDropTarget = isPaletteDrag || imageDrop.dragging;
 
   // Show the end-of-list insertion bar when the cursor is past the last
   // block while dragging a palette item. For reorder we rely on
@@ -106,15 +119,21 @@ export function Surface({
       className={cn(
         'flex min-h-[180px] flex-col px-3 py-2 transition-colors sm:min-h-[240px] sm:px-5',
         isDark ? 'bg-[#1a1d21]' : 'bg-white',
-        isPaletteDrag &&
+        isDropTarget &&
           (isDark
             ? 'bg-[#22262c] outline-2 outline-primary/40 -outline-offset-2 outline-dashed'
             : 'bg-[#f5f8ff] outline-2 outline-primary/40 -outline-offset-2 outline-dashed'),
-        isPaletteDrag && isOver && (isDark ? 'bg-[#2c3036]' : 'bg-[#eaf0ff]')
+        ((isPaletteDrag && isOver) || imageDrop.dragging) && (isDark ? 'bg-[#2c3036]' : 'bg-[#eaf0ff]')
       )}
     >
       {blocks.length === 0 ? (
-        <EmptyState isDark={isDark} isPaletteDrag={isPaletteDrag} isOver={isOver} onOpenPalette={onOpenPalette} />
+        <EmptyState
+          isDark={isDark}
+          isPaletteDrag={isPaletteDrag}
+          isOver={isOver}
+          isFileDrag={imageDrop.dragging}
+          onOpenPalette={onOpenPalette}
+        />
       ) : (
         <SortableContext items={blocks.map((b) => b.id)} strategy={verticalListSortingStrategy}>
           {blocks.map((block, idx) =>
@@ -145,7 +164,7 @@ export function Surface({
                 previewTheme={previewTheme}
                 errors={errorsByBlockId?.get(block.id)}
                 isOpen={openBlockId === block.id}
-                onOpenChange={(open) => onOpenBlockChange?.(open ? block.id : null)}
+                onOpenChange={(open) => onOpenBlockChange?.(block.id, open)}
                 onUpdate={onUpdate}
                 onDuplicate={onDuplicate}
                 onDelete={onDelete}
@@ -159,7 +178,7 @@ export function Surface({
               />
             )
           )}
-          {showEndDropZone ? <DropIndicator /> : null}
+          {showEndDropZone || imageDrop.dragging ? <DropIndicator /> : null}
         </SortableContext>
       )}
     </div>
@@ -173,8 +192,17 @@ export function Surface({
       // Slack frame keeps Slack's own canvas colors via isDark below,
       // since that surface is mimicking Slack itself.
       className={cn('flex min-w-0 flex-1 flex-col overflow-y-auto bg-muted p-3 sm:p-6')}
+      {...imageDrop.handlers}
     >
       <div className="mx-auto w-full max-w-2xl">
+        {imageDrop.handlers ? (
+          <ImageDropStatus
+            dragging={imageDrop.dragging}
+            pending={imageDrop.pending}
+            error={imageDrop.error}
+            onDismissError={imageDrop.dismissError}
+          />
+        ) : null}
         {previewSurface === 'modal' ? (
           <ModalFrame isDark={isDark}>{blocksList}</ModalFrame>
         ) : previewSurface === 'app_home' ? (
@@ -341,20 +369,24 @@ function AppHomeFrame({
  * @param props.isDark - whether the dark Slack canvas is active
  * @param props.isPaletteDrag - whether a palette block is currently being dragged
  * @param props.isOver - whether the cursor is currently over the surface
+ * @param props.isFileDrag - whether image files are being dragged over the canvas
+ * @param props.onOpenPalette - opens the palette sheet, for the mobile CTA
  * @returns the rendered placeholder
  */
 function EmptyState({
   isDark,
   isPaletteDrag,
   isOver,
+  isFileDrag = false,
   onOpenPalette
 }: {
   isDark: boolean;
   isPaletteDrag: boolean;
   isOver: boolean;
+  isFileDrag?: boolean;
   onOpenPalette?: () => void;
 }) {
-  const active = isPaletteDrag && isOver;
+  const active = (isPaletteDrag && isOver) || isFileDrag;
   return (
     <div
       className={cn(
@@ -377,7 +409,7 @@ function EmptyState({
             active ? 'text-primary' : isDark ? 'text-white' : 'text-[#1d1c1d]'
           )}
         >
-          {active ? 'Drop to add block' : 'Start adding blocks!'}
+          {isFileDrag ? 'Drop to add image' : active ? 'Drop to add block' : 'Start adding blocks!'}
         </p>
         <p className="text-xs">
           {active ? (
@@ -401,6 +433,63 @@ function EmptyState({
         </button>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * One line above the preview for image files dropped on the canvas: where
+ * they will land while dragging, progress while uploading, and why any
+ * failed until dismissed.
+ * @param props - status props
+ * @param props.dragging - whether files are being dragged over the canvas
+ * @param props.pending - how many dropped images are still uploading
+ * @param props.error - why the last drop fell short, if it did
+ * @param props.onDismissError - clears the error
+ * @returns the rendered status line, or null with nothing to say
+ */
+function ImageDropStatus({
+  dragging,
+  pending,
+  error,
+  onDismissError
+}: {
+  dragging: boolean;
+  pending: number;
+  error: string | null;
+  onDismissError: () => void;
+}) {
+  const progress = dragging
+    ? 'Drop images to add them at the end of the message.'
+    : pending > 0
+      ? `Uploading ${pending === 1 ? '1 image' : `${pending} images`}…`
+      : null;
+  return (
+    <>
+      <div role="status" className="empty:hidden">
+        {progress ? (
+          <p className="mb-2 flex items-center gap-1.5 text-xs text-muted-foreground">
+            <ImagePlus className={cn('h-3.5 w-3.5', pending > 0 && !dragging && 'animate-pulse')} aria-hidden="true" />
+            {progress}
+          </p>
+        ) : null}
+      </div>
+      {error ? (
+        <div
+          role="alert"
+          className="mb-2 flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive"
+        >
+          <p className="flex-1">{error}</p>
+          <button
+            type="button"
+            aria-label="Dismiss"
+            onClick={onDismissError}
+            className="rounded p-0.5 hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      ) : null}
+    </>
   );
 }
 

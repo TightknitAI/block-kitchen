@@ -26,6 +26,7 @@ import { TooltipProvider } from '../lib/ui/tooltip';
 import { useIsMobile } from '../lib/use-is-mobile';
 import { BlockEditorsProvider } from '../state/block-editors-context';
 import { CustomEmojiProvider } from '../state/custom-emoji-context';
+import { ImageUploadProvider } from '../state/image-upload-context';
 import { MentionsProvider } from '../state/mentions-context';
 import { useBlockKitValidation } from '../state/use-block-kit-validation';
 import { type MoveTarget, useBlockKitchenState } from '../state/use-block-kitchen-state';
@@ -98,6 +99,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
     blockEditors,
     customEmojis,
     mentions,
+    imageUpload,
     loadChannels,
     loadSendAsUserStatus,
     onSend,
@@ -304,6 +306,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
     setPaletteAdvanced(false);
   }
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
+  // A block's close only clears its own popover: clicking another block opens
+  // that one first, and the first block's late close mustn't undo it.
+  const setBlockOpen = useCallback((id: string, open: boolean) => {
+    setOpenBlockId((current) => (open ? id : current === id ? null : current));
+  }, []);
   // Preview theme is controlled when the host passes `previewTheme`, and
   // uncontrolled (seeded from `defaultPreviewTheme`) otherwise. The
   // uncontrolled state is only mutated by the toolbar toggle, which is
@@ -680,30 +687,34 @@ export function BlockKitchen(props: BlockKitchenProps) {
                 </div>
                 {/* Every block editor renders inside the surface's block rows. */}
                 <MentionsProvider mentions={mentions}>
-                  <BlockEditorsProvider blockEditors={blockEditors}>
-                    <Surface
-                      blocks={blocks}
-                      workspaceName={workspaceName}
-                      // When a message is loaded for editing, show its author in
-                      // the preview header instead of the generic workspace name.
-                      authorName={activeEditTarget?.username}
-                      authorIcon={activeEditTarget?.iconUrl}
-                      previewHooks={mergedPreviewHooks}
-                      previewTheme={previewTheme}
-                      previewSurface={previewSurface}
-                      errorsByBlockId={validation.byBlockId}
-                      openBlockId={openBlockId}
-                      onOpenBlockChange={setOpenBlockId}
-                      onUpdate={updateBlock}
-                      onDuplicate={duplicateBlock}
-                      onDelete={removeBlock}
-                      onReorder={reorderBlock}
-                      isPaletteDrag={activePaletteVariant !== null}
-                      onOpenPalette={() => setPaletteOpen(true)}
-                      blockActions={blockActions}
-                      renderBlockAdornment={renderBlockAdornment}
-                    />
-                  </BlockEditorsProvider>
+                  <ImageUploadProvider imageUpload={imageUpload}>
+                    <BlockEditorsProvider blockEditors={blockEditors}>
+                      <Surface
+                        blocks={blocks}
+                        workspaceName={workspaceName}
+                        // When a message is loaded for editing, show its author in
+                        // the preview header instead of the generic workspace name.
+                        authorName={activeEditTarget?.username}
+                        authorIcon={activeEditTarget?.iconUrl}
+                        previewHooks={mergedPreviewHooks}
+                        previewTheme={previewTheme}
+                        previewSurface={previewSurface}
+                        errorsByBlockId={validation.byBlockId}
+                        openBlockId={openBlockId}
+                        onOpenBlockChange={setBlockOpen}
+                        onUpdate={updateBlock}
+                        onDuplicate={duplicateBlock}
+                        onDelete={removeBlock}
+                        onReorder={reorderBlock}
+                        isPaletteDrag={activePaletteVariant !== null}
+                        onOpenPalette={() => setPaletteOpen(true)}
+                        blockActions={blockActions}
+                        renderBlockAdornment={renderBlockAdornment}
+                        onAddBlock={addBlock}
+                        imageDropEnabled={!disabledBlockTypes?.includes('image')}
+                      />
+                    </BlockEditorsProvider>
+                  </ImageUploadProvider>
                 </MentionsProvider>
               </div>
             </div>

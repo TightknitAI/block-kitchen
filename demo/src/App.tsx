@@ -2,6 +2,7 @@ import {
   BlockKitchen,
   type BrandPreset,
   type ChannelOption,
+  type ImageUploadConfig,
   type LoadMessageInput,
   type LoadResult,
   type PaletteMode,
@@ -463,7 +464,7 @@ const INITIAL_BLOCKS: SupportedBlock[] = [
     type: 'section',
     text: {
       type: 'mrkdwn',
-      text: 'Pick a template on the right to load it here, or drag blocks from the palette to start from scratch.'
+      text: 'Pick a template on the right to load it here, or drag blocks from the palette to start from scratch. Drop an image file on the message to add it as an image block.'
     }
   },
   { type: 'divider' }
@@ -473,6 +474,39 @@ async function loadChannels(): Promise<ChannelOption[]> {
   await new Promise((r) => setTimeout(r, 200));
   return MOCK_CHANNELS;
 }
+
+// --- Image upload demo: a stand-in for the host's storage -------------------
+//
+// A real host uploads the file to its own storage and returns the public URL
+// Slack will fetch. The preview only renders https images, so instead of a
+// local blob URL this resolves a placeholder at the file's own dimensions,
+// captioned with its name. Files over the cap are refused, to show the error.
+
+const DEMO_UPLOAD_MAX_MB = 5;
+
+/** Placeholder service limit on either side. */
+const PLACEHOLDER_MAX_PX = 4000;
+
+const demoImageUpload: ImageUploadConfig = {
+  uploadImage: async (file) => {
+    await new Promise((r) => setTimeout(r, 900));
+    if (file.size > DEMO_UPLOAD_MAX_MB * 1024 * 1024) {
+      throw new Error(`"${file.name}" is over the demo's ${DEMO_UPLOAD_MAX_MB} MB limit.`);
+    }
+    let width = 600;
+    let height = 300;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const scale = Math.min(1, PLACEHOLDER_MAX_PX / Math.max(bitmap.width, bitmap.height));
+      width = Math.max(1, Math.round(bitmap.width * scale));
+      height = Math.max(1, Math.round(bitmap.height * scale));
+      bitmap.close();
+    } catch {
+      // Unreadable image: keep the default placeholder size.
+    }
+    return { url: `https://placehold.co/${width}x${height}?text=${encodeURIComponent(file.name)}` };
+  }
+};
 
 const ASIDE_MIN = 280;
 const ASIDE_MAX = 640;
@@ -854,6 +888,7 @@ export function App() {
               onSend={onSend}
               loading={editingEnabled ? { onLoadMessage, loadRecentMessages } : undefined}
               onUpdate={editingEnabled ? onUpdate : undefined}
+              imageUpload={demoImageUpload}
               paletteMode={paletteMode}
               previewTheme={theme}
               theme={preset}

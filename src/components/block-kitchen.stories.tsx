@@ -124,6 +124,22 @@ export const WithMentions: Story = {
   }
 };
 
+// Drop a PNG, JPEG or GIF on the canvas to add it as an image block, or open
+// an image block and use "Upload image". The stand-in upload stores nothing:
+// after a short delay it resolves a placeholder image captioned with the file
+// name, since the preview only renders https images.
+export const WithImageUpload: Story = {
+  args: {
+    initialBlocks: STARTER_BLOCKS,
+    imageUpload: {
+      uploadImage: fn(async (file: File) => {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        return { url: `https://placehold.co/600x300?text=${encodeURIComponent(file.name)}` };
+      })
+    }
+  }
+};
+
 export const MessageSurfaceLocked: Story = {
   args: {
     initialBlocks: STARTER_BLOCKS,

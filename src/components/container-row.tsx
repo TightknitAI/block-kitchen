@@ -5,7 +5,7 @@ import { AlertTriangle, ArrowDown, ArrowUp, Copy, Pencil, Trash2 } from 'lucide-
 import type { ReactNode } from 'react';
 import { cn } from '../lib/cn';
 import { containerBodyId, containerTitleText } from '../lib/container-blocks';
-import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger, returnFocusUnlessMoved } from '../lib/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
 import type {
   BlockAction,
@@ -54,7 +54,7 @@ export function ContainerRow({
   previewTheme?: PreviewTheme;
   errorsByBlockId?: Map<string, string[]>;
   openBlockId?: string | null;
-  onOpenBlockChange?: (id: string | null) => void;
+  onOpenBlockChange?: (id: string, open: boolean) => void;
   onUpdate: (id: string, block: SupportedBlock) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -91,7 +91,7 @@ export function ContainerRow({
       )}
     >
       {/* Header — drag handle + click-to-edit the container's fields. */}
-      <Popover open={isOpen} onOpenChange={(open) => onOpenBlockChange?.(open ? id : null)}>
+      <Popover open={isOpen} onOpenChange={(open) => onOpenBlockChange?.(id, open)}>
         <PopoverTrigger asChild>
           <div
             role="button"
@@ -102,7 +102,7 @@ export function ContainerRow({
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
-                onOpenBlockChange?.(!isOpen ? id : null);
+                onOpenBlockChange?.(id, !isOpen);
               }
             }}
             className="flex w-full cursor-grab items-center gap-2 border-b bg-muted/40 px-3 py-2 text-left transition-colors hover:bg-muted active:cursor-grabbing"
@@ -123,12 +123,16 @@ export function ContainerRow({
             </span>
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]" align="start">
+        <PopoverContent
+          className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]"
+          align="start"
+          onCloseAutoFocus={returnFocusUnlessMoved}
+        >
           <BlockEditor
             block={block}
             errors={errors}
             onChange={(next) => onUpdate(id, next)}
-            onDone={() => onOpenBlockChange?.(null)}
+            onDone={() => onOpenBlockChange?.(id, false)}
           />
         </PopoverContent>
       </Popover>
@@ -161,7 +165,7 @@ export function ContainerRow({
                 previewTheme={previewTheme}
                 errors={errorsByBlockId?.get(child.id)}
                 isOpen={openBlockId === child.id}
-                onOpenChange={(open) => onOpenBlockChange?.(open ? child.id : null)}
+                onOpenChange={(open) => onOpenBlockChange?.(child.id, open)}
                 onUpdate={onUpdate}
                 onDuplicate={onDuplicate}
                 onDelete={onDelete}
@@ -197,7 +201,7 @@ export function ContainerRow({
             <button
               type="button"
               aria-label={`Show ${errors!.length} validation ${errors!.length === 1 ? 'issue' : 'issues'}`}
-              onClick={() => onOpenBlockChange?.(id)}
+              onClick={() => onOpenBlockChange?.(id, true)}
               className="flex h-6 w-6 items-center justify-center rounded text-destructive hover:bg-destructive/10 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
             >
               <AlertTriangle className="h-3.5 w-3.5" />
@@ -224,7 +228,7 @@ export function ContainerRow({
         </>
       ) : null}
       <BlockActionButtons actions={blockActions} position={position} variant="toolbar" />
-      <ToolbarButton label="Edit" onClick={() => onOpenBlockChange?.(id)}>
+      <ToolbarButton label="Edit" onClick={() => onOpenBlockChange?.(id, true)}>
         <Pencil className="h-3.5 w-3.5" />
       </ToolbarButton>
       <ToolbarButton label="Duplicate" onClick={() => onDuplicate(id)}>
@@ -268,7 +272,7 @@ export function ContainerRow({
           <button
             type="button"
             aria-label="Edit container"
-            onClick={() => onOpenBlockChange?.(id)}
+            onClick={() => onOpenBlockChange?.(id, true)}
             className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-accent hover:text-foreground"
           >
             <Pencil className="h-4 w-4" />

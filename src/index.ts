@@ -52,6 +52,7 @@ export type {
   HeaderLevel,
   IconButtonElement,
   IconButtonIcon,
+  ImageUploadConfig,
   InputBlock,
   LoadedMessage,
   LoadingConfig,
