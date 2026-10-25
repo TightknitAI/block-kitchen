@@ -306,6 +306,11 @@ export function BlockKitchen(props: BlockKitchenProps) {
     setPaletteAdvanced(false);
   }
   const [openBlockId, setOpenBlockId] = useState<string | null>(null);
+  // A block's close only clears its own popover: clicking another block opens
+  // that one first, and the first block's late close mustn't undo it.
+  const setBlockOpen = useCallback((id: string, open: boolean) => {
+    setOpenBlockId((current) => (open ? id : current === id ? null : current));
+  }, []);
   // Preview theme is controlled when the host passes `previewTheme`, and
   // uncontrolled (seeded from `defaultPreviewTheme`) otherwise. The
   // uncontrolled state is only mutated by the toolbar toggle, which is
@@ -696,7 +701,7 @@ export function BlockKitchen(props: BlockKitchenProps) {
                         previewSurface={previewSurface}
                         errorsByBlockId={validation.byBlockId}
                         openBlockId={openBlockId}
-                        onOpenBlockChange={setOpenBlockId}
+                        onOpenBlockChange={setBlockOpen}
                         onUpdate={updateBlock}
                         onDuplicate={duplicateBlock}
                         onDelete={removeBlock}

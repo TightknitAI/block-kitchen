@@ -27,4 +27,19 @@ const PopoverContent = React.forwardRef<
 ));
 PopoverContent.displayName = PopoverPrimitive.Content.displayName;
 
+/**
+ * An `onCloseAutoFocus` for {@link PopoverContent} that returns focus to the
+ * trigger only when focus hasn't already moved elsewhere. Clicking another
+ * popover's trigger opens that popover in the same click, and returning
+ * focus to this trigger afterwards would land outside it and close it again.
+ * @param event - the close auto-focus event, dispatched on the closing content
+ */
+export function returnFocusUnlessMoved(event: Event): void {
+  const active = document.activeElement;
+  const closing = event.target instanceof Node ? event.target : null;
+  if (active && active !== document.body && !closing?.contains(active)) {
+    event.preventDefault();
+  }
+}
+
 export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger };

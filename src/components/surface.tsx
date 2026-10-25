@@ -37,7 +37,7 @@ export const SURFACE_DROPPABLE_ID = 'builder-surface';
  * @param props.previewSurface - which surface chrome to render
  * @param props.errorsByBlockId - validation errors keyed by builder block id
  * @param props.openBlockId - id of the block whose editor popover is open
- * @param props.onOpenBlockChange - called when a block's popover open state changes
+ * @param props.onOpenBlockChange - called with a block's id when its popover opens or closes
  * @param props.onUpdate - update handler forwarded to each row
  * @param props.onDuplicate - duplicate handler forwarded to each row
  * @param props.onDelete - delete handler forwarded to each row
@@ -82,8 +82,8 @@ export function Surface({
   errorsByBlockId?: Map<string, string[]>;
   /** Block id whose editor popover is currently open. */
   openBlockId?: string | null;
-  /** Notified when a block's popover open state changes. */
-  onOpenBlockChange?: (id: string | null) => void;
+  /** Notified with a block's id when its popover opens or closes. */
+  onOpenBlockChange?: (id: string, open: boolean) => void;
   onUpdate: (id: string, block: SupportedBlock) => void;
   onDuplicate: (id: string) => void;
   onDelete: (id: string) => void;
@@ -164,7 +164,7 @@ export function Surface({
                 previewTheme={previewTheme}
                 errors={errorsByBlockId?.get(block.id)}
                 isOpen={openBlockId === block.id}
-                onOpenChange={(open) => onOpenBlockChange?.(open ? block.id : null)}
+                onOpenChange={(open) => onOpenBlockChange?.(block.id, open)}
                 onUpdate={onUpdate}
                 onDuplicate={onDuplicate}
                 onDelete={onDelete}

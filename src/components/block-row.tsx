@@ -5,7 +5,7 @@ import { type ReactNode, useState } from 'react';
 import type { RichTextBlock } from 'slack-web-api-client';
 import { cn } from '../lib/cn';
 import { Button } from '../lib/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '../lib/ui/popover';
+import { Popover, PopoverContent, PopoverTrigger, returnFocusUnlessMoved } from '../lib/ui/popover';
 import { Tooltip, TooltipContent, TooltipTrigger } from '../lib/ui/tooltip';
 import type {
   BlockAction,
@@ -186,7 +186,11 @@ export function BlockRow({
             {preview}
           </div>
         </PopoverTrigger>
-        <PopoverContent className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]" align="start">
+        <PopoverContent
+          className="w-[min(32rem,calc(100vw-1.5rem))] sm:w-[32rem]"
+          align="start"
+          onCloseAutoFocus={returnFocusUnlessMoved}
+        >
           <BlockEditor
             block={builderBlock.block}
             errors={errors}
