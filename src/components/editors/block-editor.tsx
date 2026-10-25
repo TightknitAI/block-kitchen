@@ -1,3 +1,4 @@
+import { X } from 'lucide-react';
 import type {
   ActionsBlock,
   ContextBlock,
@@ -54,14 +55,14 @@ import { VideoEditor } from './video-editor';
  * so the popover feels unified. A host editor (`blockEditors`) that matches
  * the block replaces the built-in form. Edits apply live via `onChange`; when
  * hosted in a closable context window the caller passes `onDone`, which
- * renders a "Done" button in a shared footer so every block-editing
- * surface has an explicit way to dismiss itself.
+ * renders a close button beside the header and a "Done" button in a shared
+ * footer, so every block-editing surface has an explicit way to dismiss itself.
  * @param props - editor props
  * @param props.block - the block being edited
  * @param props.errors - validation errors for this block, if any
  * @param props.onChange - called with the updated block
- * @param props.onDone - if provided, renders a "Done" button that dismisses
- *   the surrounding context window (e.g. the editor popover)
+ * @param props.onDone - if provided, renders close and "Done" buttons that
+ *   dismiss the surrounding context window (e.g. the editor popover)
  * @returns the rendered editor for the block's type
  */
 export function BlockEditor({
@@ -79,10 +80,22 @@ export function BlockEditor({
   const CustomForm = custom?.component;
   return (
     <div className="flex flex-col gap-3">
-      <div>
+      <div className="flex items-center justify-between gap-2">
         <h3 className="text-sm font-semibold text-foreground">
           Edit {custom ? custom.label : labelForBlockType(block.type as SupportedBlockType)}
         </h3>
+        {onDone ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label="Close editor"
+            className="-my-1 -mr-1 h-7 w-7 text-muted-foreground"
+            onClick={onDone}
+          >
+            <X />
+          </Button>
+        ) : null}
       </div>
       {errors && errors.length > 0 ? (
         <ul className="flex flex-col gap-0.5 rounded-md border border-destructive/30 bg-destructive/5 p-2 text-xs text-destructive">
