@@ -337,8 +337,16 @@ const truncate = (text, limit) =>
  * @param {string} text - Model-written text.
  * @returns {string} Text without comment markers or live mentions.
  */
-const neutralize = (text) =>
-  text.replace(/<!--|--!?>/g, '').replace(/@(?=[\w-])/g, '@\u2060');
+const neutralize = (text) => {
+  let stripped = text;
+  let previous;
+  // One pass can leave a new marker behind, as `<!<!---->` does.
+  do {
+    previous = stripped;
+    stripped = stripped.replace(/<!--|--!?>/g, '');
+  } while (stripped !== previous);
+  return stripped.replace(/@(?=[\w-])/g, '@\u2060');
+};
 
 /**
  * Makes model-written text safe to embed in the comment.
