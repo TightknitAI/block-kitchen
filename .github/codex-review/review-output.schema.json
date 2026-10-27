@@ -1,0 +1,133 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "findings", "notes", "resolved"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "One to three sentences: what the PR changes, the surfaces you reviewed, and the overall risk."
+    },
+    "findings": {
+      "type": "array",
+      "description": "Concrete problems that should change this PR, most important first. Empty when there are none, which is the usual result. Never more than 8.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file",
+          "line",
+          "category",
+          "severity",
+          "title",
+          "problem",
+          "fix",
+          "tldr",
+          "action_items",
+          "rule",
+          "previous_id"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Path exactly as listed in pr-files.txt."
+          },
+          "line": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Added or changed line in the PR's version of the file where GitHub can place an inline review comment."
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "security",
+              "data_loss",
+              "bug",
+              "performance",
+              "architecture"
+            ]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "high", "medium"]
+          },
+          "title": {
+            "type": "string",
+            "description": "One line naming the problem."
+          },
+          "problem": {
+            "type": "string",
+            "description": "What is wrong, the input or state that triggers it, and why it matters."
+          },
+          "fix": {
+            "type": "string",
+            "description": "The concrete change to make."
+          },
+          "tldr": {
+            "type": "string",
+            "description": "One to three sentences the author can read instead of `problem` and `fix`: what breaks, and what to change."
+          },
+          "action_items": {
+            "type": "array",
+            "description": "One to three short imperative steps that resolve the finding, most important first. Never more than 3.",
+            "items": {
+              "type": "string"
+            }
+          },
+          "rule": {
+            "type": ["string", "null"],
+            "description": "Path of the rule doc this violates, or null."
+          },
+          "previous_id": {
+            "type": ["string", "null"],
+            "description": "The id of the finding in previous-review.json this repeats, or null for a new finding."
+          }
+        }
+      }
+    },
+    "resolved": {
+      "type": "array",
+      "description": "Findings from previous-review.json that no longer apply. Empty when there are none.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "status", "reason"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The earlier finding's id, such as F1."
+          },
+          "status": {
+            "type": "string",
+            "enum": ["fixed", "dismissed", "withdrawn"],
+            "description": "fixed: the code no longer has the problem. dismissed: a reply explained why it is not a problem, and the code bears that out. withdrawn: on your own second look, it was never a real problem."
+          },
+          "reason": {
+            "type": "string",
+            "description": "One sentence: the change that fixed it, the reply that settled it and its author, or why it was not a problem."
+          }
+        }
+      }
+    },
+    "notes": {
+      "type": "array",
+      "description": "Optional non-blocking observations, one sentence each. Usually empty. Never more than 5.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["file", "line", "text"],
+        "properties": {
+          "file": {
+            "type": "string",
+            "description": "Path exactly as listed in pr-files.txt."
+          },
+          "line": {
+            "type": ["integer", "null"]
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,800 @@
+name: Lontra AI Review
+
+# Automated PR review. Codex reads the PR diff, the full checkout, only the rule
+# docs whose `paths:` match the changed files, and what people replied on the PR,
+# then each finding is posted as an inline review thread. One sticky comment on
+# the PR links to the open threads and hides the review state, so the next review
+# checks the findings this one left open and keeps their IDs.
+#
+# A push reviews again only when the PR description, the diff, the rule docs, or
+# the reviewer changed since the last review, so a rebase or a merge of main
+# that touches none of the PR's files reuses it. A comment reviews again when it
+# names an open finding (a reply such as "F2 is fine because ...") or says
+# `/lontra-review`, and a push that reuses the review still answers such a
+# comment the review hasn't read.
+#
+# Four jobs keep privileges apart:
+#   prepare_review  Read-only token, no model key. Resolves the PR, reads the last
+#                   review's state from its comments, builds the evidence and rule
+#                   list, and decides whether to review (scripts/codex-review/prepare.cjs).
+#   codex_review    Holds OPENAI_KEY but only `contents: read`. Codex runs with
+#                   sudo dropped and a read-only permission profile, and returns
+#                   JSON matching .github/codex-review/review-output.schema.json.
+#   render_review   Read-only. Validates the JSON, caps findings, and renders the
+#                   comment (scripts/codex-review/render.cjs).
+#   post_feedback   The only job that can write to the PR. It never sees the key
+#                   and runs no repository code: a PR can change render.cjs, but
+#                   only a workflow change can change what runs with this token.
+#
+# Run it by hand from Actions → Lontra AI Review → Run workflow, with a PR number.
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, synchronize]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to review
+        required: true
+        type: number
+
+# A comment the review ignores runs in a group of its own, so it can't replace a review waiting in the PR's group.
+# A push or a manual run cancels the review in progress; a comment waits for it.
+concurrency:
+  group: >-
+    codex-review-${{
+    (github.event_name != 'issue_comment' || (github.event.issue.pull_request && github.event.comment.user.type == 'User'))
+    && (github.event_name != 'pull_request_review_comment' || github.event.comment.user.type == 'User')
+    && (github.event.pull_request.number || github.event.issue.number || inputs.pr_number)
+    || github.run_id }}
+  cancel-in-progress: ${{ !contains(fromJSON('["issue_comment", "pull_request_review_comment"]'), github.event_name) }}
+
+permissions: {}
+
+env:
+  # Runs the review in codex_review, is named in the comment by render_review, and is part of what a
+  # push compares in prepare_review: a new model reviews again.
+  REVIEW_MODEL: gpt-6-luna
+
+jobs:
+  prepare_review:
+    # Of comments, only a person's on a PR; prepare.cjs decides whether it asks for a review.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.draft == false &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        !contains(fromJSON('["dependabot[bot]", "renovate[bot]"]'), github.event.pull_request.user.login)
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        github.event.issue.pull_request &&
+        github.event.comment.user.type == 'User'
+      ) ||
+      (
+        github.event_name == 'pull_request_review_comment' &&
+        github.event.pull_request.head.repo.full_name == github.repository &&
+        github.event.comment.user.type == 'User'
+      )
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      # prepare.cjs runs from the PR head, and a branch with an older copy writes no `reason` and reviews on any
+      # comment as on a push. A comment acts only through a copy that decides, and never retires a review.
+      review_needed: >-
+        ${{ steps.prepare.outputs.review_needed == 'true' &&
+        (!contains(fromJSON('["issue_comment", "pull_request_review_comment"]'), github.event_name) || steps.prepare.outputs.reason != '') }}
+      nothing_to_review: >-
+        ${{ steps.prepare.outputs.nothing_to_review == 'true' &&
+        !contains(fromJSON('["issue_comment", "pull_request_review_comment"]'), github.event_name) }}
+      trigger: ${{ steps.prepare.outputs.trigger }}
+      pr_number: ${{ steps.pr.outputs.pr_number }}
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      base_sha: ${{ steps.pr.outputs.base_sha }}
+    steps:
+      # A newer push cancels this run and restarts the wait, so a burst of commits gets one review once pushes stop.
+      # exec, because a cancel signals only the shell, which would hold the run until the runner escalates (~15 s).
+      - name: Wait for pushes to settle
+        if: github.event.action == 'synchronize'
+        run: exec sleep 240
+
+      - name: Resolve the pull request
+        id: pr
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || inputs.pr_number }}
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENTER: ${{ github.event.comment.user.login }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${REPO}/pulls/${PR_NUMBER}" > "$RUNNER_TEMP/pr.json"
+          jq -r '"pr_number=\(.number)", "head_sha=\(.head.sha)", "base_sha=\(.base.sha)", "base_ref=\(.base.ref)"' \
+            "$RUNNER_TEMP/pr.json" >> "$GITHUB_OUTPUT"
+
+          # author_association reads a private org member as CONTRIBUTOR, so ask for the commenter's permission.
+          # The endpoint needs only Metadata read, which every token has, and answers `none` for someone without access.
+          permission=""
+          if [ "$EVENT_NAME" = "issue_comment" ] || [ "$EVENT_NAME" = "pull_request_review_comment" ]; then
+            permission=$(gh api "repos/${REPO}/collaborators/${COMMENTER}/permission" --jq .permission)
+          fi
+
+          # A manual run may review a draft; an automatic one waits until it's ready.
+          skip_reason=$(jq -r --arg event "$EVENT_NAME" --arg permission "$permission" '
+            if .state != "open" then "the PR is closed"
+            elif .head.repo.full_name != .base.repo.full_name then "the PR comes from a fork"
+            elif .draft and $event != "workflow_dispatch" then "the PR is a draft"
+            elif ($event | IN("issue_comment", "pull_request_review_comment")) and ($permission | IN("admin", "write") | not) then "the commenter cannot push to the repository"
+            else "" end' "$RUNNER_TEMP/pr.json")
+          if [ -n "$skip_reason" ]; then
+            echo "Skipping the review: ${skip_reason}." | tee -a "$GITHUB_STEP_SUMMARY"
+            echo "reviewable=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "reviewable=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Fetch the pull request's comments
+        if: steps.pr.outputs.reviewable == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ steps.pr.outputs.pr_number }}
+        run: |
+          set -euo pipefail
+          gh api --paginate "repos/${REPO}/issues/${PR_NUMBER}/comments?per_page=100" \
+            | jq -s 'add // []' > "$RUNNER_TEMP/pr-comments.json"
+          gh api --paginate "repos/${REPO}/pulls/${PR_NUMBER}/comments?per_page=100" \
+            | jq -s 'add // []' > "$RUNNER_TEMP/pr-review-comments.json"
+
+      - name: Check out the pull request head
+        if: steps.pr.outputs.reviewable == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ steps.pr.outputs.head_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up Node.js
+        if: steps.pr.outputs.reviewable == 'true'
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+
+      - name: Build the review evidence
+        id: prepare
+        if: steps.pr.outputs.reviewable == 'true'
+        env:
+          BASE_REF: ${{ steps.pr.outputs.base_ref }}
+          # prepare.cjs runs from the PR head. A branch with an older copy ignores
+          # these variables, where it would reject an unknown flag.
+          PR_COMMENTS_JSON: ${{ runner.temp }}/pr-comments.json
+          PR_REVIEW_COMMENTS_JSON: ${{ runner.temp }}/pr-review-comments.json
+          EVENT_NAME: ${{ github.event_name }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          TRIGGER_COMMENT_ID: ${{ github.event.comment.id }}
+        run: node scripts/codex-review/prepare.cjs --base "origin/${BASE_REF}" --pr-json "$RUNNER_TEMP/pr.json" --out .context/codex-review
+
+      - name: Upload the review evidence
+        if: steps.prepare.outputs.review_needed == 'true'
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codex-review-context
+          path: .context/codex-review
+          if-no-files-found: error
+          include-hidden-files: true
+          retention-days: 7
+
+  codex_review:
+    needs: prepare_review
+    if: needs.prepare_review.outputs.review_needed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    # OPENAI_KEY is scoped to this environment.
+    # No deployment record, so the PR timeline doesn't show a deploy per review.
+    environment:
+      name: pr-agent
+      deployment: false
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the pull request head
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare_review.outputs.head_sha }}
+          persist-credentials: false
+
+      - name: Download the review evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: codex-review-context
+          path: .context/codex-review
+
+      # drop-sudo makes the systemd and D-Bus sockets root-only (openai/codex-action#160), so systemd-resolved dies
+      # three minutes in and can't restart. Querying its upstream servers directly keeps DNS up for the rest of the job.
+      - name: Resolve DNS without systemd-resolved
+        run: |
+          if [ -e /run/systemd/resolve/resolv.conf ]; then
+            sudo cp --remove-destination /run/systemd/resolve/resolv.conf /etc/resolv.conf
+          fi
+
+      # drop-sudo (the default safety strategy) keeps Codex from reading the
+      # key out of the API proxy's memory; the `read-only` safety strategy doesn't.
+      - name: Review with Codex
+        id: codex
+        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12
+        with:
+          openai-api-key: ${{ secrets.OPENAI_KEY }}
+          codex-version: 0.156.1
+          model: ${{ env.REVIEW_MODEL }}
+          effort: high
+          permission-profile: ':read-only'
+          prompt-file: .github/codex-review/prompt.md
+          output-file: ${{ runner.temp }}/review-output.json
+          output-schema-file: .github/codex-review/review-output.schema.json
+          # The action refuses actors without repo write access, which includes
+          # every app bot; these are the ones that open or push to our PRs.
+          # Seer has opened PRs as both seer-by-sentry[bot] and sentry[bot].
+          allow-bot-users: claude,sentry,seer-by-sentry,mintlify,posthog,viou-design-review,polylane
+
+      - name: Upload the review output
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codex-review-output
+          path: ${{ runner.temp }}/review-output.json
+          if-no-files-found: error
+          retention-days: 1
+
+  render_review:
+    needs: [prepare_review, codex_review]
+    if: ${{ !cancelled() && needs.prepare_review.outputs.review_needed == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - name: Check out the rendering script
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: scripts/codex-review
+          persist-credentials: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
+        with:
+          node-version: 22
+
+      - name: Download the review evidence
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: codex-review-context
+          path: .context/codex-review
+
+      - name: Download the review output
+        if: needs.codex_review.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: codex-review-output
+          path: ${{ runner.temp }}/codex-review-output
+
+      - name: Render the review comment
+        env:
+          REVIEW_JSON_FILE: ${{ runner.temp }}/codex-review-output/review-output.json
+          COMMENT_FILE: ${{ runner.temp }}/review-comment.md
+          CODEX_RESULT: ${{ needs.codex_review.result }}
+          HEAD_SHA: ${{ needs.prepare_review.outputs.head_sha }}
+          BASE_SHA: ${{ needs.prepare_review.outputs.base_sha }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/codex-review/render.cjs --context-dir .context/codex-review
+
+      - name: Upload the rendered review comment
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: codex-review-comment
+          path: ${{ runner.temp }}/review-comment.md
+          if-no-files-found: error
+          retention-days: 1
+
+  post_feedback:
+    needs: [prepare_review, render_review]
+    # Also runs when a push leaves nothing reviewable, to retire the old review.
+    if: ${{ !cancelled() && (needs.render_review.result == 'success' || needs.prepare_review.outputs.nothing_to_review == 'true') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      # resolveReviewThread is FORBIDDEN to GITHUB_TOKEN without contents: write.
+      contents: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - name: Download the rendered review comment
+        if: needs.render_review.result == 'success'
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: codex-review-comment
+          path: ${{ runner.temp }}/codex-review-comment
+
+      - name: Publish the review comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          COMMENT_FILE: ${{ runner.temp }}/codex-review-comment/review-comment.md
+          NOTHING_TO_REVIEW: ${{ needs.prepare_review.outputs.nothing_to_review }}
+          HEAD_SHA: ${{ needs.prepare_review.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.prepare_review.outputs.pr_number }}
+          REVIEW_MODEL: ${{ env.REVIEW_MODEL }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const marker = '<!-- codex-review -->';
+            const findingMarker = (id) => `<!-- codex-review-finding:${id} -->`;
+            const nothingToReview = process.env.NOTHING_TO_REVIEW === 'true';
+            const { owner, repo } = context.repo;
+            const issue_number = Number(process.env.PR_NUMBER);
+            const pull_number = issue_number;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number,
+              per_page: 100,
+            });
+            const existing = comments
+              .filter((comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(marker))
+              .at(-1);
+            // Carried over so finding IDs keep counting up if the PR becomes reviewable again.
+            // render.cjs escapes < and > in the state, so a line with either is not one it wrote.
+            const state = existing?.body
+              .replace(/\r\n/g, '\n')
+              .match(/\n(<!-- CODEX_REVIEW_STATE\n[^\n<>]*\n-->)/)?.[1];
+            let body = nothingToReview
+              ? [
+                  marker,
+                  '### 🦦 Lontra AI Reviewer',
+                  '',
+                  'No open issues.',
+                  ...(state ? ['', state] : []),
+                ].join('\n')
+              : process.env.COMMENT_FILE
+                ? process.getBuiltinModule('node:fs').readFileSync(process.env.COMMENT_FILE, 'utf8')
+                : (process.env.COMMENT ?? '');
+            if (!body.startsWith(marker)) {
+              core.setFailed('The rendered comment does not start with the review marker.');
+              return;
+            }
+
+            const findingsMatch = body
+              .replace(/\r\n/g, '\n')
+              .match(/\n<!-- CODEX_REVIEW_FINDINGS\n([^\n<>]*)\n-->/);
+            let publication = null;
+            if (findingsMatch) {
+              try {
+                publication = JSON.parse(findingsMatch[1]);
+              } catch {
+                core.setFailed('The rendered findings block is not valid JSON.');
+                return;
+              }
+            }
+
+            const categories = new Set(['security', 'data_loss', 'bug', 'performance', 'architecture']);
+            const severities = new Set(['critical', 'high', 'medium']);
+            const sanitize = (value, limit, oneLine = false) => {
+              const text = String(value)
+                .replace(/<!--|--!?>/g, '')
+                .replace(/@(?=[\w-])/g, '@\u2060')
+                .trim();
+              const normalized = oneLine ? text.replace(/\s+/g, ' ') : text;
+              return normalized.length > limit ? `${normalized.slice(0, limit - 1)}…` : normalized;
+            };
+            const changedFiles = publication
+              ? await github.paginate(github.rest.pulls.listFiles, {
+                  owner,
+                  repo,
+                  pull_number,
+                  per_page: 100,
+                })
+              : [];
+            const changedPaths = new Set(changedFiles.map((file) => file.filename));
+            const findingIds = new Set();
+            const findings = [];
+            if (publication) {
+              if (
+                publication.version !== 1 ||
+                publication.head_sha !== process.env.HEAD_SHA ||
+                typeof publication.summary !== 'string' ||
+                !Array.isArray(publication.findings) ||
+                publication.findings.length > 8
+              ) {
+                core.setFailed('The rendered findings block is malformed.');
+                return;
+              }
+              for (const value of publication.findings) {
+                if (
+                  !value ||
+                  typeof value !== 'object' ||
+                  typeof value.id !== 'string' ||
+                  !/^F[1-9]\d*$/.test(value.id) ||
+                  findingIds.has(value.id) ||
+                  typeof value.file !== 'string' ||
+                  !changedPaths.has(value.file) ||
+                  !Number.isSafeInteger(value.line) ||
+                  value.line < 1 ||
+                  !categories.has(value.category) ||
+                  !severities.has(value.severity) ||
+                  typeof value.title !== 'string' ||
+                  typeof value.problem !== 'string' ||
+                  typeof value.fix !== 'string' ||
+                  !(value.tldr === null || typeof value.tldr === 'string') ||
+                  !Array.isArray(value.action_items) ||
+                  value.action_items.length > 3 ||
+                  !value.action_items.every((item) => typeof item === 'string') ||
+                  !(value.rule === null || typeof value.rule === 'string')
+                ) {
+                  core.setFailed('The rendered findings block contains a malformed finding.');
+                  return;
+                }
+                findingIds.add(value.id);
+                findings.push({
+                  id: value.id,
+                  file: value.file,
+                  line: value.line,
+                  category: value.category,
+                  severity: value.severity,
+                  title: sanitize(value.title, 200, true),
+                  problem: sanitize(value.problem, 1500),
+                  fix: sanitize(value.fix, 1000),
+                  tldr: value.tldr === null ? '' : sanitize(value.tldr, 600, true),
+                  action_items: value.action_items.map((item) => sanitize(item, 200, true)).filter(Boolean),
+                  rule: value.rule === null ? null : sanitize(value.rule, 200, true).replace(/`/g, ''),
+                });
+              }
+            }
+
+            let verdict = { state: 'error', description: 'The review did not complete' };
+            if (publication || nothingToReview) {
+              const reviewSummary = publication
+                ? sanitize(publication.summary, 1500)
+                : 'This PR no longer changes any files the review covers, so the earlier review no longer applies.';
+              const threads = [];
+              let cursor = null;
+              do {
+                const result = await github.graphql(
+                  `query($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+                    repository(owner: $owner, name: $repo) {
+                      pullRequest(number: $number) {
+                        reviewThreads(first: 100, after: $cursor) {
+                          nodes {
+                            id
+                            isResolved
+                            isOutdated
+                            comments(first: 100) {
+                              nodes { databaseId url body path line author { login } }
+                            }
+                          }
+                          pageInfo { hasNextPage endCursor }
+                        }
+                      }
+                    }
+                  }`,
+                  { owner, repo, number: pull_number, cursor },
+                );
+                const page = result.repository.pullRequest.reviewThreads;
+                threads.push(...page.nodes);
+                cursor = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
+              } while (cursor);
+
+              const lontraThreads = [];
+              for (const thread of threads) {
+                const root = thread.comments.nodes[0];
+                const match = root?.body?.match(/^<!-- codex-review-finding:(F[1-9]\d*) -->/);
+                // GraphQL names the bot `github-actions`; only REST adds the `[bot]` suffix.
+                if (root?.author?.login === 'github-actions' && match) {
+                  lontraThreads.push({ ...thread, findingId: match[1], root });
+                }
+              }
+              const threadsByFinding = new Map();
+              for (const thread of lontraThreads) {
+                const matches = threadsByFinding.get(thread.findingId) ?? [];
+                matches.push(thread);
+                threadsByFinding.set(thread.findingId, matches);
+              }
+
+              const commentUrls = new Map();
+              const resolvedFindingIds = new Set();
+              const resolvedThreadIds = new Set(
+                lontraThreads
+                  .filter((thread) => thread.isResolved)
+                  .map((thread) => thread.id),
+              );
+              for (const finding of findings) {
+                const inlineBody = [
+                  findingMarker(finding.id),
+                  `**${finding.id}: ${finding.title}**`,
+                  '',
+                  finding.problem,
+                  '',
+                  `**Suggested fix:** ${finding.fix}`,
+                  ...(finding.rule ? ['', `Rule: \`${finding.rule}\``] : []),
+                  ...(finding.tldr ? ['', `**TLDR:** ${finding.tldr}`] : []),
+                  ...(finding.action_items.length > 0
+                    ? ['', '**Top action items**', '', ...finding.action_items.map((item, index) => `${index + 1}. ${item}`)]
+                    : []),
+                  '',
+                  '---',
+                  '',
+                  '*made by Lontra AI Reviewer* :otter:',
+                ].join('\n');
+                const matchingThreads = threadsByFinding.get(finding.id) ?? [];
+                const thread =
+                  matchingThreads.find(
+                    (candidate) =>
+                      candidate.root.path === finding.file &&
+                      candidate.root.line === finding.line &&
+                      !candidate.isOutdated,
+                  ) ??
+                  matchingThreads.find(
+                    (candidate) =>
+                      candidate.root.path === finding.file &&
+                      candidate.root.line === null &&
+                      !candidate.isOutdated,
+                  );
+                for (const duplicate of matchingThreads) {
+                  if (duplicate !== thread && !duplicate.isResolved) {
+                    await github.graphql(
+                      `mutation($threadId: ID!) {
+                        resolveReviewThread(input: { threadId: $threadId }) { thread { isResolved } }
+                      }`,
+                      { threadId: duplicate.id },
+                    );
+                    resolvedThreadIds.add(duplicate.id);
+                  }
+                }
+                if (thread) {
+                  if (thread.root.body !== inlineBody) {
+                    await github.rest.pulls.updateReviewComment({
+                      owner,
+                      repo,
+                      comment_id: thread.root.databaseId,
+                      body: inlineBody,
+                    });
+                  }
+                  if (thread.isResolved) {
+                    resolvedFindingIds.add(finding.id);
+                  }
+                  commentUrls.set(finding.id, thread.root.url);
+                  continue;
+                }
+
+                let created;
+                try {
+                  created = await github.rest.pulls.createReviewComment({
+                    owner,
+                    repo,
+                    pull_number,
+                    commit_id: process.env.HEAD_SHA,
+                    path: finding.file,
+                    line: finding.line,
+                    side: 'RIGHT',
+                    body: inlineBody,
+                  });
+                } catch (error) {
+                  if (error.status !== 422) {
+                    throw error;
+                  }
+                  created = await github.rest.pulls.createReviewComment({
+                    owner,
+                    repo,
+                    pull_number,
+                    commit_id: process.env.HEAD_SHA,
+                    path: finding.file,
+                    subject_type: 'file',
+                    body: inlineBody,
+                  });
+                }
+                commentUrls.set(finding.id, created.data.html_url);
+              }
+
+              for (const thread of lontraThreads) {
+                if (!findingIds.has(thread.findingId) && !thread.isResolved) {
+                  await github.graphql(
+                    `mutation($threadId: ID!) {
+                      resolveReviewThread(input: { threadId: $threadId }) { thread { isResolved } }
+                    }`,
+                    { threadId: thread.id },
+                  );
+                  resolvedThreadIds.add(thread.id);
+                }
+              }
+
+              const hiddenBlocks = body.match(/<!-- CODEX_REVIEW_(?:STATE|COVERS|FINDINGS)\n[^\n<>]*\n-->/g) ?? [];
+              const previouslyResolved = new Map();
+              for (const thread of lontraThreads) {
+                if (
+                  findingIds.has(thread.findingId) ||
+                  !resolvedThreadIds.has(thread.id)
+                ) {
+                  continue;
+                }
+                const title = sanitize(
+                  thread.root.body.match(/^\*\*F[1-9]\d*: (.+)\*\*$/m)?.[1] ??
+                    thread.findingId,
+                  200,
+                  true,
+                );
+                const label = `${thread.findingId}: ${title}`.replace(
+                  /([\\[\]])/g,
+                  '\\$1',
+                );
+                previouslyResolved.set(thread.findingId, {
+                  label,
+                  url: thread.root.url,
+                });
+              }
+              const openFindings = findings.filter(
+                (finding) => !resolvedFindingIds.has(finding.id),
+              );
+              const status =
+                openFindings.length === 0
+                  ? nothingToReview
+                    ? '✅ Nothing to review'
+                    : '✅ Ship it'
+                  : openFindings.some(
+                        (finding) =>
+                          finding.category === 'security' ||
+                          finding.category === 'data_loss' ||
+                          finding.severity === 'critical',
+                      )
+                    ? '🛑 Needs work'
+                    : '🔧 Small fixes';
+              verdict = {
+                state: status.startsWith('🛑') ? 'failure' : 'success',
+                description: status.replace(/^\S+\s+/, ''),
+              };
+              const statusDetails = nothingToReview
+                ? ` · \`${process.env.HEAD_SHA.slice(0, 8)}\``
+                : ` · reviewed \`${process.env.HEAD_SHA.slice(0, 8)}\` by \`${process.env.REVIEW_MODEL}\` · [run](${process.env.RUN_URL})`;
+              const updatedAt = `${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`;
+              body = [
+                marker,
+                '### 🦦 Lontra AI Reviewer',
+                '',
+                `**Status:** ${status}${statusDetails}`,
+                `**Updated at:** ${updatedAt}`,
+                '',
+                reviewSummary,
+                '',
+                ...(findings.length === 0
+                  ? ['No open issues.']
+                  : [
+                      '**Findings**',
+                      '',
+                      ...findings.map((finding) => {
+                        const label = `${finding.id}: ${finding.title}`.replace(/([\\[\]])/g, '\\$1');
+                        const findingStatus = resolvedFindingIds.has(finding.id)
+                          ? ' _(resolved)_'
+                          : '';
+                        return `- [${label}](${commentUrls.get(finding.id)})${findingStatus}`;
+                      }),
+                    ]),
+                ...(previouslyResolved.size > 0
+                  ? [
+                      '',
+                      '**Previously resolved**',
+                      '',
+                      ...[...previouslyResolved.values()].map(
+                        (finding) => `- *[${finding.label}](${finding.url})*`,
+                      ),
+                    ]
+                  : []),
+                ...(nothingToReview
+                  ? []
+                  : ['', '---', '', '*Comment `/lontra-review` on this PR to run a full review again without a new push.*']),
+                ...(hiddenBlocks.length > 0 ? ['', ...hiddenBlocks] : []),
+              ].join('\n');
+            }
+
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else if (!nothingToReview) {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+            // The AI review gate reads this per-commit verdict (ENG-6437).
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: process.env.HEAD_SHA,
+              state: verdict.state,
+              context: 'lontra-review/verdict',
+              description: verdict.description.slice(0, 140),
+              target_url: process.env.RUN_URL,
+            });
+
+  carry_verdict:
+    needs: prepare_review
+    # A push the review didn't need to look at again keeps the last verdict, on the new head,
+    # so the AI review gate (ENG-6437) can tell the head is covered.
+    if: >-
+      !cancelled() &&
+      github.event_name == 'pull_request' &&
+      needs.prepare_review.result == 'success' &&
+      needs.prepare_review.outputs.head_sha != '' &&
+      needs.prepare_review.outputs.review_needed != 'true' &&
+      needs.prepare_review.outputs.nothing_to_review != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pull-requests: read
+      statuses: write
+    steps:
+      - name: Carry the last verdict to the new head
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ needs.prepare_review.outputs.head_sha }}
+          PR_NUMBER: ${{ needs.prepare_review.outputs.pr_number }}
+        with:
+          script: |
+            const marker = '<!-- codex-review -->';
+            const { owner, repo } = context.repo;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner,
+              repo,
+              issue_number: Number(process.env.PR_NUMBER),
+              per_page: 100,
+            });
+            const latest = comments
+              .filter((comment) => comment.user?.login === 'github-actions[bot]' && comment.body?.startsWith(marker))
+              .at(-1);
+            const status = latest?.body.match(/^\*\*Status:\*\* (.+?)(?: · |$)/m)?.[1];
+            if (!status) {
+              core.info('No earlier review to carry over.');
+              return;
+            }
+            const state = status.startsWith('🛑')
+              ? 'failure'
+              : status.startsWith('✅') || status.startsWith('🔧')
+                ? 'success'
+                : 'error';
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: process.env.HEAD_SHA,
+              state,
+              context: 'lontra-review/verdict',
+              description: `${status.replace(/^\S+\s+/, '')} (no new changes to review)`.slice(0, 140),
+              target_url: latest.html_url,
+            });
+
+  verdict_on_failure:
+    needs: [prepare_review, codex_review, render_review, post_feedback]
+    # A run that fails before post_feedback publishes leaves the commit without a verdict.
+    # Say the review didn't complete, rather than leave the AI review gate (ENG-6437) waiting.
+    if: ${{ failure() && needs.prepare_review.outputs.head_sha != '' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - name: Post an error verdict
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          HEAD_SHA: ${{ needs.prepare_review.outputs.head_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const { owner, repo } = context.repo;
+            await github.rest.repos.createCommitStatus({
+              owner,
+              repo,
+              sha: process.env.HEAD_SHA,
+              state: 'error',
+              context: 'lontra-review/verdict',
+              description: 'The review did not complete',
+              target_url: process.env.RUN_URL,
+            });
