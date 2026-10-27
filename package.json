@@ -98,9 +98,9 @@
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@vitest/browser": "^4.1.10",
-    "@vitest/browser-playwright": "^4.1.10",
-    "@vitest/coverage-v8": "^4.1.10",
+    "@vitest/browser": "^4.1.12",
+    "@vitest/browser-playwright": "^4.1.12",
+    "@vitest/coverage-v8": "^4.1.12",
     "jsdom": "^29.1.1",
     "lefthook": "^2.1.10",
     "lucide-react": "^1.28.0",
@@ -114,7 +114,7 @@
     "tsup": "^8.5.1",
     "typescript": "^6.0.3",
     "vite": "^8.2.0",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.12"
   },
   "repository": {
     "type": "git",
@@ -135,11 +135,13 @@
     "//undici": "Pin undici ^7.29.0 to clear GHSA-vmh5-mc38-953g, GHSA-vxpw-j846-p89q, GHSA-hm92-r4w5-c3mj (high) plus GHSA-jr45-8vmc-qm54 and GHSA-v3r7-h72x-cjcm (moderate). undici is a transitive devDependency only (jsdom, used by the unit tests) and is not shipped to consumers, but `pnpm audit` in CI fails on it. Remove this override once jsdom pulls a fixed undici on its own.",
     "//prosemirror-view": "Pin prosemirror-view ^1.42.3 to clear GHSA-c8x8-7fp4-3x9w (high; XSS via unvalidated clipboard slice context attributes on paste), fixed in 1.42.3. It reaches the editor through @tiptap/pm, whose range still admits the vulnerable versions, so this keeps the lockfile on a patched one. Consumers resolve their own copy: they need ^1.42.3 too. Remove once @tiptap/pm requires a fixed prosemirror-view.",
     "//prosemirror-model": "Pin prosemirror-model ^1.25.12 alongside it: the patched prosemirror-view requires ^1.25.12 while @tiptap/pm was locked to 1.25.11, and two prosemirror-model copies in one bundle make list/quote commands throw (`Can not convert <> to a Fragment`). Keeps exactly one copy; remove with the prosemirror-view pin.",
+    "//fast-uri": "Pin fast-uri ^3.1.9 to clear GHSA-w74x-v6f9-j3xg / CVE-2026-110306 and CVE-2026-110180, -110095, -110725 (percent-encoded scheme handling and related fixes in 3.1.9). It reaches the package through @tightknitai/slack-block-kit-validator > ajv, whose range still admits 3.1.8. Remove once ajv resolves a fixed fast-uri on its own.",
     "overrides": {
       "esbuild": ">=0.28.1",
       "undici": "^7.29.0",
       "prosemirror-view": "^1.42.3",
-      "prosemirror-model": "^1.25.12"
+      "prosemirror-model": "^1.25.12",
+      "fast-uri": "^3.1.9"
     },
     "//auditConfig": "GHSA-vfj7-8cjw-p6xm (braces <=3.0.3, high; stack-exhaustion DoS on deeply nested patterns) has no patched release. braces is a build-time-only transitive dependency (@tailwindcss/cli > @parcel/watcher > micromatch > braces), runs only on the repo's own glob patterns, and is not shipped to consumers. Drop the ignore once a fixed braces ships or @parcel/watcher stops depending on it.",
     "auditConfig": {
