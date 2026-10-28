@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.28](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.27...block-kitchen-v0.10.28) (2026-10-27)
+
+
+### Bug Fixes
+
+* **ci:** strip comment markers until none are left ([22ccdea](https://github.com/TightknitAI/block-kitchen/commit/22ccdeac16591a1637bf33425b0c6ae9efc38a35))
+
 ## [0.10.27](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.26...block-kitchen-v0.10.27) (2026-10-25)
 
 
