@@ -184,7 +184,7 @@ jobs:
 
       - name: Upload the review evidence
         if: steps.prepare.outputs.review_needed == 'true'
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-review-context
           path: .context/codex-review
@@ -245,7 +245,7 @@ jobs:
           allow-bot-users: claude,sentry,seer-by-sentry,mintlify,posthog,viou-design-review,polylane
 
       - name: Upload the review output
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-review-output
           path: ${{ runner.temp }}/review-output.json
@@ -296,7 +296,7 @@ jobs:
         run: node scripts/codex-review/render.cjs --context-dir .context/codex-review
 
       - name: Upload the rendered review comment
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: codex-review-comment
           path: ${{ runner.temp }}/review-comment.md
