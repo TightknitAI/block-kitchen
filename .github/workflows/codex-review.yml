@@ -212,7 +212,7 @@ jobs:
           persist-credentials: false
 
       - name: Download the review evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-review-context
           path: .context/codex-review
@@ -229,7 +229,7 @@ jobs:
       # key out of the API proxy's memory; the `read-only` safety strategy doesn't.
       - name: Review with Codex
         id: codex
-        uses: openai/codex-action@86365089eb2b84e0a8fb0717b304f8bdcb13b20e # v1.12
+        uses: openai/codex-action@bdf19a4a223ec2549a3e2274a0cf61556bc07675 # v1.13
         with:
           openai-api-key: ${{ secrets.OPENAI_KEY }}
           codex-version: 0.156.1
@@ -272,14 +272,14 @@ jobs:
           node-version: 22
 
       - name: Download the review evidence
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-review-context
           path: .context/codex-review
 
       - name: Download the review output
         if: needs.codex_review.result == 'success'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-review-output
           path: ${{ runner.temp }}/codex-review-output
@@ -317,7 +317,7 @@ jobs:
     steps:
       - name: Download the rendered review comment
         if: needs.render_review.result == 'success'
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: codex-review-comment
           path: ${{ runner.temp }}/codex-review-comment
