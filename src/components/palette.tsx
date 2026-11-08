@@ -559,9 +559,9 @@ function LockedPaletteItem({
   return (
     <button
       type="button"
-      // Leads with the visible label so voice control still matches it; the
-      // lock icon alone wouldn't tell a screen reader the block can't be added.
-      aria-label={`${variant.label} (locked${variant.badge ? `, ${variant.badge.label}` : ''})`}
+      // Starts with the visible text (label, then badge) so voice control still
+      // matches it; the lock icon alone wouldn't say the block can't be added.
+      aria-label={`${variant.label}${variant.badge ? ` ${variant.badge.label}` : ''} (locked)`}
       onClick={() => {
         onPicked?.();
         select();

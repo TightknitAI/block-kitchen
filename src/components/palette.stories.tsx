@@ -253,7 +253,7 @@ export const BadgedAndLockedVariants: Story = {
     await expect(canvas.getByRole('button', { name: 'Add Share on LinkedIn to preview' })).toBeInTheDocument();
     await expect(canvas.queryByRole('button', { name: 'Add Share on X to preview' })).not.toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole('button', { name: 'Share on X (locked, Enterprise)' }));
+    await userEvent.click(canvas.getByRole('button', { name: 'Share on X Enterprise (locked)' }));
     const locked = args.sections[0].variants[1];
     await expect(locked.onLockedSelect).toHaveBeenCalledOnce();
     await expect(args.onAddBlock).not.toHaveBeenCalled();

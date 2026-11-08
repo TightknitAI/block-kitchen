@@ -57,7 +57,7 @@ it("shows a locked variant but won't add it, handing the pick to the host", () =
   );
 
   expect(screen.queryByRole('button', { name: 'Add Share to preview' })).toBeNull();
-  fireEvent.click(screen.getByRole('button', { name: 'Share (locked, Enterprise)' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Share Enterprise (locked)' }));
 
   expect(onLockedSelect).toHaveBeenCalledTimes(1);
   expect(onChange.mock.calls.flatMap(([blocks]) => blocks as SupportedBlock[])).toEqual([]);
