@@ -5,14 +5,17 @@ on:
     branches: [main]
 
 permissions:
-  contents: write
-  pull-requests: write
-  id-token: write
+  contents: read
 
 jobs:
   release-please:
+    permissions:
+      contents: write
+      pull-requests: write
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    outputs:
+      releases_created: ${{ steps.release.outputs.releases_created }}
     steps:
       - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         id: release
@@ -20,6 +23,18 @@ jobs:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
+  # Publishes in its own job so only these steps hold the OIDC publish token,
+  # and through the `npm` environment, which only main can deploy to.
+  publish:
+    needs: release-please
+    if: ${{ needs.release-please.outputs.releases_created == 'true' }}
+    environment: npm
+    permissions:
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
       # Everything below runs only when release-please merges its PR and
       # creates a release. Publish-side gating is intentionally minimal:
       # lint + typecheck + build. The full test suite (incl. Playwright)
@@ -27,19 +42,16 @@ jobs:
       # merged it to main, and re-installing Chromium on the npm-token-
       # bearing job widens the supply-chain surface for no security gain.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/setup
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - run: pnpm run lint
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - run: pnpm run typecheck
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       - run: pnpm run build:clean
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
 
       # Trusted Publisher (OIDC) needs npm CLI >= 11.5.1; Node 22 ships
       # with npm 10.x. Run the modern CLI via `npx` from its separate
@@ -53,7 +65,6 @@ jobs:
       # gets bumped. npm 11+ also requires an explicit --tag for
       # prereleases.
       - name: Publish to npm
-        if: ${{ steps.release.outputs.releases_created == 'true' }}
         env:
           NPM_VERSION: 12.0.2
         run: |
