@@ -39,8 +39,8 @@ jobs:
       # creates a release. Publish-side gating is intentionally minimal:
       # lint + typecheck + build. The full test suite (incl. Playwright)
       # already ran in CI against the same commit before release-please
-      # merged it to main, and re-installing Chromium on the npm-token-
-      # bearing job widens the supply-chain surface for no security gain.
+      # merged it to main, and re-installing Chromium on the job holding
+      # the publish credential widens the supply-chain surface for no gain.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
