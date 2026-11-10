@@ -44,8 +44,8 @@ wires it into:
 It also adds size guards (1 MiB) on the URL-state codec and JSON drawer
 to prevent UI freezes on pathological inputs, tightens the Dependabot
 auto-merge workflow to exclude security-sensitive packages, and trims
-the publish workflow so the npm-token-bearing job no longer reinstalls
-Chromium.
+the publish workflow so the job holding the npm publish credential no
+longer reinstalls Chromium.
 
 206 tests pass, lint clean, typecheck clean.
 
@@ -132,8 +132,9 @@ Chromium.
 
 - **OWASP**: A08 Software & Data Integrity (supply chain).
 - **Location**: [.github/workflows/publish.yml](.github/workflows/publish.yml) (before fix).
-- **Root cause**: the `publish` job — which holds `NPM_TOKEN` — re-installed Chromium and re-ran the entire Playwright-backed Vitest suite before `pnpm publish`. Every additional install on the token-bearing job is supply-chain surface area for nothing: the same tests already ran in CI against the same commit before release-please merged it to main.
+- **Root cause**: the `publish` job, which holds the npm publish credential, re-installed Chromium and re-ran the entire Playwright-backed Vitest suite before `pnpm publish`. Every additional install on the credential-bearing job is supply-chain surface area for nothing: the same tests already ran in CI against the same commit before release-please merged it to main.
 - **Fix**: publish runs lint + typecheck + build only. The verbose comment explains why.
+- **Update (2026-11)**: publishing no longer uses a long-lived `NPM_TOKEN`. The `publish` job gets a short-lived credential through npm trusted publishing (OIDC), runs in its own job, and deploys through the `npm` environment, which only `main` can use. The old token secret has been deleted.
 
 ### F-008 (Low) — Send-dialog OAuth link had `rel="noreferrer"` only
 
