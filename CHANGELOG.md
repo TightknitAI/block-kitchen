@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.10.29](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.28...block-kitchen-v0.10.29) (2026-11-13)
+
+
+### Bug Fixes
+
+* **palette:** keep a locked variant's visible text in its accessible name ([b4f0e87](https://github.com/TightknitAI/block-kitchen/commit/b4f0e87c35f4b4d89025d196f816b108dd442df1))
+
 ## [0.10.28](https://github.com/TightknitAI/block-kitchen/compare/block-kitchen-v0.10.27...block-kitchen-v0.10.28) (2026-10-27)
 
 
